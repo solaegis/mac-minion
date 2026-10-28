@@ -115,6 +115,9 @@ final class AppModel {
     private(set) var installingLibraries = false
     /// True once AddOns was read and matched since launch.
     private(set) var hasScanned = false
+    /// Launch finished loading: the first scan ran, or there was no catalog to scan against.
+    private(set) var startupDone = false
+    var isReady: Bool { hasScanned || startupDone }
     private(set) var scanError: String?
 
     // Work in progress
@@ -275,8 +278,11 @@ final class AppModel {
             catalogDate = cached.date
         }
         await rescan()
+        // With a cached catalog the first scan is done; without one, only after the download.
+        if offline || hasScanned { startupDone = true }
         guard !offline else { return }
         await refresh()
+        startupDone = true
         Task { await checkLoop() }
     }
 
@@ -348,7 +354,7 @@ final class AppModel {
     /// Waits for the first scan after launch, so agents and suggestions never see an empty list by accident.
     func waitUntilReady(seconds: Double = 30) async {
         let deadline = Date.now.addingTimeInterval(seconds)
-        while !hasScanned, Date.now < deadline { try? await Task.sleep(for: .milliseconds(200)) }
+        while !isReady, Date.now < deadline { try? await Task.sleep(for: .milliseconds(200)) }
     }
 
     // MARK: Install, update, remove
