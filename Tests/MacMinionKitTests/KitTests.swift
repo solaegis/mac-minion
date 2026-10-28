@@ -169,6 +169,8 @@ private func addon(_ id: Int, _ dirs: [String], version: String = "1", downloads
     #expect(r.url?.absoluteString == "http://localhost:11434/api/chat")
     let body = try #require(JSONSerialization.jsonObject(with: r.httpBody ?? Data()) as? [String: Any])
     #expect(body["model"] as? String == "llama3.2" && body["stream"] as? Bool == false)
+    #expect((body["options"] as? [String: Any])?["num_ctx"] as? Int == 16_384)
+    #expect(r.timeoutInterval == AIClient.idleTimeout)
 }
 
 @Test func parsesAnswers() throws {
@@ -204,4 +206,36 @@ private func addon(_ id: Int, _ dirs: [String], version: String = "1", downloads
     // Three columns: wide, wide leaves a gap at the end of row 0 that the next small card takes.
     let (slots, _) = BentoPacker.place([.wide, .wide, .small], columns: 3)
     #expect(slots.map { [$0.column, $0.row] } == [[0, 0], [0, 1], [2, 0]])
+}
+
+@Test func parsesStreams() throws {
+    #expect(try AIClient.ollamaChunk(#"{"message":{"role":"assistant","content":"• Fix"},"done":false}"#) == "• Fix")
+    #expect(try AIClient.ollamaChunk(#"{"done":true}"#) == nil)
+    #expect(throws: AIError.http(0, "model not found")) { try AIClient.ollamaChunk(#"{"error":"model not found"}"#) }
+    #expect(try AIClient.claudeEvent(#"data: {"type":"content_block_delta","index":1,"delta":{"type":"text_delta","text":"Hi"}}"#) == "Hi")
+    #expect(try AIClient.claudeEvent("event: ping") == nil)
+    #expect(try AIClient.claudeEvent(#"data: {"type":"content_block_delta","index":0,"delta":{"type":"thinking_delta","thinking":"x"}}"#) == nil)
+    #expect(throws: AIError.refused("no")) {
+        try AIClient.claudeEvent(#"data: {"type":"message_delta","delta":{"stop_reason":"refusal"},"stop_details":{"explanation":"no"}}"#)
+    }
+}
+
+@Test func changelogSinceInstalled() {
+    let log = "2.0 r43\n- fixed a crash\n\n2.0 r42 (consoles only)\n- console thing\n\n2.0 r41\n- old"
+    #expect(ChangelogText.since("2.0 r42", in: log, limit: 10_000) == .init(text: "2.0 r43\n- fixed a crash", shortened: false))
+    #expect(ChangelogText.since("9.9", in: log, limit: 10_000).text == log, "an unknown version keeps everything")
+    #expect(ChangelogText.since("2.0 r4", in: log, limit: 10_000).text == log, "2.0 r4 is not 2.0 r43")
+    let short = ChangelogText.since(nil, in: log, limit: 30)
+    #expect(short.shortened && short.text == "2.0 r43\n- fixed a crash")
+}
+
+@Test func recommendsAGeneralModelThatFits() throws {
+    let tags = #"{"models":[{"name":"nomic-embed-text:latest","size":274000000,"details":{"family":"nomic-bert","parameter_size":"137M"}},{"name":"phi4:latest","size":9100000000,"details":{"family":"phi3","parameter_size":"14.7B","context_length":16384}},{"name":"llama3.3:70b","size":42500000000,"details":{"family":"llama","parameter_size":"70.6B"}},{"name":"qwen2.5-coder:14b","size":9000000000,"details":{"family":"qwen2","parameter_size":"14.8B"}},{"name":"gemma4:latest","size":9500000000,"details":{"family":"","parameter_size":""}}]}"#
+    let models = try OllamaModel.decodeTags(Data(tags.utf8))
+    #expect(models.first { $0.name == "gemma4:latest" }.map { Int($0.billions) } == 15, "no parameter_size: estimated from the file size")
+    let pick = try #require(ModelAdvisor.recommend(models.filter { !$0.isEmbedding }, memoryBytes: 192 << 30))
+    #expect(pick.model == "gemma4:latest")
+    #expect(ModelAdvisor.rank(models, memoryBytes: 16 << 30).map(\.name) == ["gemma4:latest", "phi4:latest"],
+            "coding and embedding models never; llama 70B doesn't fit in 16 GB")
+    #expect(ModelAdvisor.rank(models, memoryBytes: 8 << 30).isEmpty, "nothing here fits in 8 GB with room to spare")
 }

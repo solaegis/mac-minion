@@ -31,6 +31,8 @@ struct ContentView: View {
             Text("These folders go to the Trash: \(addon.record.dirs.joined(separator: ", ")). Saved settings stay.")
         }
         .task {
+            AgentRouter.model = model
+            AgentSocket.listen { await AgentRouter.handle($0) }
             await SeedData.insertIfRequested(into: model)
             await model.start()
             SelfTest.runIfRequested(model: model)
@@ -321,7 +323,7 @@ struct AddonRow: View {
                 if let error = model.errors[addon.id] {
                     Label(error, systemImage: "exclamationmark.triangle")
                         .font(.caption)
-                        .foregroundStyle(Palette.caution)
+                        .foregroundStyle(Palette.negative)
                         .lineLimit(2)
                 }
             }
@@ -434,7 +436,7 @@ struct AddonDetail: View {
                     SummaryCard(addon: addon)
                 }
                 if let error = model.errors[addon.id] {
-                    Label(error, systemImage: "exclamationmark.triangle").foregroundStyle(Palette.caution)
+                    Label(error, systemImage: "exclamationmark.triangle").foregroundStyle(Palette.negative)
                 }
                 if let info {
                     text("Description", BBCode.plainText(info.description))
@@ -581,26 +583,22 @@ struct SummaryCard: View {
             }
             if let summary = model.summaries[addon.id] {
                 Text(summary).textSelection(.enabled).fixedSize(horizontal: false, vertical: true)
-                Text("Written by \(source). Check the changelog before relying on it.")
+                Text(model.summarizing.contains(addon.id) ? "\(model.aiSource) is writing…"
+                     : "Written by \(model.aiSource). Check the changelog before relying on it.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             } else if let error = model.summaryErrors[addon.id] {
-                Label(error, systemImage: "exclamationmark.triangle").foregroundStyle(Palette.caution)
-            } else if !model.summarizing.contains(addon.id) {
+                Label(error, systemImage: "exclamationmark.triangle").foregroundStyle(Palette.negative)
+            } else if model.summarizing.contains(addon.id) {
+                Text("Waiting for \(model.aiSource)… A local model may take a minute to load.")
+                    .font(.callout).foregroundStyle(.secondary)
+            } else {
                 Text(help).font(.callout).foregroundStyle(.secondary)
             }
         }
         .padding(Space.lg)
         .frame(maxWidth: .infinity, alignment: .leading)
         .accentSurface()
-    }
-
-    private var source: String {
-        switch model.prefs.aiProvider {
-        case .claude: model.prefs.claudeModel.title
-        case .ollama: "\(model.prefs.ollamaModel) on Ollama"
-        case .off: "the assistant"
-        }
     }
 
     private var help: String {
@@ -621,14 +619,14 @@ struct DigestSheet: View {
             Label("What the Updates Bring", systemImage: "sparkles")
                 .font(.title2.bold())
             Group {
-                if model.isDigesting {
+                if model.isDigesting && (model.digest ?? "").isEmpty {
                     VStack(spacing: Space.md) {
                         ProgressView()
                         Text("Reading \(model.updates.count) changelogs…").foregroundStyle(.secondary)
                     }
                     .frame(maxWidth: .infinity, minHeight: 160)
                 } else if let error = model.digestError {
-                    Label(error, systemImage: "exclamationmark.triangle").foregroundStyle(Palette.caution)
+                    Label(error, systemImage: "exclamationmark.triangle").foregroundStyle(Palette.negative)
                 } else if let digest = model.digest {
                     ScrollView {
                         Text(digest).textSelection(.enabled).frame(maxWidth: .infinity, alignment: .leading)

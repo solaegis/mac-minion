@@ -98,9 +98,9 @@ enum SelfTest {
             model.setLayout(.list)
             check("the layout switch changes the page on screen", model.prefs.installedLayout == .list && model.prefs.findMoreLayout == .grid)
             model.setLayout(.grid)
-            check("the top Find More results are featured", FindMoreGrid.span(for: 0) == .large && FindMoreGrid.span(for: 3) == .wide
-                  && FindMoreGrid.span(for: 9) == .small)
-            check("the accent is Minion red by default", ThemeStore.defaultID == "minion")
+            check("Find More features four results above a grid of equal cards", FindMoreGrid.featuredCount == 4)
+            check("the accent is Minion Blue by default", ThemeStore.defaultID == "minion"
+                  && Theme.all.first { $0.id == "minion" }?.shades?.base == 0x007AFF)
 
             print(failures == 0 ? "SELFTEST PASS \(count) checks" : "SELFTEST FAIL \(failures) of \(count) checks")
             finish(code: failures == 0 ? 0 : 1)

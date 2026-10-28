@@ -49,6 +49,11 @@ The bama plugin has a skill for each step: `mac-design` (design rules),
 `swift-swiftui`, `os-integrations`, `performance`, `build-and-verify`,
 `test-mac-app`, `app-icon`, `user-stories`, and `improve-loop`. Use them.
 
+## Agents
+
+- Drive the app with `macminion` (the app binary, linked to `~/.local/bin/macminion` by `build.sh`). See `.claude/skills/macminion/SKILL.md`. Commands live in `Sources/MacMinion/Agent/AgentCommands.swift` and call the same model code as the window.
+- Check it: `check-agent-cli.sh macminion` from the bama agent-cli skill (starts a test copy, never the real app).
+
 ## Git
 
 - Commit after each working change, with a message that says what the user can now do.

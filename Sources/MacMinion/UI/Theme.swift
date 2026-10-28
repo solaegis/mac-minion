@@ -31,8 +31,10 @@ struct Theme: Identifiable, Hashable {
     var onAccent: Color { darkText ? Color(hex: 0x16161C) : .white }
 
     static let all: [Theme] = [
-        // The Dock icon's red (Icon/AppIcon.icon fill, srgb 0.902 0.220 0.200 = #E63833).
-        Theme(id: "minion", name: "Minion", shades: .init(light: 0xFF8E86, base: 0xE63833, deep: 0xB3241F)),
+        // The Dock icon's blue (Icon/AppIcon.icon fill, srgb 0 0.478 1 = #007AFF), the Mac's own blue.
+        Theme(id: "minion", name: "Minion Blue", shades: .init(light: 0x6CB4FF, base: 0x007AFF, deep: 0x0062CC)),
+        // Minion's original red, from the Java app's icon.
+        Theme(id: "ember", name: "Minion Red", shades: .init(light: 0xFF8E86, base: 0xE63833, deep: 0xB3241F)),
         Theme(id: "system", name: "System", shades: nil),
         Theme(id: "blue", name: "Blue", shades: .init(light: 0x7CC0FF, base: 0x0A84FF, deep: 0x0064D2)),
         Theme(id: "indigo", name: "Indigo", shades: .init(light: 0xA5ADFF, base: 0x5E6AD2, deep: 0x4650B8)),
@@ -53,7 +55,7 @@ struct Theme: Identifiable, Hashable {
 final class ThemeStore {
     static let shared = ThemeStore()
 
-    /// The accent the app ships with: Minion red, the icon's color, so the app,
+    /// The accent the app ships with: Minion Blue, the icon's color, so the app,
     /// its charts, and its icon read as one thing. "System" stays in the picker.
     static let defaultID = "minion"
 
@@ -106,8 +108,8 @@ enum Palette {
 
     /// Healthy states: up to date, a passing connection test.
     static let positive = Color(light: 0x1E8E4E, dark: 0x4CD787, highContrastLight: 0x146B39, highContrastDark: 0x7BE6A8)
-    /// Problems: failed downloads and errors. Amber, so it never reads as the red accent.
-    static let caution = Color(light: 0xB25E00, dark: 0xFFB340, highContrastLight: 0x8A4700, highContrastDark: 0xFFCB75)
+    /// Problems: failed downloads, timeouts, and errors.
+    static let negative = Color(light: 0xD12B1F, dark: 0xFF6A5C, highContrastLight: 0xA31A10, highContrastDark: 0xFF9A90)
 }
 
 extension View {

@@ -130,7 +130,7 @@ struct AddonCard: View {
             if let error = model.errors[addon.id] {
                 Label(error, systemImage: "exclamationmark.triangle.fill")
                     .font(.caption)
-                    .foregroundStyle(Palette.caution)
+                    .foregroundStyle(Palette.negative)
                     .lineLimit(1)
             } else if let installed {
                 StatusChip(status: installed.status, version: versionText(installed))
@@ -330,20 +330,28 @@ struct FindMoreGrid: View {
     /// Cards shown so far; Show More adds a page. The full catalog in one layout pass would stall.
     @State private var limit = 120
 
+    /// How many results get wide cards in the featured section.
+    static let featuredCount = 4
+
     var body: some View {
         let results = model.findMoreResults
-        let shown = Array(results.prefix(limit))
-        let featured = model.prefs.featurePopular && model.search.isEmpty && model.sort != .name
+        let featuring = model.prefs.featurePopular && model.search.isEmpty && model.sort != .name
+        let featured = featuring ? Array(results.prefix(Self.featuredCount)) : []
+        let rest = Array(results.dropFirst(featured.count))
+        let shown = Array(rest.prefix(limit))
         ScrollView {
-            VStack(alignment: .leading, spacing: Space.xl) {
-                BentoLayout(minCellWidth: model.prefs.cardSize.minWidth, cellHeight: model.prefs.cardSize.cellHeight) {
-                    ForEach(Array(shown.enumerated()), id: \.element.id) { index, addon in
-                        let span = featured ? Self.span(for: index) : .small
-                        AddonCard(addon: addon, installed: model.installed(addon.id), span: span).bentoSpan(span)
+            VStack(alignment: .leading, spacing: Space.section) {
+                if !featured.isEmpty {
+                    BentoSection(title: model.sort.title, count: featured.count) {
+                        ForEach(featured) { card($0, span: .wide) }
                     }
                 }
-                if results.count > shown.count {
-                    Button("Show More (\((results.count - shown.count).formatted()) left)") { limit += 120 }
+                // Every card in the main grid is the same size.
+                BentoSection(title: featured.isEmpty ? "Results" : "More Addons", count: rest.count) {
+                    ForEach(shown) { card($0, span: .small) }
+                }
+                if rest.count > shown.count {
+                    Button("Show More (\((rest.count - shown.count).formatted()) left)") { limit += 120 }
                         .frame(maxWidth: .infinity)
                 }
             }
@@ -363,12 +371,7 @@ struct FindMoreGrid: View {
         }
     }
 
-    /// The top two results are large, the next four wide, the rest small.
-    static func span(for index: Int) -> BentoSpan {
-        switch index {
-        case 0..<2: .large
-        case 2..<6: .wide
-        default: .small
-        }
+    private func card(_ addon: CatalogAddon, span: BentoSpan) -> some View {
+        AddonCard(addon: addon, installed: model.installed(addon.id), span: span).bentoSpan(span)
     }
 }

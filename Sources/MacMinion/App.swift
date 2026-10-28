@@ -11,7 +11,6 @@ import SwiftUI
 //   APP_ACCENT=<id> MacMinion      run with another accent from Theme.all (UI/Theme.swift)
 //   APP_GRID=1 MacMinion           draw the 8 pt grid and the layout probes over the window
 
-@main
 struct MacMinionApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var delegate
     @State private var model = AppModel()

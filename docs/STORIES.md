@@ -134,7 +134,7 @@ Acceptance:
 Status: done
 
 ### S-015 Browse Installed and Find More as a bento grid
-As the user, I see Installed and Find More as a grid of cards: updates as wide cards first, libraries in their own section, the most popular Find More results as large cards. Selecting a card opens its details in an inspector.
+As the user, I see Installed and Find More as a grid of cards: updates as wide cards first, libraries in their own section, the top four Find More results as wide cards above a grid of equal cards. Selecting a card opens its details in an inspector.
 Screens: installed, findMore, settings-layout
 Acceptance:
 - [unit] Cards pack densely: small cards fill the gaps beside wide and large ones; wide cards shrink on one column.
@@ -143,10 +143,25 @@ Acceptance:
 Status: done
 
 ### S-016 One color scheme, matching the icon
-As the user, I see one red across the icon, the banner, charts, buttons, and selection; green means up to date and amber means a problem.
+As the user, I see one blue across the icon, the banner, charts, buttons, and selection; green means up to date and red means a problem.
 Acceptance:
-- [unit] The default accent is Minion red, the icon's fill.
+- [unit] The default accent is Minion Blue (#007AFF), the icon's fill.
 - [manual] No raw colors, radii, or durations outside the token files (design/DESIGN-SYSTEM.md).
+Status: done
+
+### S-017 Drive MacMinion from the command line
+As an agent (Claude Code, a script), I run `macminion <noun> <verb> --json` and the running app does it, like a button press.
+Acceptance:
+- [self] `check-agent-cli.sh macminion` prints PASS agent CLI (help, JSON errors, every read command, MCP tool list).
+- [unit] `addons remove` only reports the folders it would trash until `--yes`.
+- [manual] A fresh Claude Code session lists updates and summarizes one with the skill in `.claude/skills/macminion`.
+Status: done
+
+### S-018 Recommend an Ollama model
+As the user, I see which installed Ollama model suits changelog summaries on this Mac and can switch to it in one click.
+Acceptance:
+- [unit] Coding and embedding models are never recommended; models must fit in 60% of memory; near 12B and newer families rank first.
+- [snap] Settings > AI shows "Recommended: <model>" with a reason and a Use button.
 Status: done
 
 ## M6 Polish

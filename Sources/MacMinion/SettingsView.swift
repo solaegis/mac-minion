@@ -96,7 +96,7 @@ struct GeneralSettings: View {
             Toggle("Open at login", isOn: $openAtLogin)
                 .onChange(of: openAtLogin) { setOpenAtLogin(openAtLogin) }
             if let loginError {
-                Text(loginError).font(.caption).foregroundStyle(Palette.caution)
+                Text(loginError).font(.caption).foregroundStyle(Palette.negative)
             }
         }
         Section {
@@ -192,11 +192,11 @@ struct LayoutSettings: View {
         Section {
             Toggle("Put updates first, as wide cards", isOn: $prefs.featureUpdates)
             Toggle("Group libraries in their own section", isOn: $prefs.groupLibraries)
-            Toggle("Feature the most popular addons in Find More", isOn: $prefs.featurePopular)
+            Toggle("Show the top four Find More results above the grid", isOn: $prefs.featurePopular)
         } header: {
             Text("Grid")
         } footer: {
-            Text("Featured addons get larger cards. Find More features them only while it isn't searching or sorting by name.")
+            Text("Featured addons get wide cards in their own section; every card in the main grid is the same size. Find More features the top four only while it isn't searching or sorting by name.")
                 .foregroundStyle(.secondary)
         }
         .disabled(prefs.installedLayout == .list && prefs.findMoreLayout == .list)
@@ -205,7 +205,7 @@ struct LayoutSettings: View {
 
 struct AISettings: View {
     @Environment(AppModel.self) private var model
-    @State private var ollamaModels: [String] = []
+    @State private var ollamaModels: [OllamaModel] = []
     @State private var loadingModels = false
     @State private var testResult: String?
     @State private var testFailed = false
@@ -242,6 +242,18 @@ struct AISettings: View {
                         .disabled(loadingModels)
                         .help("Ask Ollama which models are installed")
                 }
+                if let pick = recommendation {
+                    LabeledContent {
+                        if pick.model == prefs.ollamaModel {
+                            Label("In use", systemImage: "checkmark.circle.fill").foregroundStyle(Palette.positive)
+                        } else {
+                            Button("Use \(pick.model)") { prefs.ollamaModel = pick.model }
+                        }
+                    } label: {
+                        Text("Recommended: \(pick.model)")
+                        Text(pick.reason)
+                    }
+                }
                 testRow
             }
             .task { await loadModels() }
@@ -269,9 +281,14 @@ struct AISettings: View {
         }
     }
 
+    private var recommendation: ModelAdvisor.Pick? {
+        ModelAdvisor.recommend(ollamaModels, memoryBytes: ProcessInfo.processInfo.physicalMemory)
+    }
+
     private var modelChoices: [String] {
+        let names = ollamaModels.map(\.name)
         let current = model.prefs.ollamaModel
-        return current.isEmpty || ollamaModels.contains(current) ? ollamaModels : [current] + ollamaModels
+        return current.isEmpty || names.contains(current) ? names : [current] + names
     }
 
     private var testRow: some View {
@@ -282,7 +299,7 @@ struct AISettings: View {
                 ProgressView().controlSize(.small)
             } else if let testResult {
                 Label(testResult, systemImage: testFailed ? "xmark.circle.fill" : "checkmark.circle.fill")
-                    .foregroundStyle(testFailed ? Palette.caution : Palette.positive)
+                    .foregroundStyle(testFailed ? Palette.negative : Palette.positive)
                     .lineLimit(2)
             }
         }
@@ -290,14 +307,17 @@ struct AISettings: View {
 
     private func loadModels() async {
         guard !Store.isOverridden else {
-            ollamaModels = ["llama3.2", "qwen3:8b"]
+            ollamaModels = [OllamaModel(name: "llama3.2", bytes: 2_000_000_000, family: "llama", billions: 3.2),
+                            OllamaModel(name: "phi4:latest", bytes: 9_100_000_000, family: "phi3", billions: 14.7, contextLength: 16_384)]
             return
         }
         loadingModels = true
         defer { loadingModels = false }
         do {
             ollamaModels = try await AIClient.ollamaModels(at: model.prefs.aiConfig.ollamaURL)
-            if model.prefs.ollamaModel.isEmpty, let first = ollamaModels.first { model.prefs.ollamaModel = first }
+            if model.prefs.ollamaModel.isEmpty, let pick = recommendation?.model ?? ollamaModels.first?.name {
+                model.prefs.ollamaModel = pick
+            }
             testResult = nil
         } catch {
             ollamaModels = []

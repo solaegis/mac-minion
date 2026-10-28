@@ -344,11 +344,30 @@ final class AppModel {
         defer { summarizing.remove(id) }
         do {
             let info = try await loadDetails(id)
+            let part = ChangelogText.since(installed(id)?.installedVersion, in: BBCode.plainText(info.changelog),
+                                           limit: changelogLimit)
             let prompt = AIPrompts.changes(name: addon.name, installed: installed(id)?.installedVersion,
-                                           latest: addon.version, changelog: BBCode.plainText(info.changelog))
-            summaries[id] = try await AIClient(config: prefs.aiConfig).complete(system: AIPrompts.system, prompt: prompt)
+                                           latest: addon.version, changelog: part.text, shortened: part.shortened)
+            summaries[id] = nil
+            // The text appears as the model writes it.
+            summaries[id] = try await AIClient(config: prefs.aiConfig).stream(system: AIPrompts.system, prompt: prompt) { text in
+                await MainActor.run { self.summaries[id] = text }
+            }
         } catch {
+            summaries[id] = nil
             summaryErrors[id] = error.localizedDescription
+        }
+    }
+
+    /// Changelog characters sent per addon. Local models get less, so the prompt fits their context window.
+    private var changelogLimit: Int { prefs.aiProvider == .claude ? 60_000 : 12_000 }
+
+    /// Who writes the summaries, for the card and the CLI.
+    var aiSource: String {
+        switch prefs.aiProvider {
+        case .claude: prefs.claudeModel.title
+        case .ollama: "\(prefs.ollamaModel) on Ollama"
+        case .off: "the assistant"
         }
     }
 
@@ -362,11 +381,15 @@ final class AppModel {
         defer { isDigesting = false }
         do {
             var items: [(name: String, installed: String?, latest: String, changelog: String)] = []
+            let share = max(1_500, changelogLimit / max(updates.count, 1))
             for addon in updates {
                 let info = try await loadDetails(addon.id)
-                items.append((addon.catalog.name, addon.installedVersion, addon.catalog.version, BBCode.plainText(info.changelog)))
+                let part = ChangelogText.since(addon.installedVersion, in: BBCode.plainText(info.changelog), limit: share)
+                items.append((addon.catalog.name, addon.installedVersion, addon.catalog.version, part.text))
             }
-            digest = try await AIClient(config: prefs.aiConfig).complete(system: AIPrompts.system, prompt: AIPrompts.digest(items))
+            digest = try await AIClient(config: prefs.aiConfig).stream(system: AIPrompts.system, prompt: AIPrompts.digest(items)) { text in
+                await MainActor.run { self.digest = text }
+            }
         } catch {
             digestError = error.localizedDescription
         }

@@ -49,6 +49,9 @@ fi
 xattr -cr "$app"
 codesign --force --sign "$identity" "$app" 2>&1 | grep -v "replacing existing signature" || true
 echo "installed $app (signed: ${identity})"
+# The CLI: the app binary under a short name on PATH (bama agent-cli skill).
+mkdir -p "$HOME/.local/bin"
+ln -sf "$app/Contents/MacOS/$name" "$HOME/.local/bin/macminion"
 
 if [[ " $* " == *" --open "* ]]; then
   osascript -e "quit app \"$name\"" 2>/dev/null || true
