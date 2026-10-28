@@ -42,7 +42,7 @@ struct ContentView: View {
 
     private var isWide: Bool {
         switch model.sidebar ?? .overview {
-        case .overview: true
+        case .overview, .backups: true
         case .installed: model.prefs.installedLayout == .grid
         case .findMore: model.prefs.findMoreLayout == .grid
         case .updates: false
@@ -56,11 +56,13 @@ struct ContentView: View {
         case .findMore: FindMorePage()
         case .updates: UpdatesList()
         case .overview: OverviewView()
+        case .backups: BackupsPage()
         }
     }
 
     private var inspectorShown: Binding<Bool> {
-        Binding(get: { model.selection != nil && model.sidebar != .overview }, set: { if !$0 { model.selection = nil } })
+        Binding(get: { model.selection != nil && model.sidebar != .overview && model.sidebar != .backups },
+                set: { if !$0 { model.selection = nil } })
     }
 
     private var browser: some View {
@@ -72,6 +74,7 @@ struct ContentView: View {
                 case .installed, .overview: InstalledPage()
                 case .updates: UpdatesList()
                 case .findMore: FindMorePage()
+                case .backups: BackupsPage()
                 }
             }
             .navigationSplitViewColumnWidth(min: 300, ideal: 380)
@@ -102,7 +105,7 @@ struct ContentView: View {
         switch page {
         case .installed: model.installed.count + model.unmatched.count
         case .updates: model.updates.count
-        case .findMore, .overview: 0
+        case .findMore, .overview, .backups: 0
         }
     }
 }

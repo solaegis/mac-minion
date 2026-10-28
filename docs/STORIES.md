@@ -213,11 +213,19 @@ Acceptance:
 Status: done
 
 ### S-025 Arrange the Overview
-As the user, I choose which Overview sections show and in what order: from Customize in the toolbar (drag or arrows), from Settings > Layout, or by right-clicking a section (Move Up, Move Down, Hide).
+As the user, I choose which Overview sections show and in what order: from Customize in the toolbar or Settings > Layout (check to show, drag to reorder), or by right-clicking a section (Move Up, Move Down, Hide).
 Acceptance:
 - [self] Moving, hiding, and Reset to Default work; order and hidden sections are saved.
 - [unit] Sections added in a later version join the saved order at their default place.
-- [snap] Settings > Layout lists every section with a checkbox and arrows.
+- [snap] The Customize sheet lists every section with a checkbox and a drag handle.
+Status: done
+
+### S-026 Back up and restore, compatible with Minion
+As the user, I back up SavedVariables, AddOnSettings.txt, UserSettings.txt, and my addon list (Backups page, Command-B, or weekly on its own), and restore any backup, including Minion's and Minion's first full AddOns backup.
+Acceptance:
+- [unit] Writes Minion's layout: <backup-dir>/minion-backups/<game id>/<yyyy-MM-dd>.zip with absolute entry paths, and <date>-addons.txt ("7,57,"); reads Minion's initial-backup/<game id>.zip.
+- [manual] Every real Minion backup unpacks and maps into the game folder (224 and 1,582 files); Minion's own Java reads a MacMinion zip.
+- [self] Restore brings back files, installs missing addons, optionally trashes others, saves the current state first; old backups beyond Keep go to the Trash.
 Status: done
 
 ## M6 Polish

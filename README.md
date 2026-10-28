@@ -17,6 +17,7 @@ MacMinion runs on this Mac only. There is no account and no server of its own. I
 - Ignore updates for addons you want to pin; Update All skips them
 - Remove an addon to the Trash; SavedVariables are left alone
 - Install any older release ESOUI still has (Version menu in an addon's details); older versions are pinned
+- Backups of SavedVariables, settings files, and the addon list, in Minion's own format and folder, so either app restores the other's (Backups in the sidebar, ⌘B)
 - Live or PTS AddOns folder (or any folder you choose)
 - Menu bar extra with the update count and Update All
 - Checks ESOUI for updates once a day by default (Settings → Updates)

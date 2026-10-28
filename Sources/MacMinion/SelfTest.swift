@@ -172,6 +172,35 @@ enum SelfTest {
             prefs.resetOverview()
             check("Reset restores every section in order", prefs.visibleOverview == OverviewSection.allCases)
 
+            // S-026 Backups in Minion's format
+            check("Minion's backups are listed: a dated one and the first one", model.backups.map(\.kind) == [.snapshot, .initial])
+            await model.backUp()
+            let today = model.backups.first
+            check("Back Up Now writes today's zip and addon list", today?.name == MinionBackup.dayFormat.string(from: .now)
+                  && today?.addonIDs.count == model.installed.count && model.backups.count == 3, model.backupError ?? "")
+            let harvestVars = model.gameFolder.appending(path: "SavedVariables/HarvestMap.lua")
+            let original = try? String(contentsOf: harvestVars, encoding: .utf8)
+            try? "HarvestMap_SavedVars = { broken }".write(to: harvestVars, atomically: true, encoding: .utf8)
+            if let today { await model.restore(today, options: .init(files: true, reinstallMissing: false, removeOthers: false)) }
+            check("Restore brings SavedVariables back", (try? String(contentsOf: harvestVars, encoding: .utf8)) == original, model.backupError ?? "")
+            check("Restore first saves what was there", FileManager.default.fileExists(atPath: model.restoreSafetyFolder.path))
+            if let dustman = model.installed(97) { await model.remove(dustman) }
+            await model.install(695)
+            if let today { await model.restore(today, options: .init(files: false, reinstallMissing: true, removeOthers: true)) }
+            check("Restore installs addons missing from the backup's list", model.installed(97) != nil, model.backupMessage ?? "")
+            check("Restore can remove addons not on the list", model.installed(695) == nil)
+            if let initial = model.backups.first(where: { $0.kind == .initial }) {
+                await model.restore(initial, options: .init(files: true, reinstallMissing: false, removeOthers: false))
+                let dustman = Manifest.read(folder: model.addonsFolder.appending(path: "Dustman"))
+                check("Minion's first backup restores AddOns folders", dustman?.version == "5.0")
+            }
+            model.prefs.backupsToKeep = 1
+            model.pruneBackups()
+            model.loadBackups()
+            check("Old backups beyond the number to keep go to the Trash, the first one stays",
+                  model.backups.map(\.kind) == [.snapshot, .initial])
+            model.prefs.backupsToKeep = 10
+
             // S-015 Layout
             check("Installed and Find More open as grids", model.prefs.installedLayout == .grid && model.prefs.findMoreLayout == .grid)
             model.sidebar = .installed

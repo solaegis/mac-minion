@@ -407,3 +407,45 @@ private func addon(_ id: Int, _ dirs: [String], version: String = "1", downloads
     let installed = InstalledAddon(catalog: fresh, record: InstallRecord(id: 1, version: "1", dirs: ["A1"]), manifest: nil)
     #expect(pass(BrowseFilter(status: .updateAvailable), fresh, installed: installed) && !pass(BrowseFilter(status: .upToDate), fresh, installed: installed))
 }
+
+@Test func backupsRoundTripInMinionsFormat() throws {
+    let fm = FileManager.default
+    let root = fm.temporaryDirectory.appending(path: "mm-backup-\(UUID().uuidString)")
+    defer { try? fm.removeItem(at: root) }
+    let game = root.appending(path: "Elder Scrolls Online/live")
+    try fm.createDirectory(at: game.appending(path: "SavedVariables"), withIntermediateDirectories: true)
+    try fm.createDirectory(at: game.appending(path: "AddOns/HarvestMap"), withIntermediateDirectories: true)
+    try "harvest = 1".write(to: game.appending(path: "SavedVariables/HarvestMap.lua"), atomically: true, encoding: .utf8)
+    try "SET X 1".write(to: game.appending(path: "AddOnSettings.txt"), atomically: true, encoding: .utf8)
+    try "SET Y 2".write(to: game.appending(path: "UserSettings.txt.bak-1"), atomically: true, encoding: .utf8)
+    try "not backed up".write(to: game.appending(path: "AddOns/HarvestMap/HarvestMap.txt"), atomically: true, encoding: .utf8)
+    let backupDir = root.appending(path: "minion")
+    let day = MinionBackup.dayFormat.date(from: "2026-10-28")!
+    let made = try MinionBackup.create(gameFolder: game, addonIDs: [7, 57], backupDir: backupDir, gameID: "ESO-1", date: day)
+    #expect(made.zip?.lastPathComponent == "2026-10-28.zip")
+    #expect(try String(contentsOf: made.addonList!, encoding: .utf8) == "7,57,", "Minion's id list: commas, trailing comma")
+
+    // The zip names are absolute paths, as Minion writes them, and unzip can read them.
+    let listing = Process()
+    listing.executableURL = URL(fileURLWithPath: "/usr/bin/unzip")
+    listing.arguments = ["-Z1", made.zip!.path]
+    let pipe = Pipe(); listing.standardOutput = pipe
+    try listing.run(); listing.waitUntilExit()
+    let names = String(decoding: pipe.fileHandleForReading.readDataToEndOfFile(), as: UTF8.self).split(separator: "\n").map(String.init)
+    #expect(names.count == 3 && names.allSatisfy { $0.hasPrefix("/") && !$0.contains("/AddOns/") })
+
+    // Restore maps the files into another game folder (another Mac, user, or PTS).
+    let other = root.appending(path: "Other/pts")
+    let files = try MinionBackup.unpack(made.zip!, into: root.appending(path: "work"), gameFolder: other)
+    #expect(Set(files.map { String($0.destination.path.dropFirst(other.path.count + 1)) })
+            == ["SavedVariables/HarvestMap.lua", "AddOnSettings.txt", "UserSettings.txt.bak-1"])
+
+    let listed = MinionBackup.list(backupDir: backupDir, gameID: "ESO-1")
+    #expect(listed.map(\.name) == ["2026-10-28"] && listed.first?.addonIDs == [7, 57])
+}
+
+@Test func readsMinionsBackupSettings() throws {
+    let xml = #"<minion><client><backup-dir>/Users/me/.minion</backup-dir></client><games><game game-id="ESO" unique-game-id="ESO-1"><addons/></game></games></minion>"#
+    let game = try #require(MinionImport.parse(Data(xml.utf8)))
+    #expect(game.uniqueID == "ESO-1" && game.backupDir == "/Users/me/.minion")
+}

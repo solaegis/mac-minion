@@ -5,7 +5,6 @@ import SwiftUI
 /// The home page: how the addons stand today and how MacMinion (and Minion before it) has kept them current.
 struct OverviewView: View {
     @Environment(AppModel.self) private var model
-    @State private var customizing = false
 
     var body: some View {
         ScrollView {
@@ -19,7 +18,7 @@ struct OverviewView: View {
                     ContentUnavailableView {
                         Label("Every Section Is Hidden", systemImage: "eye.slash")
                     } actions: {
-                        Button("Customize Overview…") { customizing = true }
+                        Button("Customize Overview…") { model.customizingOverview = true }
                     }
                 }
             }
@@ -32,11 +31,13 @@ struct OverviewView: View {
         .toolbar {
             RefreshButton()
             ToolbarItem {
-                Button("Customize Overview", systemImage: "slider.horizontal.3") { customizing = true }
+                Button("Customize Overview", systemImage: "slider.horizontal.3") { model.customizingOverview = true }
                     .help("Choose which sections the Overview shows, and their order")
             }
         }
-        .sheet(isPresented: $customizing) { OverviewCustomizeSheet() }
+        .sheet(isPresented: Binding(get: { model.customizingOverview }, set: { model.customizingOverview = $0 })) {
+            OverviewCustomizeSheet()
+        }
     }
 
     @ViewBuilder
@@ -82,20 +83,17 @@ struct OverviewView: View {
             .disabled(visible.last == section)
         Button("Hide \(section.title)", systemImage: "eye.slash") { prefs.setOverview(section, visible: false) }
         Divider()
-        Button("Customize Overview…") { customizing = true }
+        Button("Customize Overview…") { model.customizingOverview = true }
     }
 }
 
-/// The sections, in order, each with a show toggle and up/down buttons. Used in the Customize sheet
-/// and in Settings > Layout.
+/// The sections, in order, each with a show checkbox and a handle: drag a row to move it.
 struct OverviewSectionRows: View {
     @Environment(AppModel.self) private var model
-    /// Drag to reorder, inside a List.
-    var draggable = false
 
     var body: some View {
         let prefs = model.prefs
-        ForEach(Array(prefs.overviewOrder.enumerated()), id: \.element) { index, section in
+        ForEach(prefs.overviewOrder) { section in
             HStack(spacing: Space.md) {
                 Toggle(isOn: Binding(get: { !prefs.overviewHidden.contains(section) },
                                      set: { prefs.setOverview(section, visible: $0) })) {
@@ -110,33 +108,34 @@ struct OverviewSectionRows: View {
                 }
                 .toggleStyle(.checkbox)
                 Spacer()
-                Button("Move Up", systemImage: "chevron.up") { prefs.moveOverview(section, by: -1) }
-                    .labelStyle(.iconOnly)
-                    .help("Move \(section.title) up")
-                    .disabled(index == 0)
-                Button("Move Down", systemImage: "chevron.down") { prefs.moveOverview(section, by: 1) }
-                    .labelStyle(.iconOnly)
-                    .help("Move \(section.title) down")
-                    .disabled(index == prefs.overviewOrder.count - 1)
+                Image(systemName: "line.3.horizontal")
+                    .foregroundStyle(.secondary)
+                    .help("Drag to move \(section.title)")
+                    .accessibilityHidden(true)
             }
-            .labelStyle(.titleAndIcon)
-            .buttonStyle(.borderless)
+            .padding(.vertical, Space.xs)
+            .contentShape(.rect)
+            // VoiceOver and keyboard people get the moves as actions instead of a drag.
+            .accessibilityActions {
+                Button("Move Up") { prefs.moveOverview(section, by: -1) }
+                Button("Move Down") { prefs.moveOverview(section, by: 1) }
+            }
         }
-        .onMove(perform: draggable ? { prefs.moveOverview(from: $0, to: $1) } : nil)
+        .onMove { prefs.moveOverview(from: $0, to: $1) }
     }
 }
 
-private struct OverviewCustomizeSheet: View {
+struct OverviewCustomizeSheet: View {
     @Environment(AppModel.self) private var model
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
         VStack(alignment: .leading, spacing: Space.lg) {
             Text("Customize Overview").font(.title2.bold())
-            Text("Show or hide each section, and drag or use the arrows to change the order.")
+            Text("Check the sections to show. Drag a row to change the order.")
                 .foregroundStyle(.secondary)
             List {
-                OverviewSectionRows(draggable: true)
+                OverviewSectionRows()
             }
             .frame(minHeight: 340)
             HStack {

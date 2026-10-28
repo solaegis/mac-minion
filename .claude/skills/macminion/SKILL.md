@@ -38,6 +38,8 @@ ESOUI id: the number in `esoui.com/downloads/info<id>`.
 | `macminion addons versions <id> --json` / `addons install <id> --version V` | Older releases; installing one pins it |
 | `macminion ai models --json` | Ollama models ranked for this Mac, with the recommended one |
 | `macminion ai benchmark --json` | Measure the top three models' speed here, then recommend again |
+| `macminion backups list --json` / `backups create` | Minion-format backups of SavedVariables, settings, and the addon list |
+| `macminion backups restore <name> [--remove-others] --yes --json` | Restore one; reports first without `--yes`; saves the current state first |
 | `macminion open <page> [--addon <id>]` | Show overview, installed, updates, or findMore |
 
 Everything else: `macminion help`, and `macminion help <command>` for its options.

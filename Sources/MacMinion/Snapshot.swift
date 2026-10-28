@@ -36,7 +36,7 @@ enum Snapshot {
                 for page in SidebarItem.allCases where only?.contains(page.rawValue) ?? true {
                     // Show the detail column (or inspector) too: an addon with an update where the page has one.
                     let first = switch page {
-                    case .overview: nil as Int?
+                    case .overview, .backups: nil as Int?
                     case .updates, .installed: model.updates.first?.id ?? model.installed.first?.id
                     case .findMore: model.findMoreResults.first?.id
                     }
@@ -45,6 +45,15 @@ enum Snapshot {
                     if page == .findMore { model.findMoreFilter = mode == "dark" ? BrowseFilter(recency: .month, hideLibraries: true) : BrowseFilter() }
                     try? await Task.sleep(for: .seconds(1.2))
                     capture(to: "\(dir)/\(page.rawValue)-\(mode).png")
+                    // The Customize Overview sheet, over the Overview.
+                    if page == .overview {
+                        model.customizingOverview = true
+                        try? await Task.sleep(for: .seconds(1))
+                        let main = NSApp.windows.first { $0.canBecomeMain && !$0.isSheet }
+                        capture(to: "\(dir)/customize-\(mode).png", window: main?.attachedSheet)
+                        model.customizingOverview = false
+                        try? await Task.sleep(for: .seconds(0.5))
+                    }
                 }
             }
             if only == nil || only?.contains("settings") == true {

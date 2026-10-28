@@ -56,6 +56,28 @@ enum CardSize: String, CaseIterable, Identifiable {
     }
 }
 
+/// How often MacMinion backs up settings and SavedVariables on its own.
+enum BackupSchedule: String, CaseIterable, Identifiable {
+    case off, daily, weekly
+
+    var id: String { rawValue }
+    var title: String {
+        switch self {
+        case .off: "Never"
+        case .daily: "Every Day"
+        case .weekly: "Every Week"
+        }
+    }
+
+    var days: Double? {
+        switch self {
+        case .off: nil
+        case .daily: 1
+        case .weekly: 7
+        }
+    }
+}
+
 /// The sections of the Overview, in their default order.
 enum OverviewSection: String, CaseIterable, Identifiable {
     case banner, libraries, stats, recommended, search, history, activity, popular
@@ -120,6 +142,17 @@ final class Preferences {
     // General
     var showMenuBarItem: Bool { didSet { Self.save(showMenuBarItem, "app.menuBar") } }
 
+    // Backups
+    /// The folder Minion keeps backups in (holds minion-backups/ and initial-backup/).
+    var backupDir: String { didSet { Self.save(backupDir, "backup.dir") } }
+    /// Minion's name for this game install, "ESO-1"; backups go in minion-backups/<id>.
+    var backupGameID: String { didSet { Self.save(backupGameID, "backup.gameID") } }
+    var backupSchedule: BackupSchedule { didSet { Self.save(backupSchedule.rawValue, "backup.schedule") } }
+    /// Snapshots to keep; older ones go to the Trash. 0 keeps every one.
+    var backupsToKeep: Int { didSet { Self.save(backupsToKeep, "backup.keep") } }
+
+    var backupFolder: URL { URL(fileURLWithPath: (backupDir as NSString).expandingTildeInPath, isDirectory: true) }
+
     // Overview
     /// Every section, in the order the Overview shows them.
     var overviewOrder: [OverviewSection] { didSet { Self.save(overviewOrder.map(\.rawValue), "overview.order") } }
@@ -180,6 +213,13 @@ final class Preferences {
         concurrentUpdates = min(max(d.object(forKey: "updates.concurrent") as? Int ?? 2, 1), 4)
         notifyUpdates = d.bool(forKey: "updates.notify")
         showMenuBarItem = d.object(forKey: "app.menuBar") as? Bool ?? true
+        // Backups default to where Minion keeps its own, so both apps share them.
+        let minion = Self.persists ? MinionImport.read() : nil
+        backupDir = d.string(forKey: "backup.dir")
+            ?? (Self.persists ? minion?.backupDir ?? "~/.minion" : Store.directory.appending(path: "minion").path)
+        backupGameID = d.string(forKey: "backup.gameID") ?? minion?.uniqueID ?? "ESO-1"
+        backupSchedule = BackupSchedule(rawValue: d.string(forKey: "backup.schedule") ?? "") ?? .weekly
+        backupsToKeep = d.object(forKey: "backup.keep") as? Int ?? 10
         // Saved order first; sections added in a later version join at their default place.
         let saved = (d.stringArray(forKey: "overview.order") ?? []).compactMap(OverviewSection.init(rawValue:))
         var order = saved

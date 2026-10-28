@@ -194,6 +194,44 @@ enum AgentCommands {
             let failed = list.compactMap { l in model.errors[l.addon.id].map { ["name": l.addon.name, "error": $0] } }
             return ["installed": list.count - failed.count, "failed": failed, "remaining": model.missingLibraries.count]
         },
+        AgentCommand(name: "backups list", summary: "List backups in Minion's folder and format, newest first.",
+                     example: "macminion backups list --json", readOnly: true) { _, model in
+            model.loadBackups()
+            let rows: [JSONObject] = model.backups.map { b in
+                ["name": b.name, "kind": b.kind.rawValue, "date": b.date.map(JSON.date) ?? NSNull(), "addons": b.addonIDs.count,
+                 "bytes": b.bytes, "zip": b.zip?.path ?? NSNull()]
+            }
+            return ["folder": model.prefs.backupFolder.path, "game": model.prefs.backupGameID, "backups": rows]
+        },
+        AgentCommand(name: "backups create", summary: "Back up SavedVariables, settings files, and the addon list now, in Minion's format.",
+                     example: "macminion backups create --json") { _, model in
+            await model.backUp()
+            if let error = model.backupError { throw AgentError.invalid(error) }
+            return ["backup": model.backups.first?.name ?? "", "message": model.backupMessage ?? ""]
+        },
+        AgentCommand(name: "backups restore", summary: "Restore a backup by name (2026-09-14, or Initial). Saves the current state first.",
+                     params: [.init(name: "name", required: true, positional: true, help: "a name from `macminion backups list`"),
+                              .init(name: "no-files", kind: .boolean, help: "leave SavedVariables and settings files as they are"),
+                              .init(name: "no-install", kind: .boolean, help: "don't install addons missing from the backup's list"),
+                              .init(name: "remove-others", kind: .boolean, help: "move installed addons not on the list to the Trash")],
+                     example: "macminion backups restore 2026-09-14 --yes --json", destructive: true) { args, model in
+            model.loadBackups()
+            let name = try args.required("name")
+            guard let backup = model.backups.first(where: { $0.name.caseInsensitiveCompare(name) == .orderedSame }) else {
+                throw AgentError.notFound("no backup named \(name). Run `macminion backups list`")
+            }
+            let options = AppModel.RestoreOptions(files: try args.bool("no-files") != true, reinstallMissing: try args.bool("no-install") != true,
+                                                  removeOthers: try args.bool("remove-others") == true)
+            guard args.confirmed else {
+                return ["restored": false, "backup": backup.name, "wouldRestoreFiles": options.files && backup.zip != nil,
+                        "addonsOnList": backup.addonIDs.count, "removeOthers": options.removeOthers,
+                        "gameRunning": model.gameIsRunning, "hint": "add --yes to restore; the current state is saved first"]
+            }
+            if model.gameIsRunning { throw AgentError.invalid("Quit Elder Scrolls Online first: it rewrites SavedVariables when it quits") }
+            await model.restore(backup, options: options)
+            if let error = model.backupError { throw AgentError.invalid(error) }
+            return ["restored": true, "backup": backup.name, "message": model.backupMessage ?? ""]
+        },
         AgentCommand(name: "updates install", summary: "Update every addon that has an update, except ignored ones.",
                      example: "macminion updates install --json") { _, model in
             let before = model.updates.map { ($0.id, $0.catalog.name) }

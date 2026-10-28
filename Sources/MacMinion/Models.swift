@@ -4,7 +4,7 @@ import MacMinionKit
 
 /// The sidebar pages. Snapshot mode walks through every case.
 enum SidebarItem: String, CaseIterable, Identifiable {
-    case overview, installed, updates, findMore
+    case overview, installed, updates, findMore, backups
 
     var id: String { rawValue }
 
@@ -14,6 +14,7 @@ enum SidebarItem: String, CaseIterable, Identifiable {
         case .installed: "Installed"
         case .updates: "Updates"
         case .findMore: "Find More"
+        case .backups: "Backups"
         }
     }
 
@@ -23,6 +24,7 @@ enum SidebarItem: String, CaseIterable, Identifiable {
         case .installed: "puzzlepiece.extension"
         case .updates: "arrow.down.circle"
         case .findMore: "magnifyingglass"
+        case .backups: "clock.arrow.circlepath"
         }
     }
 }
@@ -72,6 +74,8 @@ final class AppModel {
     var selection: Selection?
     /// Selected after the next page change (the Overview opens an addon on another page).
     var pendingSelection: Selection?
+    /// The Customize Overview sheet is open.
+    var customizingOverview = false
     /// Settings reopens on the last tab. Test and snapshot runs leave it alone.
     var settingsTab: SettingsTab = SettingsTab(rawValue: UserDefaults.standard.string(forKey: "settings.tab") ?? "") ?? .general {
         didSet { if !Store.isOverridden { UserDefaults.standard.set(settingsTab.rawValue, forKey: "settings.tab") } }
@@ -283,6 +287,8 @@ final class AppModel {
         guard !offline else { return }
         await refresh()
         startupDone = true
+        loadBackups()
+        await backUpIfDue()
         Task { await checkLoop() }
     }
 
@@ -324,6 +330,7 @@ final class AppModel {
                 await refresh()
                 last = .now
             }
+            await backUpIfDue()
         }
     }
 
@@ -537,6 +544,143 @@ final class AppModel {
     func testAI() async throws -> String {
         try await AIClient(config: prefs.aiConfig).complete(system: "Answer in five words or fewer.",
                                                            prompt: "Say hello to an Elder Scrolls Online player.")
+    }
+
+    // MARK: Backups
+
+    /// Backups in Minion's folder, newest first, then Minion's initial backup.
+    private(set) var backups: [Backup] = []
+    private(set) var backupBusy: String?
+    var backupError: String?
+    var backupMessage: String?
+    var pendingRestore: Backup?
+
+    /// The folder AddOns sits in (`.../live`): SavedVariables and the settings files are here.
+    var gameFolder: URL { addonsFolder.deletingLastPathComponent() }
+
+    func loadBackups() {
+        backups = MinionBackup.list(backupDir: prefs.backupFolder, gameID: prefs.backupGameID)
+    }
+
+    /// Writes today's backup, Minion style, then trims old ones to the number Settings keeps.
+    func backUp() async {
+        guard backupBusy == nil else { return }
+        backupBusy = "Backing up…"
+        backupError = nil
+        defer { backupBusy = nil }
+        let game = gameFolder, ids = installed.map(\.id), dir = prefs.backupFolder, gameID = prefs.backupGameID
+        do {
+            let made = try await Task.detached { try MinionBackup.create(gameFolder: game, addonIDs: ids, backupDir: dir, gameID: gameID) }.value
+            backupMessage = "Backed up \(ids.count) addons and their settings (\(made.bytes.formatted(.byteCount(style: .file))))."
+            pruneBackups()
+        } catch {
+            backupError = "The backup failed: \(error.localizedDescription)"
+        }
+        loadBackups()
+    }
+
+    /// Moves snapshots beyond the number to keep to the Trash. The initial backup is never touched.
+    func pruneBackups() {
+        let keep = prefs.backupsToKeep
+        guard keep > 0 else { return }
+        let snapshots = MinionBackup.list(backupDir: prefs.backupFolder, gameID: prefs.backupGameID).filter { $0.kind == .snapshot }
+        for old in snapshots.dropFirst(keep) { trash(old) }
+    }
+
+    func deleteBackup(_ backup: Backup) {
+        trash(backup)
+        loadBackups()
+    }
+
+    private func trash(_ backup: Backup) {
+        for url in [backup.zip, backup.addonList].compactMap({ $0 }) { try? FileManager.default.trashItem(at: url, resultingItemURL: nil) }
+    }
+
+    /// Backs up on the schedule in Settings, when the newest backup is old enough.
+    func backUpIfDue() async {
+        guard let days = prefs.backupSchedule.days, isReady, !installed.isEmpty else { return }
+        loadBackups()
+        let newest = backups.first { $0.kind == .snapshot }?.date ?? .distantPast
+        if Date.now.timeIntervalSince(newest) >= days * 86_400 - 3_600 { await backUp() }
+    }
+
+    struct RestoreOptions: Equatable {
+        /// SavedVariables and the settings files (or AddOns folders, for an initial backup).
+        var files = true
+        /// Install addons on the backup's list that aren't installed.
+        var reinstallMissing = true
+        /// Move installed addons that aren't on the list to the Trash.
+        var removeOthers = false
+    }
+
+    /// True while Elder Scrolls Online runs; it rewrites SavedVariables when it quits.
+    var gameIsRunning: Bool {
+        NSWorkspace.shared.runningApplications.contains { app in
+            let name = (app.localizedName ?? "").lowercased(), id = (app.bundleIdentifier ?? "").lowercased()
+            return name.contains("elder scrolls") || name == "eso" || name.hasPrefix("eso64") || id.contains("zenimax")
+        }
+    }
+
+    /// Where a restore first saves what is there now, so a restore can itself be undone.
+    var restoreSafetyFolder: URL { Store.directory.appending(path: "restore-safety", directoryHint: .isDirectory) }
+
+    /// Restores a backup: its files (SavedVariables and settings, or AddOns folders for an initial
+    /// backup), then the addons on its list. Saves the current state first.
+    func restore(_ backup: Backup, options: RestoreOptions) async {
+        guard backupBusy == nil else { return }
+        backupBusy = "Saving what you have now…"
+        backupError = nil
+        defer { backupBusy = nil }
+        let fm = FileManager.default
+        let game = gameFolder, ids = installed.map(\.id), safety = restoreSafetyFolder, addons = addonsFolder
+        do {
+            _ = try await Task.detached { try MinionBackup.create(gameFolder: game, addonIDs: ids, backupDir: safety, gameID: "before-restore") }.value
+            var restoredFiles = 0
+            if options.files, let zip = backup.zip {
+                backupBusy = "Restoring files…"
+                let work = fm.temporaryDirectory.appending(path: "MacMinion-restore-\(UUID().uuidString)", directoryHint: .isDirectory)
+                defer { try? fm.removeItem(at: work) }
+                let files = try await Task.detached { try MinionBackup.unpack(zip, into: work, gameFolder: game) }.value
+                // A full AddOns backup replaces whole addon folders, so files from a newer version don't linger.
+                let addonFolders = Set(files.compactMap { f -> String? in
+                    let rel = f.destination.path.dropFirst(game.path.count + 1).split(separator: "/")
+                    return rel.count > 2 && rel[0] == "AddOns" ? String(rel[1]) : nil
+                })
+                for folder in addonFolders where fm.fileExists(atPath: addons.appending(path: folder).path) {
+                    try fm.trashItem(at: addons.appending(path: folder), resultingItemURL: nil)
+                }
+                for f in files {
+                    try fm.createDirectory(at: f.destination.deletingLastPathComponent(), withIntermediateDirectories: true)
+                    if fm.fileExists(atPath: f.destination.path) { try fm.removeItem(at: f.destination) }
+                    try fm.copyItem(at: f.source, to: f.destination)
+                    restoredFiles += 1
+                }
+            }
+            await rescan()
+            let list = Set(backup.addonIDs)
+            var installedCount = 0, removed = 0
+            if !list.isEmpty, options.reinstallMissing {
+                let missing = list.filter { installed($0) == nil && catalogAddon($0) != nil }.sorted()
+                for (n, id) in missing.enumerated() {
+                    backupBusy = "Installing \(n + 1) of \(missing.count)…"
+                    await install(id)
+                    if errors[id] == nil { installedCount += 1 }
+                }
+            }
+            if !list.isEmpty, options.removeOthers {
+                for addon in installed where !list.contains(addon.id) {
+                    await remove(addon)
+                    removed += 1
+                }
+            }
+            let parts = [restoredFiles > 0 ? "\(restoredFiles) files restored" : nil,
+                         installedCount > 0 ? "\(installedCount) addons installed" : nil,
+                         removed > 0 ? "\(removed) moved to the Trash" : nil].compactMap { $0 }
+            backupMessage = parts.isEmpty ? "Nothing needed restoring." : parts.joined(separator: ", ") + "."
+        } catch {
+            backupError = "The restore stopped: \(error.localizedDescription). What you had before is saved in \(safety.path)."
+        }
+        loadBackups()
     }
 
     // MARK: Ratings

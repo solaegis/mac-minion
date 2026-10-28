@@ -28,6 +28,7 @@ struct SettingsView: View {
             case .general: GeneralSettings()
             case .updates: UpdateSettings()
             case .layout: LayoutSettings()
+            case .backups: BackupSettings()
             case .ai: AISettings()
             case .appearance: AppearanceSettings()
             }
@@ -40,7 +41,7 @@ struct SettingsView: View {
 
 /// The Settings tabs. Snapshot mode walks through every case.
 enum SettingsTab: String, CaseIterable, Identifiable {
-    case general, updates, layout, ai, appearance
+    case general, updates, layout, backups, ai, appearance
 
     var id: String { rawValue }
 
@@ -49,6 +50,7 @@ enum SettingsTab: String, CaseIterable, Identifiable {
         case .general: "General"
         case .updates: "Updates"
         case .layout: "Layout"
+        case .backups: "Backups"
         case .ai: "AI"
         case .appearance: "Appearance"
         }
@@ -59,6 +61,7 @@ enum SettingsTab: String, CaseIterable, Identifiable {
         case .general: "gearshape"
         case .updates: "arrow.down.circle"
         case .layout: "square.grid.3x2"
+        case .backups: "clock.arrow.circlepath"
         case .ai: "sparkles"
         case .appearance: "paintpalette"
         }
@@ -164,18 +167,26 @@ struct UpdateSettings: View {
 
 struct LayoutSettings: View {
     @Environment(AppModel.self) private var model
+    @State private var customizing = false
 
     var body: some View {
         @Bindable var prefs = model.prefs
         Section {
-            OverviewSectionRows()
-            Button("Reset to Default") { prefs.resetOverview() }
+            LabeledContent("Sections") {
+                Text("\(prefs.visibleOverview.count) of \(OverviewSection.allCases.count) shown")
+            }
+            HStack {
+                Button("Customize Overview…") { customizing = true }
+                Spacer()
+                Button("Reset to Default") { prefs.resetOverview() }
+            }
         } header: {
             Text("Overview")
         } footer: {
-            Text("Checked sections show, top to bottom. You can also right-click a section on the Overview.")
+            Text("Choose the sections and drag them into order. You can also right-click a section on the Overview.")
                 .foregroundStyle(.secondary)
         }
+        .sheet(isPresented: $customizing) { OverviewCustomizeSheet() }
         Section {
             Picker("Installed", selection: $prefs.installedLayout) {
                 ForEach(BrowseLayout.allCases) { Text($0.title).tag($0) }

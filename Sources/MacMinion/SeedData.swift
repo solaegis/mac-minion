@@ -107,6 +107,24 @@ enum SeedData {
             AddonSuggestion(id: 1536, reason: "Crafts every daily writ in one click when you open a crafting station."),
             AddonSuggestion(id: 1605, reason: "Shows what a master writ is worth and what it takes, before you accept it."),
         ])
+        // The game folder around AddOns: SavedVariables and settings files, a backup from three days ago,
+        // and a Minion-style first backup of the whole AddOns folder.
+        let game = model.gameFolder
+        try? fm.createDirectory(at: game.appending(path: "SavedVariables"), withIntermediateDirectories: true)
+        for name in ["HarvestMap", "WritWorthy", "LibAddonMenu"] {
+            try? "\(name)_SavedVars =\n{\n    [\"Default\"] = { version = 1 },\n}\n"
+                .write(to: game.appending(path: "SavedVariables/\(name).lua"), atomically: true, encoding: .utf8)
+        }
+        try? "SET AddOnsEnabled \"1\"\n".write(to: game.appending(path: "AddOnSettings.txt"), atomically: true, encoding: .utf8)
+        try? "SET Language.2 \"en\"\n".write(to: game.appending(path: "UserSettings.txt"), atomically: true, encoding: .utf8)
+        let backupDir = model.prefs.backupFolder, gameID = model.prefs.backupGameID
+        _ = try? MinionBackup.create(gameFolder: game, addonIDs: records.keys.sorted(), backupDir: backupDir, gameID: gameID,
+                                     date: .now.addingTimeInterval(-3 * 86_400))
+        let initial = MinionBackup.initialZip(backupDir: backupDir, gameID: gameID)
+        try? fm.createDirectory(at: initial.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try? ZipWriter.write([ZipWriter.Entry(name: addons.appending(path: "Dustman/Dustman.txt").path,
+                                              data: Data("## Title: Dustman\n## Version: 5.0\n".utf8), modified: .now)], to: initial)
+        model.loadBackups()
         model.setSampleSuggestions([
             AddonSuggestion(id: 1360, reason: "Tracks guild store prices and sales history, so AwesomeGuildStore shows what items are worth."),
             AddonSuggestion(id: 1536, reason: "Crafts daily writs in one click; pairs with WritWorthy, which already values master writs."),

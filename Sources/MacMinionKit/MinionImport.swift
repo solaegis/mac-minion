@@ -9,6 +9,10 @@ public enum MinionImport {
 
     public struct Game: Sendable {
         public var addonPath: String?
+        /// "ESO-1": names Minion's backup folders.
+        public var uniqueID: String?
+        /// Where Minion keeps backups (`<client><backup-dir>`), usually ~/.minion.
+        public var backupDir: String?
         public var records: [Int: InstallRecord]
         /// Minion's auto-update log, as update events oldest first.
         public var history: [HistoryEvent] = []
@@ -44,6 +48,9 @@ public enum MinionImport {
         }()
         private var current: InstallRecord?
         private var text = ""
+        private var backupDir: String?
+
+        func parserDidEndDocument(_ parser: XMLParser) { game?.backupDir = backupDir }
 
         func parser(_ parser: XMLParser, didStartElement name: String, namespaceURI: String?, qualifiedName: String?, attributes a: [String: String] = [:]) {
             text = ""
@@ -51,7 +58,7 @@ public enum MinionImport {
             case "game" where a["game-id"] == "ESO":
                 inESO = true
                 let path = a["addon-path"].flatMap { Data(base64Encoded: $0) }.map { String(decoding: $0, as: UTF8.self) }
-                if game == nil { game = Game(addonPath: path, records: [:]) }
+                if game == nil { game = Game(addonPath: path, uniqueID: a["unique-game-id"], records: [:]) }
             case "addons" where inESO:
                 inAddons = true
             case "auto-updated" where inESO:
@@ -75,6 +82,7 @@ public enum MinionImport {
 
         func parser(_ parser: XMLParser, didEndElement name: String, namespaceURI: String?, qualifiedName: String?) {
             switch name {
+            case "backup-dir": backupDir = text.trimmingCharacters(in: .whitespacesAndNewlines)
             case "dir": current?.dirs.append(text.trimmingCharacters(in: .whitespacesAndNewlines))
             case "addon":
                 if let r = current, !r.dirs.isEmpty { game?.records[r.id] = r }
