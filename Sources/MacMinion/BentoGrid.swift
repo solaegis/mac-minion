@@ -120,8 +120,12 @@ struct AddonCard: View {
         .onHover { hovering = $0 }
         .onTapGesture { model.selection = .addon(addon.id) }
         .contextMenu { if let installed { InstalledMenu(addon: installed) } else { FindMoreMenu(addon: addon) } }
-        .accessibilityElement(children: .combine)
-        .accessibilityAddTraits(selected ? [.isButton, .isSelected] : .isButton)
+        // A container, not one combined button: combining made pressing the card press its first
+        // inner button (thumbs up). Its buttons stay separate; the card itself shows details.
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel(addon.name)
+        .accessibilityAddTraits(selected ? .isSelected : [])
+        .accessibilityAction(named: "Show Details") { model.selection = .addon(addon.id) }
     }
 
     @ViewBuilder
