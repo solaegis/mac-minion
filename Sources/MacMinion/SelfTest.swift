@@ -208,6 +208,12 @@ enum SelfTest {
                       && !FileManager.default.fileExists(atPath: model.addonsFolder.appending(path: folder.folder).path))
             }
 
+            // S-028 App updates: Sparkle is configured but never starts in test runs.
+            check("Sparkle has a feed URL and public key", Bundle.main.object(forInfoDictionaryKey: "SUFeedURL") as? String
+                  == "https://solaegis.github.io/mac-minion/appcast.xml"
+                  && (Bundle.main.object(forInfoDictionaryKey: "SUPublicEDKey") as? String)?.count == 44)
+            check("Sparkle doesn't run in test runs", !AppUpdater.enabled)
+
             // S-015 Layout
             check("Installed and Find More open as grids", model.prefs.installedLayout == .grid && model.prefs.findMoreLayout == .grid)
             model.sidebar = .installed

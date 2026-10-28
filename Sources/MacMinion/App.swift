@@ -14,6 +14,8 @@ import SwiftUI
 struct MacMinionApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var delegate
     @State private var model = AppModel()
+    /// MacMinion's own updates (Sparkle). Created at launch so scheduled checks run.
+    private let appUpdater = AppUpdater.shared
 
     var body: some Scene {
         Window("MacMinion", id: "main") {
@@ -38,7 +40,9 @@ struct MacMinionApp: App {
                     .disabled(model.sidebar != .installed && model.sidebar != .findMore)
             }
             CommandGroup(replacing: .newItem) {}
+            CommandGroup(after: .appInfo) { CheckForAppUpdatesButton() }
             AddonCommands(model: model)
+            HelpCommands(model: model)
         }
 
         Settings {

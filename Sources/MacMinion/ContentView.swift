@@ -23,6 +23,12 @@ struct ContentView: View {
             }
         }
         .navigationSubtitle(model.statusLine)
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                HelpLink { Docs.open(Docs.page(for: model.sidebar)) }
+                    .help("Open the documentation for this page")
+            }
+        }
         .onChange(of: model.sidebar) { model.selection = model.pendingSelection; model.pendingSelection = nil }
         .alert(removalTitle, isPresented: removalShown, presenting: model.pendingRemoval) { addon in
             Button("Move to Trash", role: .destructive) { Task { await model.remove(addon) } }

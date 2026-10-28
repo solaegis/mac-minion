@@ -34,6 +34,15 @@ struct SettingsView: View {
             }
         }
         .formStyle(.grouped)
+        // The standard round help button, opening this tab's page in the docs.
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            HStack {
+                Spacer()
+                HelpLink { Docs.open(Docs.page(for: tab)) }
+            }
+            .padding(.horizontal, Space.xl)
+            .padding(.bottom, Space.md)
+        }
         .fitsContent()
         .frame(width: 560)
     }
@@ -138,6 +147,7 @@ struct UpdateSettings: View {
 
     var body: some View {
         @Bindable var prefs = model.prefs
+        AppUpdateSettings()
         Section {
             Toggle("Check for updates automatically", isOn: $prefs.checkAutomatically)
             Picker("Check", selection: $prefs.checkInterval) {
@@ -145,7 +155,7 @@ struct UpdateSettings: View {
             }
             .disabled(!prefs.checkAutomatically)
         } header: {
-            Text("Checking")
+            Text("Addon Checks")
         } footer: {
             Text("MacMinion also checks each time it opens.").foregroundStyle(.secondary)
         }
@@ -157,7 +167,7 @@ struct UpdateSettings: View {
             Toggle("Notify me when updates are ready", isOn: $prefs.notifyUpdates)
                 .disabled(prefs.autoUpdate)
         } header: {
-            Text("Installing")
+            Text("Addon Installs")
         } footer: {
             Text("Automatic installs skip addons marked Ignore Updates. Turn off Minion's own auto-update so the two apps don't both write to AddOns.")
                 .foregroundStyle(.secondary)

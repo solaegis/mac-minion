@@ -14,4 +14,8 @@
 <key>LSApplicationCategoryType</key><string>public.app-category.productivity</string>
 <key>NSHighResolutionCapable</key><true/>
 <key>NSPrincipalClass</key><string>NSApplication</string>
+<key>SUFeedURL</key><string>https://solaegis.github.io/mac-minion/appcast.xml</string>
+<key>SUPublicEDKey</key><string>3Eb5UL7T93lj85T5BdP0XIX/kxhMace86KUnu05ksvQ=</string>
+<key>SUEnableAutomaticChecks</key><true/>
+<key>SUScheduledCheckInterval</key><integer>86400</integer>
 </dict></plist>

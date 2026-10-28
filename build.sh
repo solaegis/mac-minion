@@ -82,8 +82,22 @@ if [[ -d "$here/Icon/AppIcon.icon" ]]; then
   fi
   cp -X "$car" "$here/Resources/AppIcon.icns" "$app/Contents/Resources/"
 fi
+# Sparkle, for app updates: SwiftPM leaves the framework next to the binary.
+fw_src="$scratch/$config/Sparkle.framework"
+[[ -d "$fw_src" ]] || { echo "build failed: no Sparkle.framework in $scratch/$config"; exit 1; }
+mkdir -p "$app/Contents/Frameworks"
+ditto "$fw_src" "$app/Contents/Frameworks/Sparkle.framework"
 xattr -cr "$app"
-codesign --force --sign "$identity" "$app" 2>&1 | grep -v "replacing existing signature" || true
+sign() { codesign --force --sign "$identity" "$@" 2>&1 | grep -v "replacing existing signature" || true; }
+# Inside-out, never --deep (Sparkle's sandboxing guide): its helpers, the framework, then the app.
+fw="$app/Contents/Frameworks/Sparkle.framework/Versions/B"
+sign -o runtime "$fw/XPCServices/Installer.xpc"
+sign -o runtime --preserve-metadata=entitlements "$fw/XPCServices/Downloader.xpc"
+sign -o runtime "$fw/Autoupdate"
+sign -o runtime "$fw/Updater.app"
+sign -o runtime "$app/Contents/Frameworks/Sparkle.framework"
+sign "$app"
+codesign --verify --strict "$app" || { echo "build failed: the signature doesn't verify"; exit 1; }
 echo "installed $app (signed: ${identity}, version: ${version})"
 if [[ "$identity" == "-" && -z "${GITHUB_ACTIONS:-}" ]]; then
   echo "note: signed ad hoc, so macOS asks for Documents access after every build."
