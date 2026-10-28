@@ -30,6 +30,14 @@ struct ContentView: View {
         } message: { addon in
             Text("These folders go to the Trash: \(addon.record.dirs.joined(separator: ", ")). Saved settings stay.")
         }
+        .alert("Move “\(model.pendingFolderRemoval?.title ?? "")” to the Trash?",
+               isPresented: Binding(get: { model.pendingFolderRemoval != nil }, set: { if !$0 { model.pendingFolderRemoval = nil } }),
+               presenting: model.pendingFolderRemoval) { folder in
+            Button("Move to Trash", role: .destructive) { Task { await model.removeFolder(folder) } }
+            Button("Cancel", role: .cancel) {}
+        } message: { folder in
+            Text("The folder \(folder.folder) goes to the Trash. It isn't on ESOUI, so MacMinion can't reinstall it. Saved settings stay.")
+        }
         .task {
             AgentRouter.model = model
             AgentSocket.listen { await AgentRouter.handle($0) }

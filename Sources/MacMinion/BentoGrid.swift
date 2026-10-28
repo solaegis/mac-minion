@@ -147,6 +147,9 @@ struct AddonCard: View {
             }
             Spacer(minLength: 0)
             RatingButtons(id: addon.id)
+            if let installed, !model.busy.contains(addon.id) {
+                RemoveButton(name: addon.name) { model.pendingRemoval = installed }
+            }
             action
         }
     }
@@ -189,8 +192,12 @@ struct FolderCard: View {
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
             Spacer(minLength: 0)
-            if let version = folder.manifest?.version {
-                Text(version).font(.caption.monospacedDigit()).foregroundStyle(.secondary)
+            HStack {
+                if let version = folder.manifest?.version {
+                    Text(version).font(.caption.monospacedDigit()).foregroundStyle(.secondary)
+                }
+                Spacer(minLength: 0)
+                RemoveButton(name: folder.title) { model.pendingFolderRemoval = folder }
             }
         }
         .padding(Space.md)
@@ -198,7 +205,27 @@ struct FolderCard: View {
         .cardSurface(Radius.tile, selected: model.selection == .folder(folder.folder))
         .contentShape(.rect(cornerRadius: Radius.tile))
         .onTapGesture { model.selection = .folder(folder.folder) }
-        .contextMenu { Button("Show in Finder") { model.showInFinder(folder.folder) } }
+        .contextMenu {
+            Button("Show in Finder") { model.showInFinder(folder.folder) }
+            Divider()
+            Button("Remove…", role: .destructive) { model.pendingFolderRemoval = folder }
+        }
+    }
+}
+
+/// A small trash button on an installed tile. It asks first; the folders go to the Trash.
+struct RemoveButton: View {
+    let name: String
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: "trash")
+        }
+        .buttonStyle(.borderless)
+        .foregroundStyle(.secondary)
+        .help("Remove \(name)… Its folders go to the Trash; saved settings stay.")
+        .accessibilityLabel("Remove \(name)")
     }
 }
 

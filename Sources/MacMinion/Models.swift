@@ -129,6 +129,8 @@ final class AppModel {
     var errors: [Int: String] = [:]
     private(set) var batch: (done: Int, total: Int)?
     var pendingRemoval: InstalledAddon?
+    /// A folder not on ESOUI, waiting for the user to confirm its removal.
+    var pendingFolderRemoval: UnmatchedFolder?
 
     // Settings
     var addonsFolder: URL {
@@ -441,6 +443,17 @@ final class AppModel {
     }
 
     /// Moves the addon's folders to the Trash.
+    /// Moves a folder that isn't on ESOUI to the Trash.
+    func removeFolder(_ folder: UnmatchedFolder) async {
+        do {
+            try Installer(addons: addonsFolder).remove([folder.folder])
+            if selection == .folder(folder.folder) { selection = nil }
+            await rescan()
+        } catch {
+            scanError = "Couldn't move \(folder.folder) to the Trash: \(error.localizedDescription)"
+        }
+    }
+
     func remove(_ addon: InstalledAddon) async {
         do {
             try Installer(addons: addonsFolder).remove(addon.record.dirs)

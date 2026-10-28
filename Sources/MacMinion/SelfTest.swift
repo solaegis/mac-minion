@@ -201,6 +201,13 @@ enum SelfTest {
                   model.backups.map(\.kind) == [.snapshot, .initial])
             model.prefs.backupsToKeep = 10
 
+            // S-027 Remove from a tile, including folders not on ESOUI
+            if let folder = model.unmatched.first {
+                await model.removeFolder(folder)
+                check("a folder not on ESOUI can be removed", !model.unmatched.contains(folder)
+                      && !FileManager.default.fileExists(atPath: model.addonsFolder.appending(path: folder.folder).path))
+            }
+
             // S-015 Layout
             check("Installed and Find More open as grids", model.prefs.installedLayout == .grid && model.prefs.findMoreLayout == .grid)
             model.sidebar = .installed
