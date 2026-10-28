@@ -186,3 +186,22 @@ private func addon(_ id: Int, _ dirs: [String], version: String = "1", downloads
     #expect(AIConfig(provider: .ollama).problem == "Choose an Ollama model in Settings.")
     #expect(AIConfig(provider: .ollama, ollamaModel: "m").problem == nil)
 }
+
+@Test func bentoPacksDensely() {
+    // A 2x2 hero, then small cards: they fill the two columns beside it before starting a new row.
+    let (slots, rows) = BentoPacker.place([.large, .small, .small, .small, .small, .small], columns: 4)
+    #expect(slots.map { [$0.column, $0.row] } == [[0, 0], [2, 0], [3, 0], [2, 1], [3, 1], [0, 2]])
+    #expect(rows == 3)
+}
+
+@Test func bentoShrinksWideCardsOnNarrowGrids() {
+    let (slots, rows) = BentoPacker.place([.wide, .small], columns: 1)
+    #expect(slots.map(\.span) == [.small, .small])
+    #expect(rows == 2)
+}
+
+@Test func bentoFillsGapsLeftByWideCards() {
+    // Three columns: wide, wide leaves a gap at the end of row 0 that the next small card takes.
+    let (slots, _) = BentoPacker.place([.wide, .wide, .small], columns: 3)
+    #expect(slots.map { [$0.column, $0.row] } == [[0, 0], [0, 1], [2, 0]])
+}

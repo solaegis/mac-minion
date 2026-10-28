@@ -8,12 +8,15 @@ struct ContentView: View {
     var body: some View {
         @Bindable var model = model
         Group {
-            if model.sidebar == .overview {
-                // The overview fills the window; it has no list or detail column.
+            if isWide {
+                // The overview and the grids fill the window; details open in an inspector.
                 NavigationSplitView {
                     sidebar
                 } detail: {
-                    OverviewView()
+                    widePage
+                        .inspector(isPresented: inspectorShown) {
+                            DetailColumn().inspectorColumnWidth(min: 340, ideal: 400, max: 560)
+                        }
                 }
             } else {
                 browser
@@ -35,15 +38,38 @@ struct ContentView: View {
         }
     }
 
+    private var isWide: Bool {
+        switch model.sidebar ?? .overview {
+        case .overview: true
+        case .installed: model.prefs.installedLayout == .grid
+        case .findMore: model.prefs.findMoreLayout == .grid
+        case .updates: false
+        }
+    }
+
+    @ViewBuilder
+    private var widePage: some View {
+        switch model.sidebar ?? .overview {
+        case .installed: InstalledPage()
+        case .findMore: FindMorePage()
+        case .updates: UpdatesList()
+        case .overview: OverviewView()
+        }
+    }
+
+    private var inspectorShown: Binding<Bool> {
+        Binding(get: { model.selection != nil && model.sidebar != .overview }, set: { if !$0 { model.selection = nil } })
+    }
+
     private var browser: some View {
         NavigationSplitView {
             sidebar
         } content: {
             Group {
                 switch model.sidebar ?? .installed {
-                case .installed, .overview: InstalledList()
+                case .installed, .overview: InstalledPage()
                 case .updates: UpdatesList()
-                case .findMore: FindMoreList()
+                case .findMore: FindMorePage()
                 }
             }
             .navigationSplitViewColumnWidth(min: 300, ideal: 380)
@@ -75,6 +101,75 @@ struct ContentView: View {
         case .installed: model.installed.count + model.unmatched.count
         case .updates: model.updates.count
         case .findMore, .overview: 0
+        }
+    }
+}
+
+// MARK: - Pages
+
+/// Installed as a bento grid or a list, per Settings > Layout.
+struct InstalledPage: View {
+    @Environment(AppModel.self) private var model
+
+    var body: some View {
+        @Bindable var prefs = model.prefs
+        Group {
+            if prefs.installedLayout == .grid { InstalledGrid() } else { InstalledList() }
+        }
+        .navigationTitle("Installed")
+        .toolbar {
+            RefreshButton()
+            LayoutSwitch(layout: $prefs.installedLayout)
+        }
+    }
+}
+
+/// Find More as a bento grid or a list, with search and the filter menu.
+struct FindMorePage: View {
+    @Environment(AppModel.self) private var model
+
+    var body: some View {
+        @Bindable var model = model
+        @Bindable var prefs = model.prefs
+        Group {
+            if prefs.findMoreLayout == .grid { FindMoreGrid() } else { FindMoreList() }
+        }
+        .searchable(text: $model.search, placement: .toolbar, prompt: "Search addons or authors")
+        .navigationTitle("Find More")
+        .toolbar {
+            ToolbarItem {
+                Menu {
+                    Picker("Category", selection: $model.category) {
+                        Text("All Categories").tag(Int?.none)
+                        Divider()
+                        ForEach(model.categories.sorted { $0.title < $1.title }) { c in
+                            Text(c.title).tag(Int?.some(c.id))
+                        }
+                    }
+                    Picker("Sort By", selection: $model.sort) {
+                        ForEach(CatalogSort.allCases) { Text($0.title).tag($0) }
+                    }
+                } label: {
+                    Label("Filter", systemImage: "line.3.horizontal.decrease")
+                }
+                .help("Filter by category and choose the sort order")
+            }
+            LayoutSwitch(layout: $prefs.findMoreLayout)
+        }
+    }
+}
+
+/// Grid or list, in the toolbar.
+struct LayoutSwitch: ToolbarContent {
+    @Binding var layout: BrowseLayout
+
+    var body: some ToolbarContent {
+        ToolbarItem {
+            Picker("View", selection: $layout) {
+                ForEach(BrowseLayout.allCases) { Label($0.title, systemImage: $0.symbol).tag($0) }
+            }
+            .pickerStyle(.segmented)
+            .help("Show as a grid or a list (Option-Command-1, Option-Command-2)")
         }
     }
 }
@@ -117,8 +212,6 @@ struct InstalledList: View {
                 }
             }
         }
-        .navigationTitle("Installed")
-        .toolbar { RefreshButton() }
     }
 }
 
@@ -177,27 +270,6 @@ struct FindMoreList: View {
                 }
             }
         }
-        .searchable(text: $model.search, placement: .toolbar, prompt: "Search addons or authors")
-        .navigationTitle("Find More")
-        .toolbar {
-            ToolbarItem {
-                Menu {
-                    Picker("Category", selection: $model.category) {
-                        Text("All Categories").tag(Int?.none)
-                        Divider()
-                        ForEach(model.categories.sorted { $0.title < $1.title }) { c in
-                            Text(c.title).tag(Int?.some(c.id))
-                        }
-                    }
-                    Picker("Sort By", selection: $model.sort) {
-                        ForEach(CatalogSort.allCases) { Text($0.title).tag($0) }
-                    }
-                } label: {
-                    Label("Filter", systemImage: "line.3.horizontal.decrease")
-                }
-                .help("Filter by category and choose the sort order")
-            }
-        }
     }
 }
 
@@ -249,7 +321,7 @@ struct AddonRow: View {
                 if let error = model.errors[addon.id] {
                     Label(error, systemImage: "exclamationmark.triangle")
                         .font(.caption)
-                        .foregroundStyle(.red)
+                        .foregroundStyle(Palette.caution)
                         .lineLimit(2)
                 }
             }
@@ -278,7 +350,7 @@ struct AddonRow: View {
                     .buttonStyle(.borderedProminent)
             case .upToDate:
                 Image(systemName: "checkmark.circle.fill")
-                    .foregroundStyle(.green)
+                    .foregroundStyle(Palette.positive)
                     .help("Up to date")
             case .ignored:
                 Image(systemName: "bell.slash")
@@ -362,7 +434,7 @@ struct AddonDetail: View {
                     SummaryCard(addon: addon)
                 }
                 if let error = model.errors[addon.id] {
-                    Label(error, systemImage: "exclamationmark.triangle").foregroundStyle(.red)
+                    Label(error, systemImage: "exclamationmark.triangle").foregroundStyle(Palette.caution)
                 }
                 if let info {
                     text("Description", BBCode.plainText(info.description))
@@ -389,16 +461,7 @@ struct AddonDetail: View {
 
     private var header: some View {
         HStack(alignment: .top, spacing: Space.lg) {
-            AsyncImage(url: addon.thumbnails.first) { image in
-                image.resizable().scaledToFill()
-            } placeholder: {
-                Image(systemName: "puzzlepiece.extension")
-                    .font(.largeTitle)
-                    .foregroundStyle(.secondary)
-            }
-            .frame(width: 96, height: 96)
-            .background(.quaternary)
-            .clipShape(.rect(cornerRadius: Space.sm))
+            Thumbnail(url: addon.thumbnails.first, size: 96)
 
             VStack(alignment: .leading, spacing: Space.xs) {
                 Text(addon.name).font(.title2.bold()).textSelection(.enabled)
@@ -522,15 +585,14 @@ struct SummaryCard: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
             } else if let error = model.summaryErrors[addon.id] {
-                Label(error, systemImage: "exclamationmark.triangle").foregroundStyle(.red)
+                Label(error, systemImage: "exclamationmark.triangle").foregroundStyle(Palette.caution)
             } else if !model.summarizing.contains(addon.id) {
                 Text(help).font(.callout).foregroundStyle(.secondary)
             }
         }
         .padding(Space.lg)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Palette.accent.opacity(0.08), in: .rect(cornerRadius: Radius.tile))
-        .overlay { RoundedRectangle(cornerRadius: Radius.tile).strokeBorder(Palette.accent.opacity(0.3)) }
+        .accentSurface()
     }
 
     private var source: String {
@@ -566,7 +628,7 @@ struct DigestSheet: View {
                     }
                     .frame(maxWidth: .infinity, minHeight: 160)
                 } else if let error = model.digestError {
-                    Label(error, systemImage: "exclamationmark.triangle").foregroundStyle(.red)
+                    Label(error, systemImage: "exclamationmark.triangle").foregroundStyle(Palette.caution)
                 } else if let digest = model.digest {
                     ScrollView {
                         Text(digest).textSelection(.enabled).frame(maxWidth: .infinity, alignment: .leading)

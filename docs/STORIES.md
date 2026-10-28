@@ -133,6 +133,22 @@ Acceptance:
 - [unit] Test and snapshot runs keep settings in memory and never touch the Keychain.
 Status: done
 
+### S-015 Browse Installed and Find More as a bento grid
+As the user, I see Installed and Find More as a grid of cards: updates as wide cards first, libraries in their own section, the most popular Find More results as large cards. Selecting a card opens its details in an inspector.
+Screens: installed, findMore, settings-layout
+Acceptance:
+- [unit] Cards pack densely: small cards fill the gaps beside wide and large ones; wide cards shrink on one column.
+- [snap] A toolbar switch (and Option-Command-1/2) changes grid and list per page.
+- [snap] Settings > Layout: Installed and Find More layout, card size, preview images, updates first, group libraries, feature popular.
+Status: done
+
+### S-016 One color scheme, matching the icon
+As the user, I see one red across the icon, the banner, charts, buttons, and selection; green means up to date and amber means a problem.
+Acceptance:
+- [unit] The default accent is Minion red, the icon's fill.
+- [manual] No raw colors, radii, or durations outside the token files (design/DESIGN-SYSTEM.md).
+Status: done
+
 ## M6 Polish
 
 ### S-011 App icon and empty states

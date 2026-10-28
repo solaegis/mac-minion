@@ -146,6 +146,7 @@ private struct StatTile: View {
     var highlighted = false
     let action: () -> Void
     @State private var hovering = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         Button(action: action) {
@@ -154,7 +155,7 @@ private struct StatTile: View {
                     .font(.title3)
                     .foregroundStyle(highlighted ? Palette.onAccent : Palette.accentText)
                     .frame(width: 32, height: 32)
-                    .background(highlighted ? AnyShapeStyle(Palette.accent) : AnyShapeStyle(Palette.accent.opacity(0.14)),
+                    .background(highlighted ? AnyShapeStyle(Palette.accent) : AnyShapeStyle(Palette.accentWash),
                                 in: .circle)
                 Text(value)
                     .font(.title.bold())
@@ -168,14 +169,9 @@ private struct StatTile: View {
             }
             .padding(Space.lg)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(.background.secondary, in: .rect(cornerRadius: Radius.tile))
-            .overlay {
-                RoundedRectangle(cornerRadius: Radius.tile)
-                    .strokeBorder(highlighted ? AnyShapeStyle(Palette.accent) : AnyShapeStyle(.separator),
-                                  lineWidth: highlighted ? 2 : 1)
-            }
-            .scaleEffect(hovering ? 1.02 : 1)
-            .animation(.snappy(duration: 0.15), value: hovering)
+            .cardSurface(Radius.tile, selected: highlighted)
+            .scaleEffect(Motion.hoverScale(hovering, reduceMotion: reduceMotion))
+            .animation(Motion.hover, value: hovering)
             .contentShape(.rect(cornerRadius: Radius.tile))
         }
         .buttonStyle(.plain)
@@ -206,8 +202,7 @@ private struct OverviewCard<Content: View, Accessory: View>: View {
         }
         .padding(Space.xl)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .background(.background.secondary, in: .rect(cornerRadius: Radius.card))
-        .overlay { RoundedRectangle(cornerRadius: Radius.card).strokeBorder(.separator) }
+        .cardSurface()
     }
 }
 
@@ -243,7 +238,7 @@ private struct ActivityChartCard: View {
                 Chart(weeks) { week in
                     BarMark(x: .value("Week", week.start, unit: .weekOfYear), y: .value("Updates", week.count))
                         .foregroundStyle(Palette.accent.gradient)
-                        .cornerRadius(Space.xs / 2)
+                        .cornerRadius(Radius.bar)
                 }
                 .chartXAxis {
                     AxisMarks(values: .stride(by: .month)) {
@@ -270,7 +265,7 @@ private struct CategoryCard: View {
                 Chart(rows) { row in
                     BarMark(x: .value("Addons", row.count), y: .value("Category", row.name))
                         .foregroundStyle(Palette.accent.gradient)
-                        .cornerRadius(Space.xs / 2)
+                        .cornerRadius(Radius.bar)
                         .annotation(position: .trailing, spacing: Space.xs) {
                             Text("\(row.count)").font(.caption).monospacedDigit().foregroundStyle(.secondary)
                         }
@@ -418,7 +413,8 @@ private struct PopularCard: View {
             .prefix(6)
         OverviewCard(title: "Popular This Month", symbol: "sparkles") {
             Button("Find More") { model.open(.findMore) }
-                .buttonStyle(.link)
+                .buttonStyle(.plain)
+                .foregroundStyle(Palette.accentText)
         } content: {
             if picks.isEmpty {
                 CardEmpty(text: "You have every popular addon already.")
@@ -439,14 +435,7 @@ private struct PopularRow: View {
 
     var body: some View {
         HStack(spacing: Space.md) {
-            AsyncImage(url: addon.thumbnails.first) { image in
-                image.resizable().scaledToFill()
-            } placeholder: {
-                Image(systemName: "puzzlepiece.extension").foregroundStyle(.secondary)
-            }
-            .frame(width: 44, height: 44)
-            .background(.quaternary)
-            .clipShape(.rect(cornerRadius: Space.sm))
+            Thumbnail(url: addon.thumbnails.first, size: 44)
             VStack(alignment: .leading, spacing: Space.xs / 2) {
                 Text(addon.name).lineLimit(1)
                 Text("\(addon.author) · \(addon.downloadsMonthly.formatted(.number.notation(.compactName))) this month")

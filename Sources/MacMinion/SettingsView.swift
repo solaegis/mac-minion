@@ -27,6 +27,7 @@ struct SettingsView: View {
             switch tab {
             case .general: GeneralSettings()
             case .updates: UpdateSettings()
+            case .layout: LayoutSettings()
             case .ai: AISettings()
             case .appearance: AppearanceSettings()
             }
@@ -39,7 +40,7 @@ struct SettingsView: View {
 
 /// The Settings tabs. Snapshot mode walks through every case.
 enum SettingsTab: String, CaseIterable, Identifiable {
-    case general, updates, ai, appearance
+    case general, updates, layout, ai, appearance
 
     var id: String { rawValue }
 
@@ -47,6 +48,7 @@ enum SettingsTab: String, CaseIterable, Identifiable {
         switch self {
         case .general: "General"
         case .updates: "Updates"
+        case .layout: "Layout"
         case .ai: "AI"
         case .appearance: "Appearance"
         }
@@ -56,6 +58,7 @@ enum SettingsTab: String, CaseIterable, Identifiable {
         switch self {
         case .general: "gearshape"
         case .updates: "arrow.down.circle"
+        case .layout: "square.grid.3x2"
         case .ai: "sparkles"
         case .appearance: "paintpalette"
         }
@@ -93,7 +96,7 @@ struct GeneralSettings: View {
             Toggle("Open at login", isOn: $openAtLogin)
                 .onChange(of: openAtLogin) { setOpenAtLogin(openAtLogin) }
             if let loginError {
-                Text(loginError).font(.caption).foregroundStyle(.red)
+                Text(loginError).font(.caption).foregroundStyle(Palette.caution)
             }
         }
         Section {
@@ -156,6 +159,47 @@ struct UpdateSettings: View {
             Text("Automatic installs skip addons marked Ignore Updates. Turn off Minion's own auto-update so the two apps don't both write to AddOns.")
                 .foregroundStyle(.secondary)
         }
+    }
+}
+
+struct LayoutSettings: View {
+    @Environment(AppModel.self) private var model
+
+    var body: some View {
+        @Bindable var prefs = model.prefs
+        Section {
+            Picker("Installed", selection: $prefs.installedLayout) {
+                ForEach(BrowseLayout.allCases) { Text($0.title).tag($0) }
+            }
+            Picker("Find More", selection: $prefs.findMoreLayout) {
+                ForEach(BrowseLayout.allCases) { Text($0.title).tag($0) }
+            }
+        } header: {
+            Text("Show As")
+        } footer: {
+            Text("Switch any time from the toolbar, or with Option-Command-1 and Option-Command-2.")
+                .foregroundStyle(.secondary)
+        }
+        Section {
+            Picker("Card size", selection: $prefs.cardSize) {
+                ForEach(CardSize.allCases) { Text($0.title).tag($0) }
+            }
+            .pickerStyle(.segmented)
+            Toggle("Show preview images", isOn: $prefs.showThumbnails)
+        } header: {
+            Text("Cards")
+        }
+        Section {
+            Toggle("Put updates first, as wide cards", isOn: $prefs.featureUpdates)
+            Toggle("Group libraries in their own section", isOn: $prefs.groupLibraries)
+            Toggle("Feature the most popular addons in Find More", isOn: $prefs.featurePopular)
+        } header: {
+            Text("Grid")
+        } footer: {
+            Text("Featured addons get larger cards. Find More features them only while it isn't searching or sorting by name.")
+                .foregroundStyle(.secondary)
+        }
+        .disabled(prefs.installedLayout == .list && prefs.findMoreLayout == .list)
     }
 }
 
@@ -238,7 +282,7 @@ struct AISettings: View {
                 ProgressView().controlSize(.small)
             } else if let testResult {
                 Label(testResult, systemImage: testFailed ? "xmark.circle.fill" : "checkmark.circle.fill")
-                    .foregroundStyle(testFailed ? .red : .green)
+                    .foregroundStyle(testFailed ? Palette.caution : Palette.positive)
                     .lineLimit(2)
             }
         }

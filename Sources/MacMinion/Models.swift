@@ -309,6 +309,15 @@ final class AppModel {
         }
     }
 
+    /// Grid or list for the page on screen (Installed or Find More).
+    func setLayout(_ layout: BrowseLayout) {
+        switch sidebar {
+        case .installed: prefs.installedLayout = layout
+        case .findMore: prefs.findMoreLayout = layout
+        default: break
+        }
+    }
+
     /// Opens a page with one addon selected.
     func open(_ page: SidebarItem, selecting id: Int? = nil) {
         pendingSelection = id.map { .addon($0) }

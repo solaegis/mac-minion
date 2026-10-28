@@ -92,6 +92,16 @@ enum SelfTest {
             check("Ollama without a model asks for one", model.summaryErrors[7] == "Choose an Ollama model in Settings.")
             check("settings stay in memory in test runs", Preferences().aiProvider == .off)
 
+            // S-015 Layout
+            check("Installed and Find More open as grids", model.prefs.installedLayout == .grid && model.prefs.findMoreLayout == .grid)
+            model.sidebar = .installed
+            model.setLayout(.list)
+            check("the layout switch changes the page on screen", model.prefs.installedLayout == .list && model.prefs.findMoreLayout == .grid)
+            model.setLayout(.grid)
+            check("the top Find More results are featured", FindMoreGrid.span(for: 0) == .large && FindMoreGrid.span(for: 3) == .wide
+                  && FindMoreGrid.span(for: 9) == .small)
+            check("the accent is Minion red by default", ThemeStore.defaultID == "minion")
+
             print(failures == 0 ? "SELFTEST PASS \(count) checks" : "SELFTEST FAIL \(failures) of \(count) checks")
             finish(code: failures == 0 ? 0 : 1)
         }

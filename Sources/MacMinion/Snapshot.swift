@@ -33,12 +33,14 @@ enum Snapshot {
             for mode in ["light", "dark"] {
                 NSApp.appearance = NSAppearance(named: mode == "light" ? .aqua : .darkAqua)
                 for page in SidebarItem.allCases where only?.contains(page.rawValue) ?? true {
-                    model.sidebar = page
-                    // Show the detail column too: the first addon on the page.
-                    try? await Task.sleep(for: .seconds(0.2))
-                    let first = page == .updates ? model.updates.first?.id : page == .installed ? model.installed.first?.id : model.findMoreResults.first?.id
-                    model.selection = first.map { .addon($0) }
-                    try? await Task.sleep(for: .seconds(0.8))
+                    // Show the detail column (or inspector) too: an addon with an update where the page has one.
+                    let first = switch page {
+                    case .overview: nil as Int?
+                    case .updates, .installed: model.updates.first?.id ?? model.installed.first?.id
+                    case .findMore: model.findMoreResults.first?.id
+                    }
+                    model.open(page, selecting: first)
+                    try? await Task.sleep(for: .seconds(1.2))
                     capture(to: "\(dir)/\(page.rawValue)-\(mode).png")
                 }
             }

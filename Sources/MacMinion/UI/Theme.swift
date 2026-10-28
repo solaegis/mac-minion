@@ -31,6 +31,8 @@ struct Theme: Identifiable, Hashable {
     var onAccent: Color { darkText ? Color(hex: 0x16161C) : .white }
 
     static let all: [Theme] = [
+        // The Dock icon's red (Icon/AppIcon.icon fill, srgb 0.902 0.220 0.200 = #E63833).
+        Theme(id: "minion", name: "Minion", shades: .init(light: 0xFF8E86, base: 0xE63833, deep: 0xB3241F)),
         Theme(id: "system", name: "System", shades: nil),
         Theme(id: "blue", name: "Blue", shades: .init(light: 0x7CC0FF, base: 0x0A84FF, deep: 0x0064D2)),
         Theme(id: "indigo", name: "Indigo", shades: .init(light: 0xA5ADFF, base: 0x5E6AD2, deep: 0x4650B8)),
@@ -51,9 +53,9 @@ struct Theme: Identifiable, Hashable {
 final class ThemeStore {
     static let shared = ThemeStore()
 
-    /// The accent the app ships with. Keep "system", so the app follows the
-    /// accent people chose for their Mac.
-    static let defaultID = "system"
+    /// The accent the app ships with: Minion red, the icon's color, so the app,
+    /// its charts, and its icon read as one thing. "System" stays in the picker.
+    static let defaultID = "minion"
 
     /// The app's brand color, or nil. Like Apple's own apps, the brand shows
     /// only while the Mac's accent is Multicolor (System Settings >
@@ -96,6 +98,16 @@ enum Palette {
     static var accent: Color { ThemeStore.shared.theme.accent }
     static var accentText: Color { ThemeStore.shared.theme.accentText }
     static var onAccent: Color { ThemeStore.shared.theme.onAccent }
+
+    /// A soft accent fill behind a card or chip that belongs to the accent (the AI card, icon wells).
+    static var accentWash: Color { accent.opacity(0.10) }
+    /// The border of an accent wash, and the selection ring on cards.
+    static var accentEdge: Color { accent.opacity(0.32) }
+
+    /// Healthy states: up to date, a passing connection test.
+    static let positive = Color(light: 0x1E8E4E, dark: 0x4CD787, highContrastLight: 0x146B39, highContrastDark: 0x7BE6A8)
+    /// Problems: failed downloads and errors. Amber, so it never reads as the red accent.
+    static let caution = Color(light: 0xB25E00, dark: 0xFFB340, highContrastLight: 0x8A4700, highContrastDark: 0xFFCB75)
 }
 
 extension View {

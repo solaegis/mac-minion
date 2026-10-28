@@ -1,4 +1,5 @@
 import Foundation
+import CoreGraphics
 import MacMinionKit
 import Security
 import UserNotifications
@@ -17,6 +18,40 @@ enum CheckInterval: Int, CaseIterable, Identifiable {
         case .sixHours: "Every 6 Hours"
         case .twelveHours: "Every 12 Hours"
         case .day: "Once a Day"
+        }
+    }
+}
+
+/// How Installed and Find More show their addons.
+enum BrowseLayout: String, CaseIterable, Identifiable {
+    case grid, list
+
+    var id: String { rawValue }
+    var title: String { self == .grid ? "Grid" : "List" }
+    var symbol: String { self == .grid ? "square.grid.2x2" : "list.bullet" }
+}
+
+/// The size of one bento cell. Wide and large cards span two.
+enum CardSize: String, CaseIterable, Identifiable {
+    case compact, regular, large
+
+    var id: String { rawValue }
+    var title: String { rawValue.capitalized }
+
+    /// The narrowest a one-cell card gets; the grid fits as many columns as it can.
+    var minWidth: CGFloat {
+        switch self {
+        case .compact: 168
+        case .regular: 208
+        case .large: 256
+        }
+    }
+
+    var cellHeight: CGFloat {
+        switch self {
+        case .compact: 96
+        case .regular: 112
+        case .large: 132
         }
     }
 }
@@ -43,6 +78,18 @@ final class Preferences {
     // General
     var showMenuBarItem: Bool { didSet { Self.save(showMenuBarItem, "app.menuBar") } }
 
+    // Layout
+    var installedLayout: BrowseLayout { didSet { Self.save(installedLayout.rawValue, "layout.installed") } }
+    var findMoreLayout: BrowseLayout { didSet { Self.save(findMoreLayout.rawValue, "layout.findMore") } }
+    var cardSize: CardSize { didSet { Self.save(cardSize.rawValue, "layout.cardSize") } }
+    /// Addons with updates get wide cards at the top of Installed.
+    var featureUpdates: Bool { didSet { Self.save(featureUpdates, "layout.featureUpdates") } }
+    /// Libraries get their own section at the end of Installed.
+    var groupLibraries: Bool { didSet { Self.save(groupLibraries, "layout.groupLibraries") } }
+    /// The most popular results in Find More get large cards.
+    var featurePopular: Bool { didSet { Self.save(featurePopular, "layout.featurePopular") } }
+    var showThumbnails: Bool { didSet { Self.save(showThumbnails, "layout.thumbnails") } }
+
     // AI
     var aiProvider: AIProvider { didSet { Self.save(aiProvider.rawValue, "ai.provider") } }
     var ollamaURL: String { didSet { Self.save(ollamaURL, "ai.ollama.url") } }
@@ -59,6 +106,13 @@ final class Preferences {
         concurrentUpdates = min(max(d.object(forKey: "updates.concurrent") as? Int ?? 2, 1), 4)
         notifyUpdates = d.bool(forKey: "updates.notify")
         showMenuBarItem = d.object(forKey: "app.menuBar") as? Bool ?? true
+        installedLayout = BrowseLayout(rawValue: d.string(forKey: "layout.installed") ?? "") ?? .grid
+        findMoreLayout = BrowseLayout(rawValue: d.string(forKey: "layout.findMore") ?? "") ?? .grid
+        cardSize = CardSize(rawValue: d.string(forKey: "layout.cardSize") ?? "") ?? .regular
+        featureUpdates = d.object(forKey: "layout.featureUpdates") as? Bool ?? true
+        groupLibraries = d.object(forKey: "layout.groupLibraries") as? Bool ?? true
+        featurePopular = d.object(forKey: "layout.featurePopular") as? Bool ?? true
+        showThumbnails = d.object(forKey: "layout.thumbnails") as? Bool ?? true
         aiProvider = AIProvider(rawValue: d.string(forKey: "ai.provider") ?? "") ?? .off
         ollamaURL = d.string(forKey: "ai.ollama.url") ?? AIConfig.defaultOllamaURL.absoluteString
         ollamaModel = d.string(forKey: "ai.ollama.model") ?? ""

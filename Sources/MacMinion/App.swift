@@ -29,6 +29,12 @@ struct MacMinionApp: App {
         .commands {
             SidebarCommands()
             ToolbarCommands()
+            CommandGroup(after: .toolbar) {
+                Button("Show as Grid") { model.setLayout(.grid) }
+                    .keyboardShortcut("1", modifiers: [.command, .option])
+                Button("Show as List") { model.setLayout(.list) }
+                    .keyboardShortcut("2", modifiers: [.command, .option])
+            }
             CommandGroup(replacing: .newItem) {}
             AddonCommands(model: model)
         }

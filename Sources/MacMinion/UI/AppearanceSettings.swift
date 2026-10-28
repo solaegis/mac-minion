@@ -30,7 +30,7 @@ struct AppearanceSettings: View {
 /// a button, and a switch. It redraws as people pick a color.
 /// Swap the sample words for ones from this app.
 private struct AccentPreview: View {
-    private let shape = RoundedRectangle(cornerRadius: 12, style: .continuous)
+    private let shape = RoundedRectangle(cornerRadius: Radius.tile, style: .continuous)
 
     var body: some View {
         HStack(spacing: 0) {
@@ -73,7 +73,7 @@ private struct AccentPreview: View {
             .padding(.horizontal, Space.sm)
             .frame(maxWidth: .infinity, minHeight: 24, alignment: .leading)
             .background(selected ? Palette.accent : .clear,
-                        in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+                        in: RoundedRectangle(cornerRadius: Radius.chip, style: .continuous))
     }
 
     private var content: some View {
