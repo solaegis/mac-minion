@@ -98,6 +98,19 @@ struct ContentView: View {
                 .badge(badge(for: page))
                 .tag(page)
         }
+        // A gear at the foot of the sidebar opens Settings, like Command-Comma.
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            HStack {
+                SettingsLink {
+                    Label("Settings", systemImage: "gearshape")
+                }
+                .buttonStyle(.borderless)
+                .help("Open Settings (Command-Comma)")
+                Spacer()
+            }
+            .padding(.horizontal, Space.lg)
+            .padding(.vertical, Space.md)
+        }
         .navigationSplitViewColumnWidth(min: 180, ideal: 212)
     }
 

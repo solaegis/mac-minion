@@ -98,6 +98,8 @@ struct MenuBarMenu: View {
             openWindow(id: "main")
             NSApp.activate()
         }
+        SettingsLink { Text("Settings…") }
+            .keyboardShortcut(",")
         Button("Quit MacMinion") { NSApp.terminate(nil) }
             .keyboardShortcut("q")
     }
