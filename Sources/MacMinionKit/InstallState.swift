@@ -17,11 +17,32 @@ public struct InstallRecord: Codable, Sendable, Hashable {
 /// Everything saved to disk between launches.
 public struct SavedState: Codable, Sendable {
     public var records: [Int: InstallRecord] = [:]
+    public var history: [HistoryEvent] = []
     public var importedFromMinion = false
+    public var importedMinionHistory = false
 
-    public init(records: [Int: InstallRecord] = [:], importedFromMinion: Bool = false) {
+    /// The history keeps this many events, newest first.
+    public static let historyLimit = 5_000
+
+    public init(records: [Int: InstallRecord] = [:], history: [HistoryEvent] = [], importedFromMinion: Bool = false) {
         self.records = records
+        self.history = history
         self.importedFromMinion = importedFromMinion
+    }
+
+    /// Older state files lack the newer keys.
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        records = try c.decodeIfPresent([Int: InstallRecord].self, forKey: .records) ?? [:]
+        history = try c.decodeIfPresent([HistoryEvent].self, forKey: .history) ?? []
+        importedFromMinion = try c.decodeIfPresent(Bool.self, forKey: .importedFromMinion) ?? false
+        importedMinionHistory = try c.decodeIfPresent(Bool.self, forKey: .importedMinionHistory) ?? false
+    }
+
+    /// Adds events, keeps the list newest first, and trims it to the limit.
+    public mutating func record(_ events: [HistoryEvent]) {
+        history = (history + events).sorted { $0.date > $1.date }
+        if history.count > Self.historyLimit { history.removeLast(history.count - Self.historyLimit) }
     }
 }
 

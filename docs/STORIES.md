@@ -101,6 +101,18 @@ Acceptance:
 - [unit] Auto-check runs on a timer (default every 60 min).
 Status: done
 
+### S-012 See an overview on the home page
+As the user, I open MacMinion to an Overview page: how my addons stand today and how they have been kept current.
+Screens: overview
+Depends: S-002, S-003
+Acceptance:
+- [snap] A hero card says "Everything's up to date" or "N updates ready" with Update All.
+- [snap] Tiles: From ESOUI, Updates Ready, Libraries, Not on ESOUI, Ignored, On Disk; each opens its page.
+- [snap] Cards: Updates Installed (weekly chart, 26 weeks), By Category, Recent Activity, Updated Most Often, Popular This Month (with Install).
+- [unit] Minion's auto-update log is imported once as history; MacMinion logs every install, update, and removal.
+UX: The page is called "Overview" in the sidebar; history rows read "Updated 1.2 → 1.3 · by Minion".
+Status: done
+
 ## M6 Polish
 
 ### S-011 App icon and empty states

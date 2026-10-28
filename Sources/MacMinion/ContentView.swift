@@ -7,22 +7,20 @@ struct ContentView: View {
 
     var body: some View {
         @Bindable var model = model
-        NavigationSplitView {
-            sidebar
-        } content: {
-            Group {
-                switch model.sidebar ?? .installed {
-                case .installed: InstalledList()
-                case .updates: UpdatesList()
-                case .findMore: FindMoreList()
+        Group {
+            if model.sidebar == .overview {
+                // The overview fills the window; it has no list or detail column.
+                NavigationSplitView {
+                    sidebar
+                } detail: {
+                    OverviewView()
                 }
+            } else {
+                browser
             }
-            .navigationSplitViewColumnWidth(min: 300, ideal: 380)
-        } detail: {
-            DetailColumn()
         }
         .navigationSubtitle(model.statusLine)
-        .onChange(of: model.sidebar) { model.selection = nil }
+        .onChange(of: model.sidebar) { model.selection = model.pendingSelection; model.pendingSelection = nil }
         .alert(removalTitle, isPresented: removalShown, presenting: model.pendingRemoval) { addon in
             Button("Move to Trash", role: .destructive) { Task { await model.remove(addon) } }
             Button("Cancel", role: .cancel) {}
@@ -34,6 +32,23 @@ struct ContentView: View {
             await model.start()
             SelfTest.runIfRequested(model: model)
             Snapshot.runIfRequested(model: model, openSettings: openSettings)
+        }
+    }
+
+    private var browser: some View {
+        NavigationSplitView {
+            sidebar
+        } content: {
+            Group {
+                switch model.sidebar ?? .installed {
+                case .installed, .overview: InstalledList()
+                case .updates: UpdatesList()
+                case .findMore: FindMoreList()
+                }
+            }
+            .navigationSplitViewColumnWidth(min: 300, ideal: 380)
+        } detail: {
+            DetailColumn()
         }
     }
 
@@ -59,7 +74,7 @@ struct ContentView: View {
         switch page {
         case .installed: model.installed.count + model.unmatched.count
         case .updates: model.updates.count
-        case .findMore: 0
+        case .findMore, .overview: 0
         }
     }
 }

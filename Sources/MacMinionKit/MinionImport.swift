@@ -10,6 +10,8 @@ public enum MinionImport {
     public struct Game: Sendable {
         public var addonPath: String?
         public var records: [Int: InstallRecord]
+        /// Minion's auto-update log, as update events oldest first.
+        public var history: [HistoryEvent] = []
     }
 
     public static func read(_ url: URL = defaultURL) -> Game? {
@@ -32,6 +34,14 @@ public enum MinionImport {
         var game: Game?
         private var inESO = false
         private var inAddons = false
+        private var inAutoUpdated = false
+        private var lastVersion: [String: String] = [:]
+        private let dateFormat: DateFormatter = {
+            let f = DateFormatter()
+            f.locale = Locale(identifier: "en_US_POSIX")
+            f.dateFormat = "MM.dd.yyyy h:mma"
+            return f
+        }()
         private var current: InstallRecord?
         private var text = ""
 
@@ -44,6 +54,15 @@ public enum MinionImport {
                 if game == nil { game = Game(addonPath: path, records: [:]) }
             case "addons" where inESO:
                 inAddons = true
+            case "auto-updated" where inESO:
+                inAutoUpdated = true
+            case "addon" where inAutoUpdated:
+                if let title = a["title"], let date = a["date"].flatMap(dateFormat.date(from:)) {
+                    let version = a["version"]
+                    game?.history.append(HistoryEvent(date: date, addonID: nil, name: title, version: version,
+                                                      previousVersion: lastVersion[title], kind: .update, fromMinion: true))
+                    if let version { lastVersion[title] = version }
+                }
             case "addon" where inAddons:
                 if let uid = a["uid"].flatMap(Int.init) {
                     current = InstallRecord(id: uid, version: a["ui-version"], md5: a["md5"], dirs: [])
@@ -61,6 +80,7 @@ public enum MinionImport {
                 if let r = current, !r.dirs.isEmpty { game?.records[r.id] = r }
                 current = nil
             case "addons": inAddons = false
+            case "auto-updated": inAutoUpdated = false
             case "game": inESO = false
             default: break
             }

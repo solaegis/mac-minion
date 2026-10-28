@@ -34,8 +34,15 @@ enum SelfTest {
             check("ignored addons are not updates", status(1146) == .ignored && !model.updates.contains { $0.id == 1146 })
             check("the update count leaves out ignored addons", model.updates.count == 2, "\(model.updates.count)")
 
+            // S-012 Overview
+            check("the seeded history loads newest first", model.history.first?.date ?? .distantPast >= model.history.last?.date ?? .now)
+            check("weekly counts cover 26 weeks", Usage.weekly(model.history, weeks: 26).count == 26)
+            let historyBefore = model.history.count
+
             // S-003
             await model.install(7)
+            check("an update is added to the history", model.history.count == historyBefore + 1
+                  && model.history.first?.kind == .update && model.history.first?.previousVersion == "2.0 r42")
             check("Update installs the latest version", status(7) == .upToDate, model.errors[7] ?? "")
             let manifest = Manifest.read(folder: model.addonsFolder.appending(path: "LibAddonMenu-2.0"))
             check("the new folder is on disk", manifest?.version == "2.0 r43")
@@ -54,6 +61,7 @@ enum SelfTest {
             check("a category includes its children", model.findMoreResults.count == 8, "\(model.findMoreResults.count)")
             model.category = nil
             await model.install(695)
+            check("a new install is logged as an install", model.history.first?.kind == .install && model.history.first?.addonID == 695)
             check("Install adds a new addon", status(695) == .upToDate, model.errors[695] ?? "")
 
             // S-007
@@ -67,6 +75,9 @@ enum SelfTest {
                 await model.remove(addon)
             }
             check("Remove takes the addon off the list", model.installed(695) == nil)
+            check("a removal is logged", model.history.first?.kind == .remove)
+            check("the history is saved", Store.loadState().history.count == model.history.count)
+            check("the AddOns size is measured", (model.addonsSize ?? 0) > 0)
             check("Remove moves its folder out of AddOns",
                   !FileManager.default.fileExists(atPath: model.addonsFolder.appending(path: "AwesomeGuildStore").path))
 

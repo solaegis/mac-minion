@@ -73,7 +73,7 @@ private func addon(_ id: Int, _ dirs: [String], version: String = "1", downloads
     let path = Data("/Users/me/AddOns".utf8).base64EncodedString()
     let xml = """
     <minion><games><game game-id="ESO" addon-path="\(path)">
-      <auto-updated><addon date="x" title="T" version="1"/></auto-updated>
+      <auto-updated><addon date="10.12.2025 7:00AM" title="T" version="1"/><addon date="11.04.2025 5:25PM" title="T" version="2"/><addon date="bad" title="U" version="1"/></auto-updated>
       <addons><addon md5="abc" ui-version="1.32" uid="2079"><dirs><dir>LibFeedback</dir></dirs></addon></addons>
     </game></games></minion>
     """
@@ -81,6 +81,32 @@ private func addon(_ id: Int, _ dirs: [String], version: String = "1", downloads
     #expect(game.addonPath == "/Users/me/AddOns")
     #expect(game.records[2079] == InstallRecord(id: 2079, version: "1.32", md5: "abc", dirs: ["LibFeedback"]))
     #expect(game.records.count == 1)
+    #expect(game.history.map(\.version) == ["1", "2"], "the log is read in order and bad dates are skipped")
+    #expect(game.history.last?.previousVersion == "1")
+    #expect(game.history.allSatisfy { $0.fromMinion && $0.kind == .update })
+}
+
+@Test func weeklyCountsFillEmptyWeeks() throws {
+    var cal = Calendar(identifier: .gregorian)
+    cal.timeZone = TimeZone(identifier: "UTC")!
+    let now = try #require(cal.date(from: DateComponents(year: 2026, month: 10, day: 28)))
+    func event(_ daysAgo: Double, _ kind: HistoryEvent.Kind = .update) -> HistoryEvent {
+        HistoryEvent(date: now.addingTimeInterval(-daysAgo * 86_400), addonID: nil, name: "A", version: nil, kind: kind)
+    }
+    let weeks = Usage.weekly([event(0), event(1), event(14), event(0, .remove)], weeks: 4, now: now, calendar: cal)
+    #expect(weeks.map(\.count) == [0, 1, 0, 2])
+}
+
+@Test func mostUpdatedAndShortNames() {
+    let e = ["B", "A", "B", "C", "A", "B"].map { HistoryEvent(date: .now, addonID: nil, name: $0, version: nil, kind: .update) }
+    #expect(Usage.mostUpdated(e, limit: 2).map(\.name) == ["B", "A"])
+    #expect(Usage.shortName("pChat (Chat customization & help)") == "pChat")
+    #expect(Usage.shortName("(odd)") == "(odd)")
+}
+
+@Test func oldStateFilesStillLoad() throws {
+    let state = try JSONDecoder().decode(SavedState.self, from: Data(#"{"records":{},"importedFromMinion":true}"#.utf8))
+    #expect(state.importedFromMinion && !state.importedMinionHistory && state.history.isEmpty)
 }
 
 @Test func categoryDescendants() {

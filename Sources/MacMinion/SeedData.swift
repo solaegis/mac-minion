@@ -86,7 +86,32 @@ enum SeedData {
                          downloads: s.downloads, downloadsMonthly: s.downloads / 120, favorites: s.downloads / 1_500,
                          compatibility: [GameVersion(version: "12.1.0", name: "Season One")], dirs: s.dirs)
         }
-        await model.load(catalog: catalog, categories: categories, details: details, records: records)
+        await model.load(catalog: catalog, categories: categories, details: details, records: records, history: sampleHistory)
+    }
+
+    /// Half a year of updates: libraries and busy addons often, others now and then. The older half came from Minion.
+    static var sampleHistory: [HistoryEvent] {
+        let cadence: [(String, Int, Double)] = [  // name, id, days between updates
+            ("LibAddonMenu-2.0", 7, 21), ("HarvestMap", 57, 9), ("WritWorthy", 1605, 6),
+            ("Dustman", 97, 45), ("LibCustomMenu", 1146, 30),
+        ]
+        var events: [HistoryEvent] = []
+        for (offset, (name, id, every)) in cadence.enumerated() {
+            var day = Double(offset) * 2 + 1
+            var minor = 40
+            while day < 180 {
+                events.append(HistoryEvent(date: .now.addingTimeInterval(-day * 86_400), addonID: id, name: name,
+                                           version: "1.\(minor + 1)", previousVersion: "1.\(minor)",
+                                           kind: .update, fromMinion: day > 60))
+                minor -= 1
+                day += every
+            }
+        }
+        events.append(HistoryEvent(date: .now.addingTimeInterval(-3 * 3_600), addonID: 1360, name: "Master Merchant 3.0",
+                                   version: "3.8.21", kind: .install))
+        events.append(HistoryEvent(date: .now.addingTimeInterval(-26 * 3_600), addonID: 1360, name: "Master Merchant 3.0",
+                                   version: "3.8.20", kind: .remove))
+        return events
     }
 
     private static func writeAddon(_ dir: String, version: String, author: String, in addons: URL) {

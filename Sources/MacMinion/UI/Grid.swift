@@ -15,6 +15,13 @@ enum Space {
     static let margin: CGFloat = 20
 }
 
+/// Corner radii, so cards and tiles round the same way.
+enum Radius {
+    static let tile: CGFloat = 12
+    static let card: CGFloat = 16
+    static let hero: CGFloat = 20
+}
+
 extension View {
     /// Marks an area (a page, a card, a sheet). Probes inside it must sit on
     /// the 4 pt grid and at least `inset` from its edges.

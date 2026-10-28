@@ -4,12 +4,13 @@ import MacMinionKit
 
 /// The sidebar pages. Snapshot mode walks through every case.
 enum SidebarItem: String, CaseIterable, Identifiable {
-    case installed, updates, findMore
+    case overview, installed, updates, findMore
 
     var id: String { rawValue }
 
     var title: String {
         switch self {
+        case .overview: "Overview"
         case .installed: "Installed"
         case .updates: "Updates"
         case .findMore: "Find More"
@@ -18,6 +19,7 @@ enum SidebarItem: String, CaseIterable, Identifiable {
 
     var symbol: String {
         switch self {
+        case .overview: "square.grid.2x2"
         case .installed: "puzzlepiece.extension"
         case .updates: "arrow.down.circle"
         case .findMore: "magnifyingglass"
@@ -50,8 +52,10 @@ enum CatalogSort: String, CaseIterable, Identifiable {
 /// App-wide state that menus, toolbars, and views share.
 @Observable
 final class AppModel {
-    var sidebar: SidebarItem? = .installed
+    var sidebar: SidebarItem? = .overview
     var selection: Selection?
+    /// Selected after the next page change (the Overview opens an addon on another page).
+    var pendingSelection: Selection?
     /// Settings reopens on the last tab. Test and snapshot runs leave it alone.
     var settingsTab: SettingsTab = SettingsTab(rawValue: UserDefaults.standard.string(forKey: "settings.tab") ?? "") ?? .general {
         didSet { if !Store.isOverridden { UserDefaults.standard.set(settingsTab.rawValue, forKey: "settings.tab") } }
@@ -72,6 +76,8 @@ final class AppModel {
     private(set) var unmatched: [UnmatchedFolder] = []
     private(set) var state = SavedState()
     private(set) var details: [Int: AddonDetails] = [:]
+    /// Bytes on disk in the AddOns folder, after a scan.
+    private(set) var addonsSize: Int64?
 
     // Work in progress
     private(set) var busy: Set<Int> = []
@@ -113,6 +119,8 @@ final class AppModel {
     // MARK: Derived lists
 
     var updates: [InstalledAddon] { installed.filter { $0.status == .updateAvailable } }
+
+    var history: [HistoryEvent] { state.history }
 
     func installed(_ id: Int) -> InstalledAddon? { installed.first { $0.id == id } }
 
@@ -200,7 +208,8 @@ final class AppModel {
     func rescan() async {
         guard !catalog.isEmpty else { return }
         let folder = addonsFolder
-        let folders = await Task.detached { AddonMatcher.scan(folder) }.value
+        let (folders, size) = await Task.detached { (AddonMatcher.scan(folder), Usage.size(of: folder)) }.value
+        addonsSize = size
         let result = AddonMatcher.match(folders: folders, catalog: catalog, records: state.records)
         installed = result.installed
         unmatched = result.unmatched
@@ -225,9 +234,13 @@ final class AppModel {
         defer { busy.remove(id) }
         do {
             let info = try await loadDetails(id)
+            let previous = state.records[id] ?? installed(id)?.record
+            let previousVersion = previous?.version ?? installed(id)?.installedVersion
             var record = try await Installer(addons: addonsFolder).install(info)
-            record.ignored = state.records[id]?.ignored ?? false
+            record.ignored = previous?.ignored ?? false
             state.records[id] = record
+            state.record([HistoryEvent(date: .now, addonID: id, name: catalogAddon(id)?.name ?? "Addon \(id)", version: info.version,
+                                       previousVersion: previousVersion, kind: previous == nil ? .install : .update)])
             save()
             await rescan()
         } catch {
@@ -270,11 +283,23 @@ final class AppModel {
         do {
             try Installer(addons: addonsFolder).remove(addon.record.dirs)
             state.records[addon.id] = nil
+            state.record([HistoryEvent(date: .now, addonID: addon.id, name: addon.catalog.name, version: addon.installedVersion, kind: .remove)])
             if selection == .addon(addon.id), sidebar != .findMore { selection = nil }
             save()
             await rescan()
         } catch {
             errors[addon.id] = error.localizedDescription
+        }
+    }
+
+    /// Opens a page with one addon selected.
+    func open(_ page: SidebarItem, selecting id: Int? = nil) {
+        pendingSelection = id.map { .addon($0) }
+        if sidebar == page {
+            selection = pendingSelection
+            pendingSelection = nil
+        } else {
+            sidebar = page
         }
     }
 
@@ -287,11 +312,17 @@ final class AppModel {
 
     /// Takes the install records from the Java Minion, once.
     func importFromMinionIfNeeded(force: Bool = false) {
-        guard force || !state.importedFromMinion, let game = MinionImport.read() else { return }
+        guard force || !state.importedFromMinion || !state.importedMinionHistory, let game = MinionImport.read() else { return }
         for (id, record) in game.records where state.records[id]?.version == nil {
             state.records[id] = record
         }
         state.importedFromMinion = true
+        // Minion's auto-update log becomes the start of the history, once.
+        if !state.importedMinionHistory || force {
+            state.history.removeAll(where: \.fromMinion)
+            state.record(game.history)
+            state.importedMinionHistory = true
+        }
         if UserDefaults.standard.string(forKey: "addons.path") == nil, let path = game.addonPath,
            FileManager.default.fileExists(atPath: path) {
             addonsFolder = URL(fileURLWithPath: path, isDirectory: true)
@@ -302,12 +333,15 @@ final class AppModel {
 
     // MARK: Seed and test support
 
-    func load(catalog: [CatalogAddon], categories: [AddonCategory], details: [Int: AddonDetails], records: [Int: InstallRecord]) async {
+    func load(catalog: [CatalogAddon], categories: [AddonCategory], details: [Int: AddonDetails], records: [Int: InstallRecord],
+              history: [HistoryEvent] = []) async {
         self.catalog = catalog
         self.categories = categories
         self.details = details
         self.catalogDate = .now.addingTimeInterval(-120)
         state.records = records
+        state.history = []
+        state.record(history)
         await rescan()
     }
 
