@@ -146,6 +146,7 @@ struct AddonCard: View {
                 }
             }
             Spacer(minLength: 0)
+            RatingButtons(id: addon.id)
             action
         }
     }
@@ -267,6 +268,8 @@ struct FindMoreMenu: View {
         if let url = addon.infoURL {
             Link("Open on ESOUI", destination: url)
         }
+        Divider()
+        RatingMenuItems(id: addon.id)
     }
 }
 

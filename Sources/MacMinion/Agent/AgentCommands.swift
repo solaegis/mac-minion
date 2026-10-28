@@ -99,13 +99,56 @@ enum AgentCommands {
             if let error = model.refreshError { throw AgentError.invalid("couldn't refresh the catalog: \(error)") }
             return ["catalog": model.catalog.count, "installed": model.installed.count, "updates": model.updates.count]
         },
-        AgentCommand(name: "addons install", summary: "Install an addon from the catalog, or update or reinstall an installed one.",
-                     params: [.init(name: "id", required: true, positional: true, help: "the ESOUI id")],
-                     example: "macminion addons install 7 --json") { args, model in
+        AgentCommand(name: "addons install", summary: "Install an addon, or update or reinstall one. --version installs an archived release and pins it.",
+                     params: [.init(name: "id", required: true, positional: true, help: "the ESOUI id"),
+                              .init(name: "version", help: "a version from `macminion addons versions <id>`; older ones are pinned")],
+                     example: "macminion addons install 57 --version 3.16.4 --json") { args, model in
             let addon = try catalogAddon(args, model)
-            await model.install(addon.id)
+            var archived: ArchivedVersion?
+            if let wanted = args.string("version") {
+                let list = try await model.loadVersions(addon.id)
+                guard let match = list.first(where: { VersionText.same($0.version, wanted) }) else {
+                    throw AgentError.notFound("\(addon.name) has no version \(wanted) on ESOUI. Run `macminion addons versions \(addon.id)`")
+                }
+                archived = match
+            }
+            await model.install(addon.id, version: archived)
             if let error = model.errors[addon.id] { throw AgentError.invalid("\(addon.name): \(error)") }
             return json(addon, model.installed(addon.id))
+        },
+        AgentCommand(name: "addons versions", summary: "List the releases ESOUI still has for an addon, newest first.",
+                     params: [.init(name: "id", required: true, positional: true, help: "the ESOUI id")],
+                     example: "macminion addons versions 57 --json", readOnly: true) { args, model in
+            let addon = try catalogAddon(args, model)
+            let list = try await model.loadVersions(addon.id)
+            let installedVersion = model.installed(addon.id)?.installedVersion
+            let rows: [JSONObject] = list.map { v in
+                ["version": v.version, "date": v.date, "size": v.size, "latest": VersionText.same(v.version, addon.version),
+                 "installed": installedVersion.map { VersionText.same($0, v.version) } ?? false]
+            }
+            return ["id": addon.id, "name": addon.name, "versions": rows]
+        },
+        AgentCommand(name: "addons rate", summary: "Thumbs up or down on an addon. Down keeps it out of suggestions and searches; both steer the AI.",
+                     params: [.init(name: "id", required: true, positional: true, help: "the ESOUI id"),
+                              .init(name: "rating", required: true, positional: true, help: "up, down, or none")],
+                     example: "macminion addons rate 1812 down --json") { args, model in
+            let addon = try catalogAddon(args, model)
+            let raw = try args.required("rating")
+            guard raw == "none" || Rating(rawValue: raw) != nil else { throw AgentError.usage("rating must be up, down, or none, not \"\(raw)\"") }
+            model.setRating(addon.id, Rating(rawValue: raw))
+            return ["id": addon.id, "name": addon.name, "rating": raw]
+        },
+        AgentCommand(name: "catalog ask", summary: "Ask the AI provider to find catalog addons for a request in plain words.",
+                     params: [.init(name: "query", required: true, positional: true, help: "what you want, in your own words")],
+                     example: "macminion catalog ask \"track my crafting writs\" --json") { args, model in
+            await model.aiSearch(try args.required("query"))
+            if let error = model.searchError { throw AgentError.invalid(error) }
+            let rows: [JSONObject] = model.searchResults.map { r in
+                var row = json(r.addon, model.installed(r.addon.id))
+                row["reason"] = r.reason
+                return row
+            }
+            return ["query": model.searchedFor ?? "", "results": rows, "by": model.aiSource]
         },
         AgentCommand(name: "updates install", summary: "Update every addon that has an update, except ignored ones.",
                      example: "macminion updates install --json") { _, model in
@@ -229,7 +272,7 @@ enum AgentCommands {
                                                      "ignored": .ignored, "unknown": .versionUnknown]
 
     static func json(_ addon: CatalogAddon, _ installed: InstalledAddon? = nil) -> JSONObject {
-        var out: JSONObject = ["id": addon.id, "name": addon.name, "author": addon.author, "latest": addon.version,
+        var out: JSONObject = ["rating": AgentRouter.model?.rating(addon.id)?.rawValue ?? "none", "id": addon.id, "name": addon.name, "author": addon.author, "latest": addon.version,
                                "updated": JSON.date(addon.date), "downloads": addon.downloads, "category": addon.categoryID,
                                "url": addon.infoURL?.absoluteString ?? NSNull()]
         if let installed {

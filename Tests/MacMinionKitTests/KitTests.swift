@@ -307,3 +307,43 @@ private func addon(_ id: Int, _ dirs: [String], version: String = "1", downloads
     #expect(AddonRecommender.blurb(noisy) == "Shows Tamriel Trade Centre price info in item tooltips.")
     #expect(Manifest.parse("## Description: Remind you time to refresh your actions.").description == "Remind you time to refresh your actions.")
 }
+
+@Test func parsesArchivedVersions() {
+    let html = """
+    <div class="title">Archived Files (2)</div><table><tr><td class="thead">x</td></tr>
+    <tr><td class="alt1"><div class="smallfont"><img src="zip.gif" />&nbsp;<a href="/downloads/getfile.php?s=abc&amp;id=7&amp;aid=53953">LibAddonMenu-2.0</a></div></td>
+    <td class="alt1"><div class="smallfont">2.0 r43</div></td><td class="alt1"><div class="smallfont">50kB</div></td>
+    <td class="alt1"><div class="smallfont">sirinsidiator</div></td><td class="alt1"><div class="smallfont">10/28/25 01:49 PM</div></td></tr>
+    <tr><td class="alt2"><div class="smallfont"><a href="/downloads/getfile.php?id=7&amp;aid=51481">LibAddonMenu-2.0</a></div></td>
+    <td class="alt2"><div class="smallfont">2.0 r40</div></td><td class="alt2"><div class="smallfont">51kB</div></td>
+    <td class="alt2"><div class="smallfont">sirinsidiator</div></td><td class="alt2"><div class="smallfont">05/30/25 10:28 AM</div></td></tr>
+    </table><a href="getfile.php?id=7&amp;aid=999">not archived</a>
+    """
+    let v = ESOUIArchive.parse(html)
+    #expect(v == [ArchivedVersion(aid: 53953, version: "2.0 r43", size: "50kB", date: "10/28/25 01:49 PM"),
+                  ArchivedVersion(aid: 51481, version: "2.0 r40", size: "51kB", date: "05/30/25 10:28 AM")])
+    #expect(ESOUIArchive.downloadURL(id: 7, aid: 51481).absoluteString == "https://www.esoui.com/downloads/getfile.php?id=7&aid=51481")
+}
+
+@Test func tasteGoesIntoPrompts() {
+    let taste = Taste(liked: ["HarvestMap"], disliked: ["AlphaGear 2"])
+    #expect(taste.promptLines.contains("thumbs up to: HarvestMap") && taste.promptLines.contains("thumbs down to: AlphaGear 2"))
+    #expect(Taste().promptLines.isEmpty)
+    let p = AddonRecommender.prompt(installed: [], candidates: [], taste: taste)
+    #expect(p.contains("Avoid addons like these."))
+}
+
+@Test func aiSearchPlanAndCandidates() {
+    let plan = AddonSearch.parsePlan("keywords: writ, crafting, Daily\ncategories: 18, 99x", query: "auto craft my writs")
+    #expect(plan.keywords.prefix(3) == ["writ", "crafting", "daily"])
+    #expect(plan.keywords.contains("writs") && plan.keywords.contains("craft") && !plan.keywords.contains("my"),
+            "the request's own words count; short ones don't")
+    #expect(plan.categories == [18, 99])
+    func a(_ id: Int, _ name: String, _ cat: Int, _ monthly: Int) -> CatalogAddon {
+        CatalogAddon(id: id, categoryID: cat, version: "1", date: .now, name: name, author: "x", downloadsMonthly: monthly, dirs: [name])
+    }
+    let catalog = [a(1, "Lazy Writ Crafter", 18, 30_000), a(2, "WritWorthy", 18, 9_000), a(3, "HarvestMap", 17, 50_000),
+                   a(4, "Dustman", 18, 100), a(5, "Writ Helper", 18, 10)]
+    let found = AddonSearch.candidates(catalog: catalog, plan: plan, blurbs: [4: "junks items after crafting"], excluded: [5])
+    #expect(found.map(\.id) == [1, 2, 4], "name hits first, then a description hit; excluded and unrelated addons left out")
+}

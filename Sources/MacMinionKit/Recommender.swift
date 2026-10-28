@@ -56,7 +56,7 @@ public enum AddonRecommender {
 
     /// The installed addons grouped by category with what each does, then the candidates the same way.
     /// Knowing the job of each addon lets the model skip candidates that duplicate one the player has.
-    public static func prompt(installed: [Entry], candidates: [Entry]) -> String {
+    public static func prompt(installed: [Entry], candidates: [Entry], taste: Taste = Taste()) -> String {
         let groups = Dictionary(grouping: installed, by: \.category).sorted { $0.key < $1.key }
         let have = groups.map { category, entries in
             "\(category):\n" + entries.map { "- \($0.name)\($0.blurb.isEmpty ? "" : ": \($0.blurb)")" }.joined(separator: "\n")
@@ -68,6 +68,7 @@ public enum AddonRecommender {
         The player has these Elder Scrolls Online addons installed, by category, with what each does:
         \(have)
 
+        \(taste.promptLines)
         From the candidates below, pick up to \(maxSuggestions) that would add something valuable the player doesn't already have.
         Work out the job each candidate does first. Skip a candidate when an installed addon already does that job \
         (for example a second gear or build manager, a second combat meter, a second map-pin pack for the same thing), \
@@ -105,7 +106,7 @@ public enum AddonRecommender {
     }
 
     /// Lines like "1360 | Adds price history to the guild store." Unknown ids and repeats are dropped.
-    public static func parse(_ answer: String, candidates: Set<Int>) -> [AddonSuggestion] {
+    public static func parse(_ answer: String, candidates: Set<Int>, limit: Int = maxSuggestions) -> [AddonSuggestion] {
         var out: [AddonSuggestion] = []
         var seen = Set<Int>()
         for raw in answer.split(whereSeparator: \.isNewline) {
@@ -113,7 +114,7 @@ public enum AddonRecommender {
             guard let match = line.firstMatch(of: /^\[?(\d+)\]?\s*[|:–—-]\s*(.+)$/),
                   let id = Int(match.1), candidates.contains(id), seen.insert(id).inserted else { continue }
             out.append(AddonSuggestion(id: id, reason: String(match.2).trimmingCharacters(in: .whitespaces)))
-            if out.count == maxSuggestions { break }
+            if out.count == limit { break }
         }
         return out
     }

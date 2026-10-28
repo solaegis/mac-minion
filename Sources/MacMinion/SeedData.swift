@@ -90,6 +90,19 @@ enum SeedData {
         // Snapshots show the assistant set up, with one finished summary. Nothing is sent: the store is in /tmp.
         model.prefs.aiProvider = .ollama
         model.prefs.ollamaModel = "llama3.2"
+        // HarvestMap's archive: the latest and two older releases, as local zips.
+        if let harvest = samples.first(where: { $0.id == 57 }) {
+            var files: [Int: URL] = [:]
+            let list = [ArchivedVersion(aid: 9003, version: "3.16.5", size: "1.2MB", date: "10/14/26 09:12 AM"),
+                        ArchivedVersion(aid: 9002, version: "3.16.4", size: "1.2MB", date: "09/02/26 06:40 PM"),
+                        ArchivedVersion(aid: 9001, version: "3.15.9", size: "1.1MB", date: "07/21/26 11:05 AM")]
+            for v in list { files[v.aid] = makeZip(harvest, in: zips, version: v.version) }
+            model.setSampleArchives(list, for: 57, files: files)
+        }
+        model.setSampleSearch("track my crafting writs", [
+            AddonSuggestion(id: 1536, reason: "Crafts every daily writ in one click when you open a crafting station."),
+            AddonSuggestion(id: 1605, reason: "Shows what a master writ is worth and what it takes, before you accept it."),
+        ])
         model.setSampleSuggestions([
             AddonSuggestion(id: 1360, reason: "Tracks guild store prices and sales history, so AwesomeGuildStore shows what items are worth."),
             AddonSuggestion(id: 1536, reason: "Crafts daily writs in one click; pairs with WritWorthy, which already values master writs."),
@@ -130,10 +143,11 @@ enum SeedData {
         try? text.write(to: folder.appending(path: "\(dir).txt"), atomically: true, encoding: .utf8)
     }
 
-    private static func makeZip(_ s: Sample, in zips: URL) -> URL? {
-        let staging = zips.appending(path: "src-\(s.id)", directoryHint: .isDirectory)
-        for dir in s.dirs { writeAddon(dir, version: s.version, author: s.author, in: staging) }
-        let zip = zips.appending(path: "\(s.id).zip")
+    private static func makeZip(_ s: Sample, in zips: URL, version: String? = nil) -> URL? {
+        let tag = version.map { "-\($0.filter { $0.isLetter || $0.isNumber })" } ?? ""
+        let staging = zips.appending(path: "src-\(s.id)\(tag)", directoryHint: .isDirectory)
+        for dir in s.dirs { writeAddon(dir, version: version ?? s.version, author: s.author, in: staging) }
+        let zip = zips.appending(path: "\(s.id)\(tag).zip")
         let p = Process()
         p.executableURL = URL(fileURLWithPath: "/usr/bin/ditto")
         p.arguments = ["-c", "-k", staging.path, zip.path]

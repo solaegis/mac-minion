@@ -266,17 +266,24 @@ final class AppModel {
     }
 
     /// Installs or updates one addon. Errors are kept per addon.
-    func install(_ id: Int) async {
+    /// Installs the latest release, or `version` from the ESOUI archive. An older version is pinned:
+    /// its updates are ignored until the player installs the latest again.
+    func install(_ id: Int, version: ArchivedVersion? = nil) async {
         guard !busy.contains(id) else { return }
         busy.insert(id)
         errors[id] = nil
         defer { busy.remove(id) }
         do {
-            let info = try await loadDetails(id)
+            let latest = try await loadDetails(id)
+            let older = version.flatMap { VersionText.same($0.version, latest.version) ? nil : $0 }
+            let info = older.map { v in
+                AddonDetails(id: id, version: v.version, md5: "", fileName: "\(id)-\(v.aid).zip",
+                             downloadURL: archiveURL(id: id, aid: v.aid))
+            } ?? latest
             let previous = state.records[id] ?? installed(id)?.record
             let previousVersion = previous?.version ?? installed(id)?.installedVersion
             var record = try await Installer(addons: addonsFolder).install(info)
-            record.ignored = previous?.ignored ?? false
+            record.ignored = older != nil || (version == nil ? previous?.ignored ?? false : false)
             state.records[id] = record
             state.record([HistoryEvent(date: .now, addonID: id, name: catalogAddon(id)?.name ?? "Addon \(id)", version: info.version,
                                        previousVersion: previousVersion, kind: previous == nil ? .install : .update)])
@@ -423,12 +430,119 @@ final class AppModel {
                                                            prompt: "Say hello to an Elder Scrolls Online player.")
     }
 
+    // MARK: Ratings
+
+    func rating(_ id: Int) -> Rating? { state.ratings[id] }
+
+    /// Thumbs up, down, or neither. Down also takes the addon out of suggestions and search results.
+    func setRating(_ id: Int, _ rating: Rating?) {
+        state.ratings[id] = rating
+        if rating == .down { searchResults.removeAll { $0.addon.id == id } }
+        save()
+    }
+
+    var disliked: Set<Int> { Set(state.ratings.filter { $0.value == .down }.keys) }
+
+    /// What the player rated, by name, for prompts.
+    var taste: Taste {
+        func names(_ r: Rating) -> [String] {
+            state.ratings.filter { $0.value == r }.keys.compactMap { catalogAddon($0).map { Usage.shortName($0.name) } }.sorted()
+        }
+        return Taste(liked: names(.up), disliked: names(.down))
+    }
+
+    // MARK: Versions
+
+    /// Archived releases by addon, newest first, from its ESOUI page.
+    private(set) var archives: [Int: [ArchivedVersion]] = [:]
+    /// Test runs install archived versions from local zips: aid -> file.
+    private var localArchives: [Int: URL] = [:]
+
+    func loadVersions(_ id: Int) async throws -> [ArchivedVersion] {
+        if let known = archives[id] { return known }
+        guard !offline else { return [] }
+        let list = try await ESOUIArchive.versions(for: id)
+        archives[id] = list
+        return list
+    }
+
+    private func archiveURL(id: Int, aid: Int) -> URL {
+        localArchives[aid] ?? ESOUIArchive.downloadURL(id: id, aid: aid)
+    }
+
+    func setSampleArchives(_ list: [ArchivedVersion], for id: Int, files: [Int: URL]) {
+        archives[id] = list
+        localArchives.merge(files) { _, new in new }
+    }
+
+    // MARK: AI search
+
+    var searchQuery = ""
+    private(set) var searchResults: [(addon: CatalogAddon, reason: String)] = []
+    private(set) var searchStage: String?
+    var searchError: String?
+    private(set) var searchedFor: String?
+
+    /// Finds catalog addons for a request in plain words: the AI picks keywords and categories, the
+    /// catalog is filtered by them, then the AI chooses the best matches, steered by thumbs up and down.
+    func aiSearch(_ query: String) async {
+        let query = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !query.isEmpty, searchStage == nil, !catalog.isEmpty else { return }
+        searchError = nil
+        searchResults = []
+        searchedFor = query
+        defer { searchStage = nil }
+        let client = AIClient(config: prefs.aiConfig)
+        do {
+            searchStage = "Working out what to look for…"
+            let plan = AddonSearch.parsePlan(
+                try await client.complete(system: AIPrompts.recommendSystem, prompt: AddonSearch.keywordPrompt(query, categories: categories)),
+                query: query)
+            var found = AddonSearch.candidates(catalog: catalog, plan: plan, blurbs: blurbs, excluded: disliked)
+            guard !found.isEmpty else { throw AIError.empty }
+            searchStage = "Reading \(found.count) addons…"
+            await loadBlurbs(found.map(\.id))
+            // With descriptions in hand, score again so description matches count.
+            found = AddonSearch.candidates(catalog: catalog, plan: plan, blurbs: blurbs, excluded: disliked)
+            let titles = Dictionary(categories.map { ($0.id, $0.title) }, uniquingKeysWith: { a, _ in a })
+            let entries = found.map { c in
+                AddonRecommender.Entry(id: c.id, name: c.name, category: titles[c.categoryID] ?? "Other",
+                                       blurb: blurbs[c.id] ?? "", monthly: c.downloadsMonthly)
+            }
+            searchStage = "Choosing the best matches…"
+            let answer = try await client.complete(system: AIPrompts.recommendSystem,
+                                                   prompt: AddonSearch.pickPrompt(query, candidates: entries,
+                                                                                  installed: Set(installed.map(\.id)), taste: taste))
+            let picks = AddonRecommender.parse(answer, candidates: Set(found.map(\.id)), limit: AddonSearch.maxResults)
+            guard !picks.isEmpty else { throw AIError.empty }
+            searchResults = picks.compactMap { p in catalogAddon(p.id).map { ($0, p.reason) } }
+        } catch AIError.empty {
+            searchError = "Nothing in the catalog matched. Try other words."
+        } catch {
+            searchError = error.localizedDescription
+        }
+    }
+
+    func clearSearch() {
+        searchQuery = ""
+        searchResults = []
+        searchError = nil
+        searchedFor = nil
+    }
+
+    /// Snapshot mode shows search results without asking a model.
+    func setSampleSearch(_ query: String, _ picks: [AddonSuggestion]) {
+        searchQuery = query
+        searchedFor = query
+        searchResults = picks.compactMap { p in catalogAddon(p.id).map { ($0, p.reason) } }
+    }
+
     // MARK: Suggestions
 
     /// Saved suggestions still worth showing: in the catalog and not installed since.
     var suggestions: [(addon: CatalogAddon, reason: String)] {
         state.suggestions.compactMap { s in
-            guard installed(s.id) == nil, let addon = catalogAddon(s.id) else { return nil }
+            guard installed(s.id) == nil, rating(s.id) != .down, let addon = catalogAddon(s.id) else { return nil }
             return (addon, s.reason)
         }
     }
@@ -454,7 +568,8 @@ final class AppModel {
         }
         // Any catalog entry that installs into a folder already on disk is a fork or variant of something installed.
         let onDisk = Set(installed.flatMap(\.record.dirs) + unmatched.map(\.folder))
-        let candidates = AddonRecommender.candidates(catalog: catalog, installed: Set(installed.map(\.id)), folders: onDisk)
+        let candidates = AddonRecommender.candidates(catalog: catalog, installed: Set(installed.map(\.id)).union(disliked),
+                                                     folders: onDisk)
         // Installed addons describe themselves in their manifest when they can; the rest come from ESOUI.
         let ownWords = Dictionary(installed.compactMap { a in a.manifest?.description.map { (a.id, $0) } }, uniquingKeysWith: { a, _ in a })
         await loadBlurbs(installed.map(\.id).filter { ownWords[$0] == nil } + candidates.map(\.id))
@@ -467,7 +582,7 @@ final class AppModel {
             AddonRecommender.Entry(id: c.id, name: c.name, category: titles[c.categoryID] ?? "Other",
                                    blurb: blurbs[c.id] ?? "", monthly: c.downloadsMonthly)
         }
-        let prompt = AddonRecommender.prompt(installed: have, candidates: offer)
+        let prompt = AddonRecommender.prompt(installed: have, candidates: offer, taste: taste)
         do {
             let answer = try await AIClient(config: prefs.aiConfig).complete(system: AIPrompts.recommendSystem, prompt: prompt)
             let picks = AddonRecommender.parse(answer, candidates: Set(candidates.map(\.id)))

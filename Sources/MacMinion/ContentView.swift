@@ -262,6 +262,7 @@ struct FindMoreList: View {
         List(results, selection: $model.selection) { addon in
             AddonRow(addon: addon, installed: model.installed(addon.id))
                 .tag(Selection.addon(addon.id))
+                .contextMenu { FindMoreMenu(addon: addon) }
         }
         .overlay {
             if results.isEmpty {
@@ -295,6 +296,7 @@ struct InstalledMenu: View {
         Button(addon.status == .updateAvailable ? "Update" : "Reinstall") { Task { await model.install(addon.id) } }
             .disabled(model.busy.contains(addon.id))
         Toggle("Ignore Updates", isOn: Binding(get: { addon.record.ignored }, set: { model.setIgnored(addon.id, $0) }))
+        RatingMenuItems(id: addon.id)
         Divider()
         Button("Show in Finder") { model.showInFinder(addon.record.dirs.first) }
         if let url = addon.catalog.infoURL {
@@ -462,22 +464,26 @@ struct AddonDetail: View {
     }
 
     private var header: some View {
-        HStack(alignment: .top, spacing: Space.lg) {
-            Thumbnail(url: addon.thumbnails.first, size: 96)
-
-            VStack(alignment: .leading, spacing: Space.xs) {
-                Text(addon.name).font(.title2.bold()).textSelection(.enabled)
-                Text("by \(addon.author)").foregroundStyle(.secondary)
-                HStack(spacing: Space.sm) {
-                    primaryButton
-                    if let url = addon.infoURL {
-                        Link(destination: url) { Text("Open on ESOUI") }
-                            .buttonStyle(.bordered)
-                    }
+        VStack(alignment: .leading, spacing: Space.md) {
+            HStack(alignment: .top, spacing: Space.lg) {
+                Thumbnail(url: addon.thumbnails.first, size: 96)
+                VStack(alignment: .leading, spacing: Space.xs) {
+                    Text(addon.name).font(.title2.bold()).textSelection(.enabled)
+                    Text("by \(addon.author)").foregroundStyle(.secondary)
+                    RatingButtons(id: addon.id).padding(.top, Space.xs)
                 }
-                .padding(.top, Space.sm)
+                .gridProbe("title", area: "detail")
             }
-            .gridProbe("title", area: "detail")
+            // Their own row, so a narrow inspector never squeezes the buttons into "…".
+            HStack(spacing: Space.sm) {
+                primaryButton.fixedSize()
+                VersionMenu(addon: addon)
+                if let url = addon.infoURL {
+                    Link(destination: url) { Text("Open on ESOUI") }
+                        .buttonStyle(.bordered)
+                        .fixedSize()
+                }
+            }
         }
     }
 

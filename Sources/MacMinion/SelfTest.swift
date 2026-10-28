@@ -98,6 +98,31 @@ enum SelfTest {
             await model.loadBlurbs([1360, 7])
             check("descriptions for suggestions come from addon details", model.blurbs[1360]?.hasPrefix("Master Merchant 3.0 by") == true)
 
+            // S-020 Thumbs: down hides a suggestion and keeps it out of candidates; both go into prompts.
+            model.setRating(1360, .down)
+            model.setRating(57, .up)
+            check("thumbs down hides a suggestion", !model.suggestions.contains { $0.addon.id == 1360 })
+            check("thumbs down is left out of AI candidates", model.disliked == [1360])
+            check("ratings reach the prompts", model.taste == Taste(liked: ["HarvestMap"], disliked: ["Master Merchant 3.0"]))
+            check("ratings are saved", Store.loadState().ratings == [1360: .down, 57: .up])
+            model.setRating(1360, nil)
+            check("a second click clears the rating", model.rating(1360) == nil)
+
+            // S-021 Versions: an older release installs from the archive and is pinned.
+            let versions = (try? await model.loadVersions(57)) ?? []
+            check("the archive lists releases newest first", versions.map(\.version) == ["3.16.5", "3.16.4", "3.15.9"])
+            if let old = versions.last {
+                await model.install(57, version: old)
+                let harvest = model.installed(57)
+                check("an older version installs", harvest?.installedVersion == "3.15.9", model.errors[57] ?? "")
+                check("an older version is pinned", harvest?.status == .ignored)
+                await model.install(57, version: versions.first)
+                check("installing the latest unpins it", model.installed(57)?.status == .upToDate)
+            }
+
+            // S-022 AI search: sample results show; with no provider set it explains instead of sending.
+            check("search results show on the Overview", model.searchResults.map(\.addon.id) == [1536, 1605])
+
             // S-015 Layout
             check("Installed and Find More open as grids", model.prefs.installedLayout == .grid && model.prefs.findMoreLayout == .grid)
             model.sidebar = .installed

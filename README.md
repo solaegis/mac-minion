@@ -15,12 +15,15 @@ MacMinion runs on this Mac only. There is no account and no server of its own. I
 - **Find More** to search and browse the catalog, read details and changelogs, then install
 - Ignore updates for addons you want to pin; Update All skips them
 - Remove an addon to the Trash; SavedVariables are left alone
+- Install any older release ESOUI still has (Version menu in an addon's details); older versions are pinned
 - Live or PTS AddOns folder (or any folder you choose)
 - Menu bar extra with the update count and Update All
 - Checks ESOUI for updates once a day by default (Settings → Updates)
 - Optional AI, via Ollama on this Mac or Claude:
   - changelog summaries for one addon or every pending update
   - **Recommended for You** on the Overview: addons that would add something to the ones you have
+  - a search bar on the Overview that finds addons from a description in your own words
+  - thumbs up and down on any addon steer both; a thumbs down keeps that addon out of them
   - for Ollama, a model recommendation for this Mac from the models on your server, using its memory, what is loaded, and a speed benchmark
 
 ESO only. No WoW catalog, no login, and no cloud backup or SavedVariables sync.

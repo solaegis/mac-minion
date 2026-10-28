@@ -177,6 +177,24 @@ Acceptance:
 - [manual] Live gemma4 suggestions from 86 installed addons read sensibly.
 Status: done
 
+### S-020 Thumbs up and down
+As the user, I give any addon a thumbs up or down from its card, row menu, detail pane, or an AI pick.
+Acceptance:
+- [self] Thumbs down hides a suggestion and keeps the addon out of AI candidates; both ratings are saved and go into AI prompts.
+
+### S-021 Install a specific version
+As the user, I pick any release ESOUI still has from the Version menu in an addon's details.
+Acceptance:
+- [unit] Archived releases are read from the addon's ESOUI page, newest first.
+- [self] An older release installs and is pinned (Update All skips it); installing the latest unpins it.
+
+### S-022 Search the catalog in my own words
+As the user, I describe what I want in the search bar under Recommended for You and the AI finds catalog addons that fit, with a reason each.
+Acceptance:
+- [unit] The AI's keywords and categories filter the catalog; descriptions count; thumbs-down addons never appear.
+- [snap] Results show under the bar with Install and thumbs.
+Status: done
+
 ## M6 Polish
 
 ### S-011 App icon and empty states

@@ -11,7 +11,11 @@ struct OverviewView: View {
             VStack(alignment: .leading, spacing: Space.xxl) {
                 OverviewHero()
                 StatTiles()
-                if model.prefs.aiEnabled { SuggestionsCard() }
+                if model.prefs.aiEnabled {
+                    SuggestionsCard()
+                    AISearchBar()
+                    SearchResultsCard()
+                }
                 // Two by two, each card as tall as its neighbour.
                 Grid(horizontalSpacing: Space.lg, verticalSpacing: Space.lg) {
                     GridRow {
@@ -463,7 +467,7 @@ private struct SuggestionsCard: View {
             } else {
                 LazyVGrid(columns: [GridItem(.adaptive(minimum: 340), spacing: Space.lg, alignment: .top)], spacing: Space.md) {
                     ForEach(picks, id: \.addon.id) { pick in
-                        SuggestionRow(addon: pick.addon, reason: pick.reason)
+                        AddonPickRow(addon: pick.addon, reason: pick.reason)
                     }
                 }
             }
@@ -474,36 +478,6 @@ private struct SuggestionsCard: View {
                 await model.suggestAddons()
             }
         }
-    }
-}
-
-private struct SuggestionRow: View {
-    @Environment(AppModel.self) private var model
-    let addon: CatalogAddon
-    let reason: String
-
-    var body: some View {
-        HStack(alignment: .top, spacing: Space.md) {
-            Thumbnail(url: addon.thumbnails.first, size: 44)
-            VStack(alignment: .leading, spacing: Space.xs / 2) {
-                Text(addon.name).font(.body.weight(.semibold)).lineLimit(1)
-                Text(reason)
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(3)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-            Spacer(minLength: Space.sm)
-            if model.busy.contains(addon.id) {
-                ProgressView().controlSize(.small)
-            } else {
-                Button("Install") { Task { await model.install(addon.id) } }
-                    .controlSize(.small)
-                    .disabled(model.offline && model.details[addon.id] == nil)
-            }
-        }
-        .contentShape(.rect)
-        .onTapGesture { model.open(.findMore, selecting: addon.id) }
     }
 }
 
