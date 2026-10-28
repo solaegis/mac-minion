@@ -1,0 +1,44 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+permissions:
+  contents: write
+
+jobs:
+  macos-arm64:
+    runs-on: macos-26
+    steps:
+      - name: Check out
+        uses: actions/checkout@v5
+
+      - name: Build app
+        env:
+          SIGN_IDENTITY: "-"
+        run: |
+          set -euo pipefail
+          version="${GITHUB_REF_NAME#v}"
+          export MACMINION_VERSION="$version"
+          export MACMINION_BUILD="${GITHUB_RUN_NUMBER}"
+          mkdir -p dist
+          ./build.sh --package dist
+          binary="dist/MacMinion.app/Contents/MacOS/MacMinion"
+          archs=$(lipo -archs "$binary")
+          echo "archs: $archs"
+          echo "$archs" | grep -qw arm64
+          file "$binary"
+          ditto -c -k --keepParent dist/MacMinion.app "dist/MacMinion-${version}-macos-arm64.zip"
+
+      - name: Create release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          version="${GITHUB_REF_NAME#v}"
+          gh release create "$GITHUB_REF_NAME" \
+            --title "MacMinion ${version}" \
+            --generate-notes \
+            "dist/MacMinion-${version}-macos-arm64.zip"

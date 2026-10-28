@@ -3,15 +3,39 @@
 # Build products live in ~/Library/Developer/MacMinion, outside the repo
 # (and outside Dropbox or iCloud, which would try to sync them).
 #
-# Usage: ./build.sh            release build, install
-#        ./build.sh --debug    debug build, install
-#        ./build.sh --open     install, then quit the running copy and open the new one
+# Usage: ./build.sh                 release build, install
+#        ./build.sh --debug         debug build, install
+#        ./build.sh --open          install, then quit the running copy and open the new one
+#        ./build.sh --package <dir> write MacMinion.app to <dir>, skip home install and PATH symlink
+#
+# Env:   MACMINION_VERSION  CFBundleShortVersionString (default 0.1)
+#        MACMINION_BUILD    CFBundleVersion (default date, or GITHUB_RUN_NUMBER in CI)
+#        APP_DEST           full path of the .app; overrides --package and the home install
+#        SIGN_IDENTITY      codesign identity; default Apple Development, else ad hoc (-)
 set -euo pipefail
 here=${0:A:h}
 name="MacMinion"
 scratch="$HOME/Library/Developer/$name/build"
 config=release
-[[ " $* " == *" --debug "* ]] && config=debug
+open=0
+package_dir=""
+while (( $# )); do
+  case "$1" in
+    --debug) config=debug ;;
+    --open) open=1 ;;
+    --package)
+      shift
+      package_dir="${1:-}"
+      [[ -n $package_dir ]] || { echo "build.sh: --package needs a directory"; exit 1; }
+      ;;
+    *) echo "build.sh: unknown option $1" >&2; exit 1 ;;
+  esac
+  shift
+done
+
+version="${MACMINION_VERSION:-0.1}"
+version="${version#v}"
+build="${MACMINION_BUILD:-${GITHUB_RUN_NUMBER:-$(date +%Y%m%d%H%M)}}"
 
 # Sign with your Apple Development certificate when you have one (Xcode >
 # Settings > Accounts). Otherwise sign ad hoc, which is fine for your own Mac.
@@ -32,12 +56,18 @@ if [[ -n "$stale" ]]; then
   exit 1
 fi
 
-app="$HOME/Applications/$name.app"
-mkdir -p "$HOME/Applications"
+if [[ -n "${APP_DEST:-}" ]]; then
+  app="$APP_DEST"
+elif [[ -n $package_dir ]]; then
+  app="$package_dir/$name.app"
+else
+  app="$HOME/Applications/$name.app"
+  mkdir -p "$HOME/Applications"
+fi
 rm -rf "$app"
 mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources"
 cp "$bin" "$app/Contents/MacOS/$name"
-sed -e "s/__BUILD__/$(date +%Y%m%d%H%M)/" "$here/Info.plist.in" > "$app/Contents/Info.plist"
+sed -e "s/__VERSION__/${version}/" -e "s/__BUILD__/${build}/" "$here/Info.plist.in" > "$app/Contents/Info.plist"
 # The icon: Icon/AppIcon.icon -> Resources/Assets.car + AppIcon.icns, rebuilt when it changed.
 if [[ -d "$here/Icon/AppIcon.icon" ]]; then
   car="$here/Resources/Assets.car"
@@ -48,12 +78,15 @@ if [[ -d "$here/Icon/AppIcon.icon" ]]; then
 fi
 xattr -cr "$app"
 codesign --force --sign "$identity" "$app" 2>&1 | grep -v "replacing existing signature" || true
-echo "installed $app (signed: ${identity})"
-# The CLI: the app binary under a short name on PATH (bama agent-cli skill).
-mkdir -p "$HOME/.local/bin"
-ln -sf "$app/Contents/MacOS/$name" "$HOME/.local/bin/macminion"
+echo "installed $app (signed: ${identity}, version: ${version})"
 
-if [[ " $* " == *" --open "* ]]; then
+# The CLI: the app binary under a short name on PATH (bama agent-cli skill).
+if [[ -z "${APP_DEST:-}" && -z $package_dir ]]; then
+  mkdir -p "$HOME/.local/bin"
+  ln -sf "$app/Contents/MacOS/$name" "$HOME/.local/bin/macminion"
+fi
+
+if (( open )) && [[ -z $package_dir && -z "${APP_DEST:-}" ]]; then
   osascript -e "quit app \"$name\"" 2>/dev/null || true
   sleep 0.5
   open "$app"
