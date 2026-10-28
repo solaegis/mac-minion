@@ -26,8 +26,8 @@ struct OverviewView: View {
             }
             .padding(Space.section)
             .frame(maxWidth: 1240)
-            .frame(maxWidth: .infinity)
             .gridArea("overview", inset: Space.section)
+            .frame(maxWidth: .infinity)
         }
         .navigationTitle("Overview")
         .toolbar { RefreshButton() }
@@ -85,7 +85,6 @@ private struct OverviewHero: View {
                 .font(.system(size: 220))
                 .foregroundStyle(Palette.onAccent.opacity(0.08))
                 .rotationEffect(.degrees(-12))
-                .offset(x: 40, y: 24)
                 .accessibilityHidden(true)
         }
         .background(Palette.accent.gradient)
@@ -173,7 +172,7 @@ private struct StatTile: View {
             .overlay {
                 RoundedRectangle(cornerRadius: Radius.tile)
                     .strokeBorder(highlighted ? AnyShapeStyle(Palette.accent) : AnyShapeStyle(.separator),
-                                  lineWidth: highlighted ? 1.5 : 0.5)
+                                  lineWidth: highlighted ? 2 : 1)
             }
             .scaleEffect(hovering ? 1.02 : 1)
             .animation(.snappy(duration: 0.15), value: hovering)
@@ -208,7 +207,7 @@ private struct OverviewCard<Content: View, Accessory: View>: View {
         .padding(Space.xl)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .background(.background.secondary, in: .rect(cornerRadius: Radius.card))
-        .overlay { RoundedRectangle(cornerRadius: Radius.card).strokeBorder(.separator, lineWidth: 0.5) }
+        .overlay { RoundedRectangle(cornerRadius: Radius.card).strokeBorder(.separator) }
     }
 }
 
