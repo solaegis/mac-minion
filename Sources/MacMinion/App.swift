@@ -117,6 +117,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 ///   state.json        install records (what was installed, which version, ignored)
 ///   catalog.json      the last ESOUI file list
 ///   categories.json   the last ESOUI category list
+///   blurbs.json       one-line addon descriptions, for suggestions
 enum Store {
     /// True when APP_STORE points somewhere else (tests, snapshots, seed data).
     static var isOverridden: Bool {
@@ -163,6 +164,16 @@ enum Store {
             let date = (try? a.resourceValues(forKeys: [.contentModificationDateKey]))?.contentModificationDate
             return CachedCatalog(addons: addons, categories: categories, date: date)
         }.value
+    }
+
+    private static var blurbsURL: URL { directory.appending(path: "blurbs.json") }
+
+    static func loadBlurbs() -> [Int: String] {
+        (try? Data(contentsOf: blurbsURL)).flatMap { try? JSONDecoder().decode([Int: String].self, from: $0) } ?? [:]
+    }
+
+    static func saveBlurbs(_ blurbs: [Int: String]) {
+        if let data = try? JSONEncoder().encode(blurbs) { try? data.write(to: blurbsURL, options: .atomic) }
     }
 
     static func saveCatalog(addons: Data, categories: Data) {

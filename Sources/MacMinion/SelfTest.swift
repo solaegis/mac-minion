@@ -95,6 +95,8 @@ enum SelfTest {
             // S-019 Suggestions: the seeded picks show until installed, and checking never calls a model.
             check("seeded suggestions show on the Overview", model.suggestions.map(\.addon.id) == [1360, 1536, 1245])
             check("updates check once a day by default", Preferences().checkInterval == .day)
+            await model.loadBlurbs([1360, 7])
+            check("descriptions for suggestions come from addon details", model.blurbs[1360]?.hasPrefix("Master Merchant 3.0 by") == true)
 
             // S-015 Layout
             check("Installed and Find More open as grids", model.prefs.installedLayout == .grid && model.prefs.findMoreLayout == .grid)

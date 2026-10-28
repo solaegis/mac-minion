@@ -89,6 +89,8 @@ enum AgentRouter {
             }
             guard let model else { throw AgentError.unavailable("the app is still starting. Try again") }
             let args = Args(values: object["args"] as? [String: String] ?? [:])
+            // Right after launch the app is still reading AddOns; answer from real data, not an empty list.
+            if name != "status" { await model.waitUntilReady() }
             reply = ["ok": true, "result": try await command.run(args, model)]
         } catch let error as AgentError {
             reply = error.json

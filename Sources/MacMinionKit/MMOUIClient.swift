@@ -27,6 +27,18 @@ public struct MMOUIClient: Sendable {
         return first
     }
 
+    /// Details for many addons, a few requests at most: the feed takes ids joined by commas.
+    public func details(for ids: [Int], chunk: Int = 40) async throws -> [AddonDetails] {
+        var out: [AddonDetails] = []
+        for start in stride(from: 0, to: ids.count, by: chunk) {
+            let part = ids[start..<min(start + chunk, ids.count)].map(String.init).joined(separator: ",")
+            let data = try await get(base.appending(path: "filedetails/\(part).json"))
+            // One odd entry (a pending upload with no download) must not cost the whole batch.
+            out += try JSONDecoder().decode([Lossy<AddonDetails>].self, from: data).compactMap(\.value)
+        }
+        return out
+    }
+
     public static func decodeCatalog(_ data: Data) throws -> [CatalogAddon] {
         try JSONDecoder().decode([CatalogAddon].self, from: data)
     }
@@ -44,6 +56,12 @@ public struct MMOUIClient: Sendable {
         }
         return data
     }
+}
+
+/// Decodes an element, or nil when it doesn't decode.
+struct Lossy<T: Decodable>: Decodable {
+    let value: T?
+    init(from decoder: Decoder) throws { value = try? T(from: decoder) }
 }
 
 public enum FeedError: LocalizedError, Equatable {

@@ -78,6 +78,9 @@ final class AppModel {
     private(set) var details: [Int: AddonDetails] = [:]
     /// Bytes on disk in the AddOns folder, after a scan.
     private(set) var addonsSize: Int64?
+    /// True once AddOns was read and matched since launch.
+    private(set) var hasScanned = false
+    private(set) var scanError: String?
 
     // Work in progress
     private(set) var busy: Set<Int> = []
@@ -103,6 +106,8 @@ final class AppModel {
     var digestError: String?
     var showDigest = false
     private(set) var isSuggesting = false
+    /// One-line descriptions by ESOUI id, for suggestions. Saved, since descriptions rarely change.
+    private(set) var blurbs: [Int: String] = Store.loadBlurbs()
     var suggestError: String?
     /// Update ids already announced, so a notification only fires for new ones.
     private var notified: Set<Int> = []
@@ -160,6 +165,7 @@ final class AppModel {
     var statusLine: String {
         if let batch { return "Updating \(min(batch.done + 1, batch.total)) of \(batch.total)…" }
         if isRefreshing { return "Checking ESOUI…" }
+        if scanError != nil { return "Can't read the AddOns folder" }
         if refreshError != nil { return "Couldn't refresh the catalog" }
         guard let catalogDate else { return "Catalog not loaded" }
         return "\(catalog.count.formatted()) addons · updated \(catalogDate.formatted(.relative(presentation: .named)))"
@@ -227,13 +233,27 @@ final class AppModel {
     func rescan() async {
         guard !catalog.isEmpty else { return }
         let folder = addonsFolder
-        let (folders, size) = await Task.detached { (AddonMatcher.scan(folder), Usage.size(of: folder)) }.value
+        let (scanned, size) = await Task.detached { (AddonMatcher.scan(folder), Usage.size(of: folder)) }.value
+        guard let folders = scanned else {
+            // Keep every record: a folder we can't read says nothing about what is installed.
+            scanError = "Can't read the AddOns folder at \(folder.path). Check that it exists and that MacMinion may open Documents."
+            return
+        }
+        scanError = nil
         addonsSize = size
         let result = AddonMatcher.match(folders: folders, catalog: catalog, records: state.records)
         installed = result.installed
         unmatched = result.unmatched
-        state.records = result.records
+        // An empty folder with records on file is more likely a wrong folder than a mass uninstall: keep them.
+        if !folders.isEmpty || state.records.isEmpty { state.records = result.records }
+        hasScanned = true
         save()
+    }
+
+    /// Waits for the first scan after launch, so agents and suggestions never see an empty list by accident.
+    func waitUntilReady(seconds: Double = 30) async {
+        let deadline = Date.now.addingTimeInterval(seconds)
+        while !hasScanned, Date.now < deadline { try? await Task.sleep(for: .milliseconds(200)) }
     }
 
     // MARK: Install, update, remove
@@ -427,9 +447,27 @@ final class AppModel {
         isSuggesting = true
         suggestError = nil
         defer { isSuggesting = false }
-        let candidates = AddonRecommender.candidates(catalog: catalog, installed: Set(installed.map(\.id)))
-        let prompt = AddonRecommender.prompt(installed: installed.map { Usage.shortName($0.catalog.name) },
-                                             candidates: candidates, categories: categories)
+        await waitUntilReady()
+        guard hasScanned, !installed.isEmpty else {
+            suggestError = scanError ?? "No installed addons to base suggestions on yet."
+            return
+        }
+        // Any catalog entry that installs into a folder already on disk is a fork or variant of something installed.
+        let onDisk = Set(installed.flatMap(\.record.dirs) + unmatched.map(\.folder))
+        let candidates = AddonRecommender.candidates(catalog: catalog, installed: Set(installed.map(\.id)), folders: onDisk)
+        // Installed addons describe themselves in their manifest when they can; the rest come from ESOUI.
+        let ownWords = Dictionary(installed.compactMap { a in a.manifest?.description.map { (a.id, $0) } }, uniquingKeysWith: { a, _ in a })
+        await loadBlurbs(installed.map(\.id).filter { ownWords[$0] == nil } + candidates.map(\.id))
+        let titles = Dictionary(categories.map { ($0.id, $0.title) }, uniquingKeysWith: { a, _ in a })
+        let have = installed.map { a in
+            AddonRecommender.Entry(id: a.id, name: Usage.shortName(a.catalog.name), category: titles[a.catalog.categoryID] ?? "Other",
+                                   blurb: ownWords[a.id].map { AddonRecommender.blurb($0) } ?? blurbs[a.id] ?? "")
+        }
+        let offer = candidates.map { c in
+            AddonRecommender.Entry(id: c.id, name: c.name, category: titles[c.categoryID] ?? "Other",
+                                   blurb: blurbs[c.id] ?? "", monthly: c.downloadsMonthly)
+        }
+        let prompt = AddonRecommender.prompt(installed: have, candidates: offer)
         do {
             let answer = try await AIClient(config: prefs.aiConfig).complete(system: AIPrompts.recommendSystem, prompt: prompt)
             let picks = AddonRecommender.parse(answer, candidates: Set(candidates.map(\.id)))
@@ -442,6 +480,19 @@ final class AppModel {
         } catch {
             suggestError = error.localizedDescription
         }
+    }
+
+    /// Fills `blurbs` for these ids from ESOUI, a few batched requests; offline runs use loaded details.
+    func loadBlurbs(_ ids: [Int]) async {
+        let missing = Array(Set(ids.filter { blurbs[$0] == nil }))
+        guard !missing.isEmpty else { return }
+        var fetched: [AddonDetails] = missing.compactMap { details[$0] }
+        if !offline, let more = try? await client.details(for: missing.filter { details[$0] == nil }) { fetched += more }
+        for d in fetched {
+            details[d.id] = d
+            blurbs[d.id] = AddonRecommender.blurb(d.description)
+        }
+        Store.saveBlurbs(blurbs)
     }
 
     /// Snapshot mode shows a finished summary.

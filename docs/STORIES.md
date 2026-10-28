@@ -171,6 +171,8 @@ As the user, I see on the Overview a few uninstalled addons the AI thinks would 
 Screens: overview
 Acceptance:
 - [unit] Candidates are popular, uninstalled, non-library addons, weighted to my most-used categories; answers that name anything else are dropped.
+- [unit] The model sees every installed addon and candidate with its category and a one-line description (the manifest's own, else ESOUI's, noise lines skipped), so it can skip candidates that duplicate an installed addon's job; forks that install into a folder on disk are never candidates.
+- [unit] A folder that can't be read never prunes install records; agent commands and suggestions wait for the first scan.
 - [self] Suggestions are saved, hide once installed, and refresh on their own after a week (never in test runs).
 - [manual] Live gemma4 suggestions from 86 installed addons read sensibly.
 Status: done

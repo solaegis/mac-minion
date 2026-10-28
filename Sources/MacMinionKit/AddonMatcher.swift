@@ -9,10 +9,11 @@ public enum AddonMatcher {
         public var records: [Int: InstallRecord]
     }
 
-    /// Top-level folders of the AddOns folder, with their manifests.
-    public static func scan(_ addons: URL) -> [String: Manifest?] {
+    /// Top-level folders of the AddOns folder, with their manifests. Nil when the folder can't be read
+    /// (missing, or macOS privacy denied it), so callers never mistake "can't look" for "nothing installed".
+    public static func scan(_ addons: URL) -> [String: Manifest?]? {
         let fm = FileManager.default
-        let names = (try? fm.contentsOfDirectory(atPath: addons.path)) ?? []
+        guard let names = try? fm.contentsOfDirectory(atPath: addons.path) else { return nil }
         var out: [String: Manifest?] = [:]
         for name in names where !name.hasPrefix(".") {
             var isDir: ObjCBool = false

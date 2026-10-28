@@ -14,7 +14,8 @@ enum AgentCommands {
              "installed": model.installed.count, "updates": model.updates.count,
              "ignored": model.installed.filter(\.record.ignored).count, "notOnESOUI": model.unmatched.count,
              "updating": model.batch != nil, "ai": model.prefs.aiProvider.rawValue,
-             "autoUpdate": model.prefs.autoUpdate]
+             "autoUpdate": model.prefs.autoUpdate, "ready": model.hasScanned,
+             "problem": (model.scanError ?? model.refreshError).map { $0 as Any } ?? NSNull()]
             return out
         },
         AgentCommand(name: "addons list", summary: "List installed addons, by name.",

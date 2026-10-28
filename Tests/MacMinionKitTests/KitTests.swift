@@ -58,6 +58,10 @@ private func addon(_ id: Int, _ dirs: [String], version: String = "1", downloads
     #expect(r.installed.first { $0.id == 1 }?.status == .versionUnknown)
 }
 
+@Test func unreadableFolderIsNotEmpty() {
+    #expect(AddonMatcher.scan(URL(fileURLWithPath: "/no/such/AddOns")) == nil)
+}
+
 @Test func manifestVersionCountsAsUpToDate() {
     let r = AddonMatcher.match(folders: ["Alpha": Manifest(version: "1")], catalog: [addon(1, ["Alpha"])], records: [:])
     #expect(r.installed.first?.status == .upToDate)
@@ -263,6 +267,8 @@ private func addon(_ id: Int, _ dirs: [String], version: String = "1", downloads
         CatalogAddon(id: id, categoryID: cat, version: "1", date: .now, name: "A\(id)", author: "x", downloadsMonthly: monthly, dirs: ["A\(id)"])
     }
     let catalog = [a(1, 17, 900), a(2, 17, 800), a(3, 53, 5_000), a(4, 18, 700), a(5, 18, 10), a(6, 17, 1)]
+    #expect(!AddonRecommender.candidates(catalog: catalog, installed: [6], folders: ["A1"]).contains { $0.id == 1 },
+            "a fork that installs into a folder on disk is left out")
     let picked = AddonRecommender.candidates(catalog: catalog, installed: [6], limit: 3)
     #expect(!picked.contains { $0.id == 3 || $0.id == 6 }, "no libraries, nothing installed")
     #expect(picked.map(\.id) == [1, 2, 4], "the installed addon's category first, then the most popular")
@@ -279,4 +285,25 @@ private func addon(_ id: Int, _ dirs: [String], version: String = "1", downloads
     let s = AddonRecommender.parse(answer, candidates: [1360, 695])
     #expect(s.map(\.id) == [1360, 695])
     #expect(s.first?.reason == "Adds price history to the guild store, next to AwesomeGuildStore.")
+}
+
+@Test func promptGroupsInstalledAddonsWithWhatTheyDo() {
+    let p = AddonRecommender.prompt(
+        installed: [.init(id: 1, name: "Wizard's Wardrobe", category: "Action Bar Mods", blurb: "Saves gear and skill setups."),
+                    .init(id: 2, name: "AUI", category: "Graphic UI Mods", blurb: "")],
+        candidates: [.init(id: 1812, name: "AlphaGear 2", category: "Action Bar Mods", blurb: "Gear, skill, and build sets.", monthly: 900)])
+    #expect(p.contains("Action Bar Mods:\n- Wizard's Wardrobe: Saves gear and skill setups."))
+    #expect(p.contains("Graphic UI Mods:\n- AUI"))
+    #expect(p.contains("1812: AlphaGear 2 [Action Bar Mods, 900 downloads this month] Gear, skill, and build sets."))
+    #expect(p.contains("second gear or build manager"))
+}
+
+@Test func blurbsAreShortPlainText() {
+    let long = "[B]HarvestMap[/B] shows resource nodes on the map and compass. It records what you gather. [URL=https://x.y]Docs[/URL] More text follows here that goes on and on and on for a long while to pass the limit."
+    let b = AddonRecommender.blurb(long, limit: 100)
+    #expect(b == "HarvestMap shows resource nodes on the map and compass. It records what you gather.")
+    #expect(AddonRecommender.blurb("Short one, long enough to keep.") == "Short one, long enough to keep.")
+    let noisy = "The addon for TTC needs localization help! Help translate it.\nShows Tamriel Trade Centre price info in item tooltips."
+    #expect(AddonRecommender.blurb(noisy) == "Shows Tamriel Trade Centre price info in item tooltips.")
+    #expect(Manifest.parse("## Description: Remind you time to refresh your actions.").description == "Remind you time to refresh your actions.")
 }

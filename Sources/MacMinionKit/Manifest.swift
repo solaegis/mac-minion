@@ -5,6 +5,7 @@ public struct Manifest: Sendable, Hashable {
     public var title: String?
     public var version: String?
     public var author: String?
+    public var description: String?
     public var isLibrary = false
     public var dependsOn: [String] = []
 
@@ -23,6 +24,7 @@ public struct Manifest: Sendable, Hashable {
             case "title": m.title = value
             case "version": m.version = value
             case "author": m.author = value
+            case "description": m.description = value
             case "islibrary": m.isLibrary = value.lowercased() == "true"
             case "dependson": m.dependsOn = value.split(separator: " ").map { String($0.split(separator: ">")[0]) }
             default: break
