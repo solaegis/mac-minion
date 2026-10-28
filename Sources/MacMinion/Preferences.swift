@@ -56,6 +56,48 @@ enum CardSize: String, CaseIterable, Identifiable {
     }
 }
 
+/// The sections of the Overview, in their default order.
+enum OverviewSection: String, CaseIterable, Identifiable {
+    case banner, libraries, stats, recommended, search, history, activity, popular
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .banner: "Status Banner"
+        case .libraries: "Libraries for Installed Addons"
+        case .stats: "At a Glance"
+        case .recommended: "Recommended for You"
+        case .search: "AI Search"
+        case .history: "Updates Installed & By Category"
+        case .activity: "Recent Activity & Updated Most Often"
+        case .popular: "Popular This Month"
+        }
+    }
+
+    var symbol: String {
+        switch self {
+        case .banner: "rectangle.inset.filled"
+        case .libraries: "books.vertical"
+        case .stats: "square.grid.3x2"
+        case .recommended: "sparkles"
+        case .search: "sparkle.magnifyingglass"
+        case .history: "chart.bar.xaxis"
+        case .activity: "clock.arrow.circlepath"
+        case .popular: "flame"
+        }
+    }
+
+    /// When a visible section still stays out of sight.
+    var note: String? {
+        switch self {
+        case .libraries: "Only while a library is missing"
+        case .recommended, .search: "Only while an AI provider is set"
+        default: nil
+        }
+    }
+}
+
 /// Settings people change in the Settings window. Saved to UserDefaults (the Claude key to the
 /// Keychain), except in test and snapshot runs, which keep everything in memory.
 @Observable
@@ -77,6 +119,34 @@ final class Preferences {
 
     // General
     var showMenuBarItem: Bool { didSet { Self.save(showMenuBarItem, "app.menuBar") } }
+
+    // Overview
+    /// Every section, in the order the Overview shows them.
+    var overviewOrder: [OverviewSection] { didSet { Self.save(overviewOrder.map(\.rawValue), "overview.order") } }
+    var overviewHidden: Set<OverviewSection> { didSet { Self.save(overviewHidden.map(\.rawValue).sorted(), "overview.hidden") } }
+
+    var visibleOverview: [OverviewSection] { overviewOrder.filter { !overviewHidden.contains($0) } }
+
+    func moveOverview(_ section: OverviewSection, by offset: Int) {
+        guard let i = overviewOrder.firstIndex(of: section) else { return }
+        let j = min(max(i + offset, 0), overviewOrder.count - 1)
+        guard i != j else { return }
+        overviewOrder.remove(at: i)
+        overviewOrder.insert(section, at: j)
+    }
+
+    func moveOverview(from source: IndexSet, to destination: Int) {
+        overviewOrder.move(fromOffsets: source, toOffset: destination)
+    }
+
+    func setOverview(_ section: OverviewSection, visible: Bool) {
+        if visible { overviewHidden.remove(section) } else { overviewHidden.insert(section) }
+    }
+
+    func resetOverview() {
+        overviewOrder = OverviewSection.allCases
+        overviewHidden = []
+    }
 
     // Layout
     var installedLayout: BrowseLayout { didSet { Self.save(installedLayout.rawValue, "layout.installed") } }
@@ -110,6 +180,15 @@ final class Preferences {
         concurrentUpdates = min(max(d.object(forKey: "updates.concurrent") as? Int ?? 2, 1), 4)
         notifyUpdates = d.bool(forKey: "updates.notify")
         showMenuBarItem = d.object(forKey: "app.menuBar") as? Bool ?? true
+        // Saved order first; sections added in a later version join at their default place.
+        let saved = (d.stringArray(forKey: "overview.order") ?? []).compactMap(OverviewSection.init(rawValue:))
+        var order = saved
+        for section in OverviewSection.allCases where !order.contains(section) {
+            let before = OverviewSection.allCases.prefix { $0 != section }.last.flatMap { order.firstIndex(of: $0) }
+            order.insert(section, at: before.map { $0 + 1 } ?? 0)
+        }
+        overviewOrder = order
+        overviewHidden = Set((d.stringArray(forKey: "overview.hidden") ?? []).compactMap(OverviewSection.init(rawValue:)))
         installedLayout = BrowseLayout(rawValue: d.string(forKey: "layout.installed") ?? "") ?? .grid
         findMoreLayout = BrowseLayout(rawValue: d.string(forKey: "layout.findMore") ?? "") ?? .grid
         cardSize = CardSize(rawValue: d.string(forKey: "layout.cardSize") ?? "") ?? .regular

@@ -1,5 +1,6 @@
 import AppKit
 import IOKit.pwr_mgt
+import MacMinionKit
 import SwiftUI
 
 /// Screenshot mode for agents.
@@ -40,6 +41,8 @@ enum Snapshot {
                     case .findMore: model.findMoreResults.first?.id
                     }
                     model.open(page, selecting: first)
+                    // Dark Find More shows the filter chips.
+                    if page == .findMore { model.findMoreFilter = mode == "dark" ? BrowseFilter(recency: .month, hideLibraries: true) : BrowseFilter() }
                     try? await Task.sleep(for: .seconds(1.2))
                     capture(to: "\(dir)/\(page.rawValue)-\(mode).png")
                 }

@@ -9,10 +9,11 @@ MacMinion runs on this Mac only. There is no account and no server of its own. I
 
 ## Features
 
-- **Overview** of how your addons stand, with recent activity and popular catalog picks
+- **Overview** of how your addons stand, with recent activity and popular catalog picks; show, hide, and reorder its sections
 - **Installed** list or card grid, matched to ESOUI (unmatched local folders stay visible)
 - **Updates** for one addon or all of them (⌘U), two downloads at a time by default
 - **Find More** to search and browse the catalog, read details and changelogs, then install
+- Filters on Installed and Find More: category, status, update age, rating, current game version, and libraries
 - Ignore updates for addons you want to pin; Update All skips them
 - Remove an addon to the Trash; SavedVariables are left alone
 - Install any older release ESOUI still has (Version menu in an addon's details); older versions are pinned

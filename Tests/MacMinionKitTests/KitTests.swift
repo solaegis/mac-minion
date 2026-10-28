@@ -384,3 +384,26 @@ private func addon(_ id: Int, _ dirs: [String], version: String = "1", downloads
     try "".write(to: root.appending(path: "Deep/a/b/c/LibTooDeep/LibTooDeep.txt"), atomically: true, encoding: .utf8)
     #expect(AddonMatcher.nested(root) == ["LibSkillsFactory", "LibExtendedJournal"])
 }
+
+@Test func browseFiltersNarrowTheList() {
+    let now = Date(timeIntervalSince1970: 2_000_000_000)
+    func a(_ id: Int, cat: Int, daysAgo: Double, compat: [String]) -> CatalogAddon {
+        CatalogAddon(id: id, categoryID: cat, version: "2", date: now.addingTimeInterval(-daysAgo * 86_400), name: "A\(id)", author: "x",
+                     compatibility: compat.map { GameVersion(version: $0, name: "S") }, dirs: ["A\(id)"])
+    }
+    let fresh = a(1, cat: 17, daysAgo: 3, compat: ["12.1.0"])
+    let old = a(2, cat: 53, daysAgo: 400, compat: ["9.3.0"])
+    let current = CurrentGame.current(in: [fresh, old])?.version
+    #expect(current == "12.1.0")
+    func pass(_ f: BrowseFilter, _ addon: CatalogAddon, installed: InstalledAddon? = nil, rating: Rating? = nil, cats: Set<Int>? = nil) -> Bool {
+        f.matches(addon, installed: installed, rating: rating, categories: cats, currentGame: current, now: now)
+    }
+    #expect(!BrowseFilter().isActive && pass(BrowseFilter(), old))
+    #expect(pass(BrowseFilter(recency: .week), fresh) && !pass(BrowseFilter(recency: .year), old))
+    #expect(pass(BrowseFilter(compatibleOnly: true), fresh) && !pass(BrowseFilter(compatibleOnly: true), old))
+    #expect(!pass(BrowseFilter(hideLibraries: true), old))
+    #expect(!pass(BrowseFilter(rating: .hideDisliked), fresh, rating: .down) && pass(BrowseFilter(rating: .liked), fresh, rating: .up))
+    #expect(!pass(BrowseFilter(category: 17), old, cats: [17, 18]))
+    let installed = InstalledAddon(catalog: fresh, record: InstallRecord(id: 1, version: "1", dirs: ["A1"]), manifest: nil)
+    #expect(pass(BrowseFilter(status: .updateAvailable), fresh, installed: installed) && !pass(BrowseFilter(status: .upToDate), fresh, installed: installed))
+}

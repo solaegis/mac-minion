@@ -141,6 +141,37 @@ enum SelfTest {
             check("Install All installs the missing libraries", model.missingLibraries.isEmpty
                   && model.installed(2275) != nil && model.installed(1594) != nil)
 
+            // S-024 Filters
+            model.installedFilter.status = .ignored
+            check("Installed filters by status", model.filteredInstalled.map(\.id) == [1146] && model.filteredUnmatched.isEmpty)
+            model.installedFilter = BrowseFilter(category: AddonCategory.librariesID)
+            check("Installed filters by category", Set(model.filteredInstalled.map(\.id)) == [7, 1146, 2275, 1594])
+            model.clearInstalledFilters()
+            model.installedSearch = "vendor"
+            check("Installed search finds folders not on ESOUI", model.filteredInstalled.isEmpty && model.filteredUnmatched.map(\.folder) == ["EsoVendorJunk"])
+            model.clearInstalledFilters()
+            model.installedSort = .downloads
+            check("Installed sorts by downloads", model.filteredInstalled.first?.id == 7)
+            model.installedSort = .name
+            model.findMoreFilter.hideLibraries = true
+            check("Find More hides libraries", !model.findMoreResults.contains { $0.categoryID == AddonCategory.librariesID })
+            model.findMoreFilter = BrowseFilter(recency: .week)
+            check("Find More filters by update age", model.findMoreResults.allSatisfy { Date.now.timeIntervalSince($0.date) <= 7 * 86_400 })
+            model.clearFindMoreFilters()
+            check("Clear Filters turns everything off", !model.findMoreFilter.isActive && !model.installedFiltered)
+
+            // S-025 Overview sections
+            let prefs = model.prefs
+            check("the Overview starts in the default order", prefs.overviewOrder == OverviewSection.allCases)
+            prefs.moveOverview(.popular, by: -99)
+            check("a section moves to the top", prefs.visibleOverview.first == .popular)
+            prefs.moveOverview(.banner, by: 1)
+            check("a section moves down one", prefs.overviewOrder.prefix(3) == [.popular, .libraries, .banner])
+            prefs.setOverview(.stats, visible: false)
+            check("a hidden section leaves the Overview", !prefs.visibleOverview.contains(.stats) && prefs.overviewOrder.contains(.stats))
+            prefs.resetOverview()
+            check("Reset restores every section in order", prefs.visibleOverview == OverviewSection.allCases)
+
             // S-015 Layout
             check("Installed and Find More open as grids", model.prefs.installedLayout == .grid && model.prefs.findMoreLayout == .grid)
             model.sidebar = .installed

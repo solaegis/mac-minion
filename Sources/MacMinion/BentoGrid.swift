@@ -280,8 +280,9 @@ struct InstalledGrid: View {
 
     var body: some View {
         let prefs = model.prefs
-        let updates = prefs.featureUpdates ? model.installed.filter { $0.status == .updateAvailable } : []
-        let rest = model.installed.filter { !updates.contains($0) }
+        let shown = model.filteredInstalled
+        let updates = prefs.featureUpdates ? shown.filter { $0.status == .updateAvailable } : []
+        let rest = shown.filter { !updates.contains($0) }
         let libraries = prefs.groupLibraries ? rest.filter { $0.catalog.categoryID == AddonCategory.librariesID } : []
         let addons = rest.filter { !libraries.contains($0) }
         ScrollView {
@@ -301,9 +302,9 @@ struct InstalledGrid: View {
                         ForEach(libraries) { card($0, span: .small) }
                     }
                 }
-                if !model.unmatched.isEmpty {
-                    BentoSection(title: "Not on ESOUI", count: model.unmatched.count) {
-                        ForEach(model.unmatched) { FolderCard(folder: $0) }
+                if !model.filteredUnmatched.isEmpty {
+                    BentoSection(title: "Not on ESOUI", count: model.filteredUnmatched.count) {
+                        ForEach(model.filteredUnmatched) { FolderCard(folder: $0) }
                     }
                 }
             }
@@ -311,7 +312,9 @@ struct InstalledGrid: View {
             .gridArea("grid")
         }
         .overlay {
-            if model.installed.isEmpty && model.unmatched.isEmpty {
+            if model.installedFiltered && shown.isEmpty && model.filteredUnmatched.isEmpty {
+                NoMatches(scope: .installed)
+            } else if model.installed.isEmpty && model.unmatched.isEmpty {
                 ContentUnavailableView {
                     Label("No Addons Found", systemImage: "puzzlepiece.extension")
                 } description: {
@@ -338,7 +341,7 @@ struct FindMoreGrid: View {
 
     var body: some View {
         let results = model.findMoreResults
-        let featuring = model.prefs.featurePopular && model.search.isEmpty && model.sort != .name
+        let featuring = model.prefs.featurePopular && model.search.isEmpty && model.sort != .name && !model.findMoreFilter.isActive
         let featured = featuring ? Array(results.prefix(Self.featuredCount)) : []
         let rest = Array(results.dropFirst(featured.count))
         let shown = Array(rest.prefix(limit))
@@ -365,7 +368,9 @@ struct FindMoreGrid: View {
         .onChange(of: model.category) { limit = 120 }
         .overlay {
             if results.isEmpty {
-                if !model.catalogResults(includeInstalled: true).isEmpty {
+                if model.findMoreFilter.isActive {
+                    NoMatches(scope: .findMore)
+                } else if !model.catalogResults(includeInstalled: true).isEmpty {
                     ContentUnavailableView("Already Installed", systemImage: "checkmark.circle",
                                            description: Text(model.search.isEmpty ? "You have every addon here. See Installed."
                                                              : "Everything matching “\(model.search)” is installed. See Installed."))

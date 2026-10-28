@@ -205,6 +205,21 @@ Acceptance:
 - [self] Install All installs them and the card disappears.
 Status: done
 
+### S-024 Filter Installed and Find More
+As the user, I narrow Installed and Find More from a Filter menu: category on both; status and a sort order on Installed (with a search box); update age on Find More; rating, current game version, and hide libraries on both. Active filters show as chips I can turn off one at a time.
+Acceptance:
+- [self] Each filter narrows the list; Clear Filters (Option-Command-0) turns them all off.
+- [snap] Chips above the results; an empty filtered page offers Clear Filters.
+Status: done
+
+### S-025 Arrange the Overview
+As the user, I choose which Overview sections show and in what order: from Customize in the toolbar (drag or arrows), from Settings > Layout, or by right-clicking a section (Move Up, Move Down, Hide).
+Acceptance:
+- [self] Moving, hiding, and Reset to Default work; order and hidden sections are saved.
+- [unit] Sections added in a later version join the saved order at their default place.
+- [snap] Settings > Layout lists every section with a checkbox and arrows.
+Status: done
+
 ## M6 Polish
 
 ### S-011 App icon and empty states

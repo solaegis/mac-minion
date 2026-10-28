@@ -115,12 +115,16 @@ struct InstalledPage: View {
 
     var body: some View {
         @Bindable var prefs = model.prefs
+        @Bindable var model = model
         Group {
             if prefs.installedLayout == .grid { InstalledGrid() } else { InstalledList() }
         }
+        .safeAreaInset(edge: .top, spacing: 0) { FilterChips(scope: .installed) }
+        .searchable(text: $model.installedSearch, placement: .toolbar, prompt: "Filter installed addons")
         .navigationTitle("Installed")
         .toolbar {
             RefreshButton()
+            FilterMenu(scope: .installed)
             LayoutSwitch(layout: $prefs.installedLayout)
         }
     }
@@ -136,26 +140,11 @@ struct FindMorePage: View {
         Group {
             if prefs.findMoreLayout == .grid { FindMoreGrid() } else { FindMoreList() }
         }
+        .safeAreaInset(edge: .top, spacing: 0) { FilterChips(scope: .findMore) }
         .searchable(text: $model.search, placement: .toolbar, prompt: "Search addons or authors")
         .navigationTitle("Find More")
         .toolbar {
-            ToolbarItem {
-                Menu {
-                    Picker("Category", selection: $model.category) {
-                        Text("All Categories").tag(Int?.none)
-                        Divider()
-                        ForEach(model.categories.sorted { $0.title < $1.title }) { c in
-                            Text(c.title).tag(Int?.some(c.id))
-                        }
-                    }
-                    Picker("Sort By", selection: $model.sort) {
-                        ForEach(CatalogSort.allCases) { Text($0.title).tag($0) }
-                    }
-                } label: {
-                    Label("Filter", systemImage: "line.3.horizontal.decrease")
-                }
-                .help("Filter by category and choose the sort order")
-            }
+            FilterMenu(scope: .findMore)
             LayoutSwitch(layout: $prefs.findMoreLayout)
         }
     }
@@ -185,15 +174,15 @@ struct InstalledList: View {
         @Bindable var model = model
         List(selection: $model.selection) {
             Section("From ESOUI") {
-                ForEach(model.installed) { addon in
+                ForEach(model.filteredInstalled) { addon in
                     AddonRow(addon: addon.catalog, installed: addon)
                         .tag(Selection.addon(addon.id))
                         .contextMenu { InstalledMenu(addon: addon) }
                 }
             }
-            if !model.unmatched.isEmpty {
+            if !model.filteredUnmatched.isEmpty {
                 Section("Not on ESOUI") {
-                    ForEach(model.unmatched) { folder in
+                    ForEach(model.filteredUnmatched) { folder in
                         FolderRow(folder: folder)
                             .tag(Selection.folder(folder.folder))
                             .contextMenu {
@@ -204,7 +193,9 @@ struct InstalledList: View {
             }
         }
         .overlay {
-            if model.installed.isEmpty && model.unmatched.isEmpty {
+            if model.installedFiltered && model.filteredInstalled.isEmpty && model.filteredUnmatched.isEmpty {
+                NoMatches(scope: .installed)
+            } else if model.installed.isEmpty && model.unmatched.isEmpty {
                 ContentUnavailableView {
                     Label("No Addons Found", systemImage: "puzzlepiece.extension")
                 } description: {
@@ -266,7 +257,9 @@ struct FindMoreList: View {
         }
         .overlay {
             if results.isEmpty {
-                if !model.catalogResults(includeInstalled: true).isEmpty {
+                if model.findMoreFilter.isActive {
+                    NoMatches(scope: .findMore)
+                } else if !model.catalogResults(includeInstalled: true).isEmpty {
                     ContentUnavailableView("Already Installed", systemImage: "checkmark.circle",
                                            description: Text(model.search.isEmpty ? "You have every addon here. See Installed."
                                                              : "Everything matching “\(model.search)” is installed. See Installed."))

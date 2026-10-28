@@ -33,6 +33,9 @@ struct MacMinionApp: App {
                     .keyboardShortcut("1", modifiers: [.command, .option])
                 Button("Show as List") { model.setLayout(.list) }
                     .keyboardShortcut("2", modifiers: [.command, .option])
+                Button("Clear Filters") { model.sidebar == .findMore ? model.clearFindMoreFilters() : model.clearInstalledFilters() }
+                    .keyboardShortcut("0", modifiers: [.command, .option])
+                    .disabled(model.sidebar != .installed && model.sidebar != .findMore)
             }
             CommandGroup(replacing: .newItem) {}
             AddonCommands(model: model)

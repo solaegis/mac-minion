@@ -5,30 +5,23 @@ import SwiftUI
 /// The home page: how the addons stand today and how MacMinion (and Minion before it) has kept them current.
 struct OverviewView: View {
     @Environment(AppModel.self) private var model
+    @State private var customizing = false
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: Space.xxl) {
-                OverviewHero()
-                if !model.missingLibraries.isEmpty { LibrariesCard() }
-                StatTiles()
-                if model.prefs.aiEnabled {
-                    SuggestionsCard()
-                    AISearchBar()
-                    SearchResultsCard()
+                // The order and visibility come from Settings > Layout (or Customize in the toolbar).
+                ForEach(model.prefs.visibleOverview) { section in
+                    content(section)
+                        .contextMenu { menu(section) }
                 }
-                // Two by two, each card as tall as its neighbour.
-                Grid(horizontalSpacing: Space.lg, verticalSpacing: Space.lg) {
-                    GridRow {
-                        ActivityChartCard()
-                        CategoryCard()
-                    }
-                    GridRow {
-                        RecentActivityCard()
-                        MostUpdatedCard()
+                if model.prefs.visibleOverview.isEmpty {
+                    ContentUnavailableView {
+                        Label("Every Section Is Hidden", systemImage: "eye.slash")
+                    } actions: {
+                        Button("Customize Overview…") { customizing = true }
                     }
                 }
-                PopularCard()
             }
             .padding(Space.section)
             .frame(maxWidth: 1240)
@@ -36,7 +29,126 @@ struct OverviewView: View {
             .frame(maxWidth: .infinity)
         }
         .navigationTitle("Overview")
-        .toolbar { RefreshButton() }
+        .toolbar {
+            RefreshButton()
+            ToolbarItem {
+                Button("Customize Overview", systemImage: "slider.horizontal.3") { customizing = true }
+                    .help("Choose which sections the Overview shows, and their order")
+            }
+        }
+        .sheet(isPresented: $customizing) { OverviewCustomizeSheet() }
+    }
+
+    @ViewBuilder
+    private func content(_ section: OverviewSection) -> some View {
+        switch section {
+        case .banner: OverviewHero()
+        case .libraries: if !model.missingLibraries.isEmpty { LibrariesCard() }
+        case .stats: StatTiles()
+        case .recommended: if model.prefs.aiEnabled { SuggestionsCard() }
+        case .search:
+            if model.prefs.aiEnabled {
+                VStack(alignment: .leading, spacing: Space.xxl) {
+                    AISearchBar()
+                    SearchResultsCard()
+                }
+            }
+        case .history:
+            // Side by side, each card as tall as its neighbour.
+            Grid(horizontalSpacing: Space.lg) {
+                GridRow {
+                    ActivityChartCard()
+                    CategoryCard()
+                }
+            }
+        case .activity:
+            Grid(horizontalSpacing: Space.lg) {
+                GridRow {
+                    RecentActivityCard()
+                    MostUpdatedCard()
+                }
+            }
+        case .popular: PopularCard()
+        }
+    }
+
+    @ViewBuilder
+    private func menu(_ section: OverviewSection) -> some View {
+        let prefs = model.prefs
+        let visible = prefs.visibleOverview
+        Button("Move Up", systemImage: "arrow.up") { prefs.moveOverview(section, by: -1) }
+            .disabled(visible.first == section)
+        Button("Move Down", systemImage: "arrow.down") { prefs.moveOverview(section, by: 1) }
+            .disabled(visible.last == section)
+        Button("Hide \(section.title)", systemImage: "eye.slash") { prefs.setOverview(section, visible: false) }
+        Divider()
+        Button("Customize Overview…") { customizing = true }
+    }
+}
+
+/// The sections, in order, each with a show toggle and up/down buttons. Used in the Customize sheet
+/// and in Settings > Layout.
+struct OverviewSectionRows: View {
+    @Environment(AppModel.self) private var model
+    /// Drag to reorder, inside a List.
+    var draggable = false
+
+    var body: some View {
+        let prefs = model.prefs
+        ForEach(Array(prefs.overviewOrder.enumerated()), id: \.element) { index, section in
+            HStack(spacing: Space.md) {
+                Toggle(isOn: Binding(get: { !prefs.overviewHidden.contains(section) },
+                                     set: { prefs.setOverview(section, visible: $0) })) {
+                    Label {
+                        VStack(alignment: .leading, spacing: 0) {
+                            Text(section.title)
+                            if let note = section.note { Text(note).font(.caption).foregroundStyle(.secondary) }
+                        }
+                    } icon: {
+                        Image(systemName: section.symbol).foregroundStyle(Palette.accentText)
+                    }
+                }
+                .toggleStyle(.checkbox)
+                Spacer()
+                Button("Move Up", systemImage: "chevron.up") { prefs.moveOverview(section, by: -1) }
+                    .labelStyle(.iconOnly)
+                    .help("Move \(section.title) up")
+                    .disabled(index == 0)
+                Button("Move Down", systemImage: "chevron.down") { prefs.moveOverview(section, by: 1) }
+                    .labelStyle(.iconOnly)
+                    .help("Move \(section.title) down")
+                    .disabled(index == prefs.overviewOrder.count - 1)
+            }
+            .labelStyle(.titleAndIcon)
+            .buttonStyle(.borderless)
+        }
+        .onMove(perform: draggable ? { prefs.moveOverview(from: $0, to: $1) } : nil)
+    }
+}
+
+private struct OverviewCustomizeSheet: View {
+    @Environment(AppModel.self) private var model
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: Space.lg) {
+            Text("Customize Overview").font(.title2.bold())
+            Text("Show or hide each section, and drag or use the arrows to change the order.")
+                .foregroundStyle(.secondary)
+            List {
+                OverviewSectionRows(draggable: true)
+            }
+            .frame(minHeight: 340)
+            HStack {
+                Button("Reset to Default") { model.prefs.resetOverview() }
+                Spacer()
+                Button("Done") { dismiss() }
+                    .keyboardShortcut(.defaultAction)
+            }
+        }
+        .padding(Space.xxl)
+        .frame(width: 520)
+        .noInitialFocus()
     }
 }
 

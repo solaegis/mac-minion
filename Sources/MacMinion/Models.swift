@@ -49,6 +49,22 @@ enum CatalogSort: String, CaseIterable, Identifiable {
     }
 }
 
+/// How Installed is ordered inside each section.
+enum InstalledSort: String, CaseIterable, Identifiable {
+    case name, author, newest, downloads
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .name: "Name"
+        case .author: "Author"
+        case .newest: "Recently Updated on ESOUI"
+        case .downloads: "Most Downloaded"
+        }
+    }
+}
+
 /// App-wide state that menus, toolbars, and views share.
 @Observable
 final class AppModel {
@@ -68,8 +84,18 @@ final class AppModel {
     private(set) var isRefreshing = false
     var refreshError: String?
     var search = ""
-    var category: Int?
     var sort: CatalogSort = .downloads
+    /// Find More's filters. `category` is part of them.
+    var findMoreFilter = BrowseFilter()
+    var category: Int? {
+        get { findMoreFilter.category }
+        set { findMoreFilter.category = newValue }
+    }
+
+    // Installed filters
+    var installedFilter = BrowseFilter()
+    var installedSearch = ""
+    var installedSort: InstalledSort = .name
 
     // Installed
     private(set) var installed: [InstalledAddon] = []
@@ -140,6 +166,53 @@ final class AppModel {
 
     // MARK: Derived lists
 
+    /// The newest game version the catalog mentions, for "works with the current game version".
+    var currentGame: GameVersion? { CurrentGame.current(in: catalog) }
+
+    /// Installed, after the search box, filters, and sort.
+    var filteredInstalled: [InstalledAddon] {
+        let query = installedSearch.trimmingCharacters(in: .whitespaces)
+        let cats = installedFilter.category.map { AddonCategory.descendants(of: $0, in: categories) }
+        let game = installedFilter.compatibleOnly ? currentGame?.version : nil
+        var list = installed.filter { a in
+            (query.isEmpty || a.catalog.name.localizedStandardContains(query) || a.catalog.author.localizedStandardContains(query)
+                || a.record.dirs.contains { $0.localizedStandardContains(query) })
+                && installedFilter.matches(a.catalog, installed: a, rating: rating(a.id), categories: cats, currentGame: game)
+        }
+        switch installedSort {
+        case .name: list.sort { $0.catalog.name.localizedStandardCompare($1.catalog.name) == .orderedAscending }
+        case .author: list.sort { $0.catalog.author.localizedStandardCompare($1.catalog.author) == .orderedAscending }
+        case .newest: list.sort { $0.catalog.date > $1.catalog.date }
+        case .downloads: list.sort { $0.catalog.downloads > $1.catalog.downloads }
+        }
+        return list
+    }
+
+    /// Folders not on ESOUI have no category, status, or rating: they show only while no filter is on.
+    var filteredUnmatched: [UnmatchedFolder] {
+        guard !installedFilter.isActive else { return [] }
+        let query = installedSearch.trimmingCharacters(in: .whitespaces)
+        return query.isEmpty ? unmatched : unmatched.filter { $0.title.localizedStandardContains(query) || $0.folder.localizedStandardContains(query) }
+    }
+
+    var installedFiltered: Bool { installedFilter.isActive || !installedSearch.trimmingCharacters(in: .whitespaces).isEmpty }
+
+    /// Categories with at least one installed addon, and how many.
+    var installedCategories: [(category: AddonCategory, count: Int)] {
+        let counts = Dictionary(grouping: installed, by: \.catalog.categoryID).mapValues(\.count)
+        return categories.compactMap { c in counts[c.id].map { (c, $0) } }.sorted { $0.category.title < $1.category.title }
+    }
+
+    func clearInstalledFilters() {
+        installedFilter = BrowseFilter()
+        installedSearch = ""
+    }
+
+    func clearFindMoreFilters() {
+        findMoreFilter = BrowseFilter()
+        search = ""
+    }
+
     var updates: [InstalledAddon] { installed.filter { $0.status == .updateAvailable } }
 
     var history: [HistoryEvent] { state.history }
@@ -164,6 +237,12 @@ final class AppModel {
                 $0.name.range(of: query, options: [.caseInsensitive, .diacriticInsensitive]) != nil
                     || $0.author.range(of: query, options: [.caseInsensitive, .diacriticInsensitive]) != nil
             }
+        }
+        var rest = findMoreFilter
+        rest.category = nil
+        if rest.isActive {
+            let game = currentGame?.version
+            list = list.filter { rest.matches($0, installed: nil, rating: rating($0.id), categories: nil, currentGame: game) }
         }
         switch sort {
         case .downloads: list.sort { $0.downloads > $1.downloads }

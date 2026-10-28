@@ -21,6 +21,8 @@ enum AgentCommands {
         AgentCommand(name: "addons list", summary: "List installed addons, by name.",
                      params: [.init(name: "status", help: "only this status: update, uptodate, ignored, unknown"),
                               .init(name: "search", help: "only names or authors containing this text"),
+                              .init(name: "category", kind: .integer, help: "only this category id and those under it"),
+                              .init(name: "rating", help: "only: up, down, or unrated"),
                               .init(name: "limit", kind: .integer, help: "at most this many (default 100)"),
                               .init(name: "offset", kind: .integer, help: "skip this many, for the next page")],
                      example: "macminion addons list --status update --json", readOnly: true) { args, model in
@@ -33,6 +35,14 @@ enum AgentCommands {
             }
             if let text = args.string("search") {
                 list = list.filter { $0.catalog.name.localizedStandardContains(text) || $0.catalog.author.localizedStandardContains(text) }
+            }
+            if args.string("category") != nil {
+                let ids = AddonCategory.descendants(of: try args.int("category", default: 0), in: model.categories)
+                list = list.filter { ids.contains($0.catalog.categoryID) }
+            }
+            if let rating = args.string("rating") {
+                let filter = try ratingFilter(rating)
+                list = list.filter { filter.matches(model.rating($0.id)) }
             }
             return try page(list.map(json), args, key: "addons", defaultLimit: 100)
         },
@@ -61,11 +71,23 @@ enum AgentCommands {
                               .init(name: "category", kind: .integer, help: "only this category id (see `macminion categories list`)"),
                               .init(name: "sort", help: "downloads, monthly, favorites, newest, or name (default downloads)"),
                               .init(name: "installed", kind: .boolean, help: "include installed addons (Find More leaves them out)"),
+                              .init(name: "updated", help: "only updated within: week, month, quarter, or year"),
+                              .init(name: "compatible", kind: .boolean, help: "only addons that list the current game version"),
+                              .init(name: "no-libraries", kind: .boolean, help: "leave libraries out"),
+                              .init(name: "rating", help: "only: up, down, unrated, or not-down"),
                               .init(name: "limit", kind: .integer, help: "at most this many (default 25)"),
                               .init(name: "offset", kind: .integer, help: "skip this many, for the next page")],
                      example: "macminion catalog search \"master merchant\" --limit 5 --json", readOnly: true) { args, model in
-            let saved = (model.search, model.category, model.sort)
-            defer { (model.search, model.category, model.sort) = saved }
+            let saved = (model.search, model.findMoreFilter, model.sort)
+            defer { (model.search, model.findMoreFilter, model.sort) = saved }
+            model.findMoreFilter = BrowseFilter()
+            if let updated = args.string("updated") {
+                guard let recency = Recency(rawValue: updated) else { throw AgentError.usage("--updated must be week, month, quarter, or year") }
+                model.findMoreFilter.recency = recency
+            }
+            model.findMoreFilter.compatibleOnly = try args.bool("compatible") == true
+            model.findMoreFilter.hideLibraries = try args.bool("no-libraries") == true
+            if let rating = args.string("rating") { model.findMoreFilter.rating = try ratingFilter(rating) }
             model.search = args.string("query") ?? ""
             model.category = try args.string("category").map { _ in try args.int("category", default: 0) }
             if let sort = args.string("sort") {
@@ -289,6 +311,16 @@ enum AgentCommands {
             return ["page": page.rawValue, "addon": id.map { $0 as Any } ?? NSNull()] as JSONObject
         },
     ]
+
+    static func ratingFilter(_ raw: String) throws -> RatingFilter {
+        switch raw {
+        case "up": .liked
+        case "down": .disliked
+        case "unrated": .unrated
+        case "not-down": .hideDisliked
+        default: throw AgentError.usage("--rating must be up, down, unrated, or not-down, not \"\(raw)\"")
+        }
+    }
 
     static let statusNames: [String: AddonStatus] = ["update": .updateAvailable, "uptodate": .upToDate,
                                                      "ignored": .ignored, "unknown": .versionUnknown]

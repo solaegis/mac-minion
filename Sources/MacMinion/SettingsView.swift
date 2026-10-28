@@ -168,6 +168,15 @@ struct LayoutSettings: View {
     var body: some View {
         @Bindable var prefs = model.prefs
         Section {
+            OverviewSectionRows()
+            Button("Reset to Default") { prefs.resetOverview() }
+        } header: {
+            Text("Overview")
+        } footer: {
+            Text("Checked sections show, top to bottom. You can also right-click a section on the Overview.")
+                .foregroundStyle(.secondary)
+        }
+        Section {
             Picker("Installed", selection: $prefs.installedLayout) {
                 ForEach(BrowseLayout.allCases) { Text($0.title).tag($0) }
             }
