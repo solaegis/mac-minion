@@ -139,8 +139,16 @@ struct UpdatesList: View {
             }
         }
         .navigationTitle("Updates")
+        .sheet(isPresented: $model.showDigest) { DigestSheet() }
         .toolbar {
             RefreshButton()
+            if model.prefs.aiEnabled {
+                ToolbarItem {
+                    Button("Summarize Updates", systemImage: "sparkles") { Task { await model.digestUpdates() } }
+                        .disabled(model.updates.isEmpty || model.isDigesting)
+                        .help("Ask the assistant what the pending updates bring (Option-Command-U)")
+                }
+            }
             ToolbarItem {
                 Button("Update All", systemImage: "arrow.down.circle") { Task { await model.updateAll() } }
                     .disabled(model.updates.isEmpty || model.batch != nil)
@@ -350,6 +358,9 @@ struct AddonDetail: View {
             VStack(alignment: .leading, spacing: Space.xl) {
                 header
                 facts
+                if model.prefs.aiEnabled, info != nil, !(info?.changelog.isEmpty ?? true) {
+                    SummaryCard(addon: addon)
+                }
                 if let error = model.errors[addon.id] {
                     Label(error, systemImage: "exclamationmark.triangle").foregroundStyle(.red)
                 }
@@ -369,6 +380,10 @@ struct AddonDetail: View {
         }
         .task {
             do { info = try await model.loadDetails(addon.id) } catch { loadError = "Details aren't available offline." }
+            if model.prefs.summarizeOnOpen, model.prefs.aiConfig.problem == nil, installed?.status == .updateAvailable,
+               model.summaries[addon.id] == nil, info != nil {
+                await model.summarize(addon.id)
+            }
         }
     }
 
@@ -474,5 +489,105 @@ struct FolderDetail: View {
             Button("Show in Finder") { model.showInFinder(folder.folder) }
         }
         .formStyle(.grouped)
+    }
+}
+
+// MARK: - AI
+
+/// "What's New": the assistant's summary of the changelog since the installed version.
+struct SummaryCard: View {
+    @Environment(AppModel.self) private var model
+    let addon: CatalogAddon
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: Space.sm) {
+            HStack {
+                Label("What's New", systemImage: "sparkles")
+                    .font(.headline)
+                    .foregroundStyle(Palette.accentText)
+                Spacer()
+                if model.summarizing.contains(addon.id) {
+                    ProgressView().controlSize(.small)
+                } else {
+                    Button(model.summaries[addon.id] == nil ? "Summarize Changes" : "Summarize Again") {
+                        Task { await model.summarize(addon.id) }
+                    }
+                    .controlSize(.small)
+                    .help(help)
+                }
+            }
+            if let summary = model.summaries[addon.id] {
+                Text(summary).textSelection(.enabled).fixedSize(horizontal: false, vertical: true)
+                Text("Written by \(source). Check the changelog before relying on it.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            } else if let error = model.summaryErrors[addon.id] {
+                Label(error, systemImage: "exclamationmark.triangle").foregroundStyle(.red)
+            } else if !model.summarizing.contains(addon.id) {
+                Text(help).font(.callout).foregroundStyle(.secondary)
+            }
+        }
+        .padding(Space.lg)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Palette.accent.opacity(0.08), in: .rect(cornerRadius: Radius.tile))
+        .overlay { RoundedRectangle(cornerRadius: Radius.tile).strokeBorder(Palette.accent.opacity(0.3)) }
+    }
+
+    private var source: String {
+        switch model.prefs.aiProvider {
+        case .claude: model.prefs.claudeModel.title
+        case .ollama: "\(model.prefs.ollamaModel) on Ollama"
+        case .off: "the assistant"
+        }
+    }
+
+    private var help: String {
+        if let installed = model.installed(addon.id)?.installedVersion, !VersionText.same(installed, addon.version) {
+            return "Summarize what changed from \(installed) to \(addon.version)."
+        }
+        return "Summarize the latest changes in a few bullets."
+    }
+}
+
+/// The digest of every pending update, from the Updates page.
+struct DigestSheet: View {
+    @Environment(AppModel.self) private var model
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: Space.lg) {
+            Label("What the Updates Bring", systemImage: "sparkles")
+                .font(.title2.bold())
+            Group {
+                if model.isDigesting {
+                    VStack(spacing: Space.md) {
+                        ProgressView()
+                        Text("Reading \(model.updates.count) changelogs…").foregroundStyle(.secondary)
+                    }
+                    .frame(maxWidth: .infinity, minHeight: 160)
+                } else if let error = model.digestError {
+                    Label(error, systemImage: "exclamationmark.triangle").foregroundStyle(.red)
+                } else if let digest = model.digest {
+                    ScrollView {
+                        Text(digest).textSelection(.enabled).frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                    .frame(minHeight: 160, maxHeight: 420)
+                }
+            }
+            HStack {
+                Spacer()
+                Button("Done") { dismiss() }
+                    .keyboardShortcut(.cancelAction)
+                Button("Update All") {
+                    dismiss()
+                    Task { await model.updateAll() }
+                }
+                .keyboardShortcut(.defaultAction)
+                .disabled(model.updates.isEmpty || model.batch != nil)
+            }
+        }
+        .padding(Space.xxl)
+        .frame(width: 520)
+        .noInitialFocus()
     }
 }

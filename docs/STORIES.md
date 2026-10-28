@@ -113,10 +113,31 @@ Acceptance:
 UX: The page is called "Overview" in the sidebar; history rows read "Updated 1.2 → 1.3 · by Minion".
 Status: done
 
+### S-013 Summarize what an update changes
+As the user, I press Summarize Changes on an addon (or Summarize Updates on the Updates page) and the assistant explains the changelog since my version.
+Screens: updates, settings-ai
+Depends: S-005
+Acceptance:
+- [unit] Ollama requests go to `<server>/api/chat`; Claude requests go to the Messages API with the key from the Keychain, Opus 5.5 by default, server-side fallbacks on Opus and Sonnet.
+- [unit] A refusal or HTTP error shows its reason; an unconfigured provider says what to set instead of sending anything.
+- [snap] The "What's New" card sits under the facts and names the model that wrote it.
+- [manual] A live Ollama summary of a real ESOUI changelog reads correctly.
+UX: Provider choices read "Off", "Ollama (on this Mac)", "Claude". AI is off until chosen.
+Status: done
+
+### S-014 Settings for updates, the app, and AI
+As the user, I set how often MacMinion checks, whether it installs updates itself, how many download at once, notifications, the menu bar item, open at login, and the AI provider.
+Screens: settings-general, settings-updates, settings-ai
+Acceptance:
+- [snap] Tabs: General, Updates, AI, Appearance.
+- [unit] Test and snapshot runs keep settings in memory and never touch the Keychain.
+Status: done
+
 ## M6 Polish
 
 ### S-011 App icon and empty states
 Acceptance:
+- [snap] The Dock icon is a one-eyed red creature with a fanged grin, after Minion's icon, as two glass layers (eye, grin).
 - [snap] Empty Installed shows "No addons found in <folder>" plus a "Choose Folder…" button.
 - [manual] The icon matches the native style.
 Status: todo

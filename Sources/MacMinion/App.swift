@@ -40,7 +40,7 @@ struct MacMinionApp: App {
         }
         .windowResizability(.contentSize)
 
-        MenuBarExtra {
+        MenuBarExtra(isInserted: Binding(get: { model.prefs.showMenuBarItem }, set: { model.prefs.showMenuBarItem = $0 })) {
             MenuBarMenu()
                 .environment(model)
         } label: {
@@ -62,6 +62,9 @@ struct AddonCommands: Commands {
             Button("Update All") { Task { await model.updateAll() } }
                 .keyboardShortcut("u")
                 .disabled(model.updates.isEmpty || model.batch != nil)
+            Button("Summarize Pending Updates") { Task { await model.digestUpdates() } }
+                .keyboardShortcut("u", modifiers: [.command, .option])
+                .disabled(model.updates.isEmpty || !model.prefs.aiEnabled)
             Divider()
             Button("Show AddOns Folder in Finder") { model.showInFinder() }
                 .keyboardShortcut("o", modifiers: [.command, .shift])

@@ -87,6 +87,10 @@ enum SeedData {
                          compatibility: [GameVersion(version: "12.1.0", name: "Season One")], dirs: s.dirs)
         }
         await model.load(catalog: catalog, categories: categories, details: details, records: records, history: sampleHistory)
+        // Snapshots show the assistant set up, with one finished summary. Nothing is sent: the store is in /tmp.
+        model.prefs.aiProvider = .ollama
+        model.prefs.ollamaModel = "llama3.2"
+        model.setSampleSummary("• Fixes a Lua error when opening the settings panel after Season One.\n• Dropdowns size correctly inside submenus again.\n• Adds Turkish and Ukrainian translations.", for: 7)
     }
 
     /// Half a year of updates: libraries and busy addons often, others now and then. The older half came from Minion.

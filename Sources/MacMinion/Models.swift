@@ -92,12 +92,18 @@ final class AppModel {
             Task { await rescan() }
         }
     }
-    var checkHourly: Bool = UserDefaults.standard.object(forKey: "updates.hourly") as? Bool ?? true {
-        didSet { if !Store.isOverridden { UserDefaults.standard.set(checkHourly, forKey: "updates.hourly") } }
-    }
-    var autoUpdate: Bool = UserDefaults.standard.bool(forKey: "updates.auto") {
-        didSet { if !Store.isOverridden { UserDefaults.standard.set(autoUpdate, forKey: "updates.auto") } }
-    }
+    let prefs = Preferences()
+
+    // AI
+    private(set) var summaries: [Int: String] = [:]
+    private(set) var summarizing: Set<Int> = []
+    var summaryErrors: [Int: String] = [:]
+    private(set) var digest: String?
+    private(set) var isDigesting = false
+    var digestError: String?
+    var showDigest = false
+    /// Update ids already announced, so a notification only fires for new ones.
+    private var notified: Set<Int> = []
 
     /// Seed and test runs use canned data and never touch the network.
     let offline: Bool
@@ -171,7 +177,7 @@ final class AppModel {
         await rescan()
         guard !offline else { return }
         await refresh()
-        Task { await hourlyLoop() }
+        Task { await checkLoop() }
     }
 
     /// Downloads the catalog again, rescans AddOns, and installs updates when that is turned on.
@@ -194,13 +200,24 @@ final class AppModel {
             refreshError = error.localizedDescription
         }
         await rescan()
-        if autoUpdate, !updates.isEmpty { await updateAll() }
+        let fresh = updates.filter { !notified.contains($0.id) }
+        if prefs.notifyUpdates, !fresh.isEmpty, !prefs.autoUpdate {
+            Notifier.updatesReady(fresh.map { Usage.shortName($0.catalog.name) })
+        }
+        notified = Set(updates.map(\.id))
+        if prefs.autoUpdate, !updates.isEmpty { await updateAll() }
     }
 
-    private func hourlyLoop() async {
+    /// Checks ESOUI on the interval chosen in Settings.
+    private func checkLoop() async {
+        var last = Date.now
         while !Task.isCancelled {
-            try? await Task.sleep(for: .seconds(3_600))
-            if checkHourly { await refresh() }
+            try? await Task.sleep(for: .seconds(60))
+            let due = last.addingTimeInterval(Double(prefs.checkInterval.rawValue) * 60)
+            if prefs.checkAutomatically, Date.now >= due {
+                await refresh()
+                last = .now
+            }
         }
     }
 
@@ -248,7 +265,7 @@ final class AppModel {
         }
     }
 
-    /// Updates every addon with an update, two at a time.
+    /// Updates every addon with an update, as many at a time as Settings allows.
     func updateAll() async {
         let ids = updates.map(\.id)
         guard batch == nil, !ids.isEmpty else { return }
@@ -256,7 +273,7 @@ final class AppModel {
         defer { batch = nil }
         await withTaskGroup(of: Void.self) { group in
             var next = 0
-            for _ in 0..<min(2, ids.count) {
+            for _ in 0..<min(prefs.concurrentUpdates, ids.count) {
                 let id = ids[next]
                 next += 1
                 group.addTask { await self.install(id) }
@@ -307,6 +324,53 @@ final class AppModel {
         let url = dir.map { addonsFolder.appending(path: $0) } ?? addonsFolder
         NSWorkspace.shared.activateFileViewerSelecting([url])
     }
+
+    // MARK: AI
+
+    /// What changed between the installed version and the latest, from the changelog.
+    func summarize(_ id: Int) async {
+        guard !summarizing.contains(id), let addon = catalogAddon(id) else { return }
+        summarizing.insert(id)
+        summaryErrors[id] = nil
+        defer { summarizing.remove(id) }
+        do {
+            let info = try await loadDetails(id)
+            let prompt = AIPrompts.changes(name: addon.name, installed: installed(id)?.installedVersion,
+                                           latest: addon.version, changelog: BBCode.plainText(info.changelog))
+            summaries[id] = try await AIClient(config: prefs.aiConfig).complete(system: AIPrompts.system, prompt: prompt)
+        } catch {
+            summaryErrors[id] = error.localizedDescription
+        }
+    }
+
+    /// One digest of every pending update.
+    func digestUpdates() async {
+        guard !isDigesting, !updates.isEmpty else { return }
+        showDigest = true
+        isDigesting = true
+        digestError = nil
+        digest = nil
+        defer { isDigesting = false }
+        do {
+            var items: [(name: String, installed: String?, latest: String, changelog: String)] = []
+            for addon in updates {
+                let info = try await loadDetails(addon.id)
+                items.append((addon.catalog.name, addon.installedVersion, addon.catalog.version, BBCode.plainText(info.changelog)))
+            }
+            digest = try await AIClient(config: prefs.aiConfig).complete(system: AIPrompts.system, prompt: AIPrompts.digest(items))
+        } catch {
+            digestError = error.localizedDescription
+        }
+    }
+
+    /// Sends a tiny request to check the AI settings. Returns the answer or throws.
+    func testAI() async throws -> String {
+        try await AIClient(config: prefs.aiConfig).complete(system: "Answer in five words or fewer.",
+                                                           prompt: "Say hello to an Elder Scrolls Online player.")
+    }
+
+    /// Snapshot mode shows a finished summary.
+    func setSampleSummary(_ text: String, for id: Int) { summaries[id] = text }
 
     // MARK: Minion
 

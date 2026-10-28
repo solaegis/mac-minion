@@ -143,3 +143,46 @@ private func addon(_ id: Int, _ dirs: [String], version: String = "1", downloads
     #expect(record.dirs == ["Alpha"] && record.version == "2")
     #expect(Manifest.read(folder: addons.appending(path: "Alpha"))?.version == "2")
 }
+
+@Test func claudeRequestShape() throws {
+    let client = AIClient(config: AIConfig(provider: .claude, claudeModel: .opus, claudeKey: "sk-test"))
+    let r = try client.makeRequest(system: "S", prompt: "P")
+    #expect(r.url == AIClient.anthropicURL)
+    #expect(r.value(forHTTPHeaderField: "x-api-key") == "sk-test")
+    #expect(r.value(forHTTPHeaderField: "anthropic-version") == "2026-10-21")
+    #expect(r.value(forHTTPHeaderField: "anthropic-beta") == "server-side-fallback-2026-07-01")
+    let body = try #require(JSONSerialization.jsonObject(with: r.httpBody ?? Data()) as? [String: Any])
+    #expect(body["model"] as? String == "claude-opus-5-5")
+    #expect(body["system"] as? String == "S")
+    #expect(body["fallbacks"] as? String == "default")
+    #expect(body["temperature"] == nil)
+
+    let haiku = AIClient(config: AIConfig(provider: .claude, claudeModel: .haiku, claudeKey: "k"))
+    let hr = try haiku.makeRequest(system: "S", prompt: "P")
+    let hb = try #require(JSONSerialization.jsonObject(with: hr.httpBody ?? Data()) as? [String: Any])
+    #expect(hb["fallbacks"] == nil && hr.value(forHTTPHeaderField: "anthropic-beta") == nil, "Haiku 5.5 has no server-side fallback")
+}
+
+@Test func ollamaRequestShape() throws {
+    let client = AIClient(config: AIConfig(provider: .ollama, ollamaModel: "llama3.2"))
+    let r = try client.makeRequest(system: "S", prompt: "P")
+    #expect(r.url?.absoluteString == "http://localhost:11434/api/chat")
+    let body = try #require(JSONSerialization.jsonObject(with: r.httpBody ?? Data()) as? [String: Any])
+    #expect(body["model"] as? String == "llama3.2" && body["stream"] as? Bool == false)
+}
+
+@Test func parsesAnswers() throws {
+    let claude = #"{"content":[{"type":"thinking","thinking":""},{"type":"text","text":"• Fixed a crash"}],"stop_reason":"end_turn","stop_details":null}"#
+    #expect(try AIClient.parseClaude(Data(claude.utf8)) == "• Fixed a crash")
+    let refusal = #"{"content":[],"stop_reason":"refusal","stop_details":{"type":"refusal","category":null,"explanation":"no"}}"#
+    #expect(throws: AIError.refused("no")) { try AIClient.parseClaude(Data(refusal.utf8)) }
+    let ollama = #"{"model":"x","message":{"role":"assistant","content":"hi"},"done":true}"#
+    #expect(try AIClient.parseOllama(Data(ollama.utf8)) == "hi")
+    #expect(AIClient.errorMessage(Data(#"{"type":"error","error":{"type":"authentication_error","message":"invalid x-api-key"}}"#.utf8)) == "invalid x-api-key")
+}
+
+@Test func unconfiguredProvidersExplainWhy() {
+    #expect(AIConfig(provider: .claude).problem == "Add a Claude API key in Settings.")
+    #expect(AIConfig(provider: .ollama).problem == "Choose an Ollama model in Settings.")
+    #expect(AIConfig(provider: .ollama, ollamaModel: "m").problem == nil)
+}

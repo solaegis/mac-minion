@@ -81,6 +81,17 @@ enum SelfTest {
             check("Remove moves its folder out of AddOns",
                   !FileManager.default.fileExists(atPath: model.addonsFolder.appending(path: "AwesomeGuildStore").path))
 
+            // S-013 AI: an unconfigured provider explains itself instead of sending anything.
+            model.prefs.aiProvider = .claude
+            model.prefs.claudeKey = ""
+            await model.summarize(7)
+            check("Claude without a key asks for one", model.summaryErrors[7] == "Add a Claude API key in Settings.")
+            model.prefs.aiProvider = .ollama
+            model.prefs.ollamaModel = ""
+            await model.summarize(7)
+            check("Ollama without a model asks for one", model.summaryErrors[7] == "Choose an Ollama model in Settings.")
+            check("settings stay in memory in test runs", Preferences().aiProvider == .off)
+
             print(failures == 0 ? "SELFTEST PASS \(count) checks" : "SELFTEST FAIL \(failures) of \(count) checks")
             finish(code: failures == 0 ? 0 : 1)
         }
