@@ -266,7 +266,11 @@ struct FindMoreList: View {
         }
         .overlay {
             if results.isEmpty {
-                if model.search.isEmpty {
+                if !model.catalogResults(includeInstalled: true).isEmpty {
+                    ContentUnavailableView("Already Installed", systemImage: "checkmark.circle",
+                                           description: Text(model.search.isEmpty ? "You have every addon here. See Installed."
+                                                             : "Everything matching “\(model.search)” is installed. See Installed."))
+                } else if model.search.isEmpty {
                     ContentUnavailableView("No Addons", systemImage: "magnifyingglass")
                 } else {
                     ContentUnavailableView.search(text: model.search)

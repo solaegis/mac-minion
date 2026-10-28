@@ -56,10 +56,11 @@ enum AgentCommands {
             }
             return ["folders": rows, "total": rows.count]
         },
-        AgentCommand(name: "catalog search", summary: "Search the ESOUI catalog by name or author.",
+        AgentCommand(name: "catalog search", summary: "Search the ESOUI catalog by name or author, like Find More: installed addons are left out unless --installed.",
                      params: [.init(name: "query", positional: true, help: "text to find; leave out to browse"),
                               .init(name: "category", kind: .integer, help: "only this category id (see `macminion categories list`)"),
                               .init(name: "sort", help: "downloads, monthly, favorites, newest, or name (default downloads)"),
+                              .init(name: "installed", kind: .boolean, help: "include installed addons (Find More leaves them out)"),
                               .init(name: "limit", kind: .integer, help: "at most this many (default 25)"),
                               .init(name: "offset", kind: .integer, help: "skip this many, for the next page")],
                      example: "macminion catalog search \"master merchant\" --limit 5 --json", readOnly: true) { args, model in
@@ -73,7 +74,8 @@ enum AgentCommands {
                 }
                 model.sort = value
             }
-            let results: [JSONObject] = model.findMoreResults.map { addon in json(addon, model.installed(addon.id)) }
+            let results: [JSONObject] = model.catalogResults(includeInstalled: try args.bool("installed") == true)
+                .map { addon in json(addon, model.installed(addon.id)) }
             return try page(results, args, key: "addons", defaultLimit: 25)
         },
         AgentCommand(name: "categories list", summary: "List ESOUI categories and their ids.",

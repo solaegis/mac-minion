@@ -55,10 +55,13 @@ enum SelfTest {
             model.search = "merchant"
             check("search matches names", model.findMoreResults.map(\.id) == [1360])
             model.search = "SIRINSIDIATOR"
-            check("search matches authors, ignoring case", Set(model.findMoreResults.map(\.id)) == [7, 695])
+            check("search matches authors, ignoring case", model.findMoreResults.map(\.id) == [695])
+            check("Find More leaves out installed addons", !model.findMoreResults.contains { model.installed($0.id) != nil }
+                  && Set(model.catalogResults(includeInstalled: true).map(\.id)) == [7, 695])
             model.search = ""
             model.category = 23
-            check("a category includes its children", model.findMoreResults.count == 8, "\(model.findMoreResults.count)")
+            check("a category includes its children", model.catalogResults(includeInstalled: true).count == 8,
+                  "\(model.catalogResults(includeInstalled: true).count)")
             model.category = nil
             await model.install(695)
             check("a new install is logged as an install", model.history.first?.kind == .install && model.history.first?.addonID == 695)

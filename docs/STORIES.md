@@ -50,6 +50,7 @@ Screens: find-more, details
 Depends: S-001, S-003
 Acceptance:
 - [unit] Search matches name and author, case- and diacritic-insensitive.
+- [self] Find More leaves out installed addons; when everything matching is installed it says so and points to Installed.
 - [snap] The details pane shows thumbnail, author, version, date, downloads, favorites, compatibility, description (BBCode to plain text) and changelog.
 - [self] Install writes the folders and the addon then appears in Installed.
 UX: The primary button reads "Install", "Update" or "Reinstall" depending on state; "Open on ESOUI" is secondary.

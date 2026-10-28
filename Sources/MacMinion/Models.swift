@@ -139,8 +139,12 @@ final class AppModel {
 
     func catalogAddon(_ id: Int) -> CatalogAddon? { catalog.first { $0.id == id } }
 
-    var findMoreResults: [CatalogAddon] {
-        var list = catalog
+    /// Find More: catalog addons that aren't installed, filtered and sorted as the toolbar says.
+    var findMoreResults: [CatalogAddon] { catalogResults(includeInstalled: false) }
+
+    func catalogResults(includeInstalled: Bool) -> [CatalogAddon] {
+        let have = Set(installed.map(\.id))
+        var list = includeInstalled ? catalog : catalog.filter { !have.contains($0.id) }
         if let category {
             let ids = AddonCategory.descendants(of: category, in: categories)
             list = list.filter { ids.contains($0.categoryID) }
