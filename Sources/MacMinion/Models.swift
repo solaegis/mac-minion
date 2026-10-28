@@ -240,7 +240,9 @@ final class AppModel {
     func rescan() async {
         guard !catalog.isEmpty else { return }
         let folder = addonsFolder
-        let (scanned, size) = await Task.detached { (AddonMatcher.scan(folder), Usage.size(of: folder)) }.value
+        let (scanned, nested, size) = await Task.detached {
+            (AddonMatcher.scan(folder), AddonMatcher.nested(folder), Usage.size(of: folder))
+        }.value
         guard let folders = scanned else {
             // Keep every record: a folder we can't read says nothing about what is installed.
             scanError = "Can't read the AddOns folder at \(folder.path). Check that it exists and that MacMinion may open Documents."
@@ -251,7 +253,7 @@ final class AppModel {
         let result = AddonMatcher.match(folders: folders, catalog: catalog, records: state.records)
         installed = result.installed
         unmatched = result.unmatched
-        missingLibraries = LibraryAdvisor.missing(folders: folders, catalog: catalog)
+        missingLibraries = LibraryAdvisor.missing(folders: folders, nested: nested, catalog: catalog)
         // An empty folder with records on file is more likely a wrong folder than a mass uninstall: keep them.
         if !folders.isEmpty || state.records.isEmpty { state.records = result.records }
         hasScanned = true

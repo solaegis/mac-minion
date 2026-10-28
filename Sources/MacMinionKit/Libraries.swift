@@ -19,15 +19,17 @@ public enum LibraryAdvisor {
     /// Obsolete libraries that addons still name for old game versions; never worth installing now.
     static let obsolete: Set<String> = ["LibStub"]
 
-    public static func missing(folders: [String: Manifest?], catalog: [CatalogAddon]) -> [MissingLibrary] {
+    /// `nested` are library folders bundled inside other addons; the game loads those too.
+    public static func missing(folders: [String: Manifest?], nested: Set<String> = [], catalog: [CatalogAddon]) -> [MissingLibrary] {
         var wanted: [String: (by: Set<String>, required: Bool)] = [:]
+        func present(_ name: String) -> Bool { folders[name] != nil || nested.contains(name) }
         for (folder, manifest) in folders {
             guard let manifest else { continue }
-            for name in manifest.dependsOn where folders[name] == nil {
+            for name in manifest.dependsOn where !present(name) {
                 wanted[name, default: ([], false)].by.insert(folder)
                 wanted[name]?.required = true
             }
-            for name in manifest.optionalDependsOn where folders[name] == nil {
+            for name in manifest.optionalDependsOn where !present(name) {
                 wanted[name, default: ([], false)].by.insert(folder)
             }
         }

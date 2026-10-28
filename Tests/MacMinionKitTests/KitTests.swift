@@ -368,4 +368,19 @@ private func addon(_ id: Int, _ dirs: [String], version: String = "1", downloads
     #expect(missing.first?.required == true && missing[1].wantedBy == ["HarvestMap", "WritWorthy"])
     #expect(missing.last?.addon.id == 5, "the entry that installs just that folder wins over a bundle")
     #expect(Manifest.parse("## OptionalDependsOn: LibA>=30 LibB\n## DependsOn: LibC<=2").optionalDependsOn == ["LibA", "LibB"])
+    #expect(LibraryAdvisor.missing(folders: folders, nested: ["LibLazyCrafting"], catalog: catalog).first?.folder == "LibDebugLogger",
+            "a library bundled inside another addon counts as installed")
+}
+
+@Test func findsBundledLibraries() throws {
+    let fm = FileManager.default
+    let root = fm.temporaryDirectory.appending(path: "mm-nested-\(UUID().uuidString)")
+    defer { try? fm.removeItem(at: root) }
+    for path in ["SuperStar/libs/LibSkillsFactory", "CharacterKnowledge/LibExtendedJournal", "Deep/a/b/c/LibTooDeep", "Plain/libs/NoManifest"] {
+        try fm.createDirectory(at: root.appending(path: path), withIntermediateDirectories: true)
+    }
+    try "".write(to: root.appending(path: "SuperStar/libs/LibSkillsFactory/LibSkillsFactory.txt"), atomically: true, encoding: .utf8)
+    try "".write(to: root.appending(path: "CharacterKnowledge/LibExtendedJournal/LibExtendedJournal.addon"), atomically: true, encoding: .utf8)
+    try "".write(to: root.appending(path: "Deep/a/b/c/LibTooDeep/LibTooDeep.txt"), atomically: true, encoding: .utf8)
+    #expect(AddonMatcher.nested(root) == ["LibSkillsFactory", "LibExtendedJournal"])
 }

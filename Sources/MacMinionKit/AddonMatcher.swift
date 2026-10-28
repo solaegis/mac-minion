@@ -24,6 +24,27 @@ public enum AddonMatcher {
         return out
     }
 
+    /// Addon folders bundled inside other addons (`AddOns/SuperStar/libs/LibSkillsFactory`), up to three
+    /// levels down, as ESO loads them: a folder counts when it has its own `<name>.txt` or `<name>.addon`.
+    public static func nested(_ addons: URL, depth: Int = 3) -> Set<String> {
+        let fm = FileManager.default
+        var found = Set<String>()
+        func walk(_ dir: URL, _ level: Int) {
+            guard level <= depth, let names = try? fm.contentsOfDirectory(atPath: dir.path) else { return }
+            for name in names where !name.hasPrefix(".") {
+                let url = dir.appending(path: name, directoryHint: .isDirectory)
+                var isDir: ObjCBool = false
+                guard fm.fileExists(atPath: url.path, isDirectory: &isDir), isDir.boolValue else { continue }
+                if level > 1, ["txt", "addon"].contains(where: { fm.fileExists(atPath: url.appending(path: "\(name).\($0)").path) }) {
+                    found.insert(name)
+                }
+                walk(url, level + 1)
+            }
+        }
+        walk(addons, 1)
+        return found
+    }
+
     public static func match(folders: [String: Manifest?], catalog: [CatalogAddon], records: [Int: InstallRecord]) -> Result {
         let byID = Dictionary(catalog.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
         var claimed = Set<String>()
