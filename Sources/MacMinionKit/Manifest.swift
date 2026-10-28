@@ -8,6 +8,7 @@ public struct Manifest: Sendable, Hashable {
     public var description: String?
     public var isLibrary = false
     public var dependsOn: [String] = []
+    public var optionalDependsOn: [String] = []
 
     public init(title: String? = nil, version: String? = nil, author: String? = nil, isLibrary: Bool = false) {
         self.title = title; self.version = version; self.author = author; self.isLibrary = isLibrary
@@ -26,11 +27,20 @@ public struct Manifest: Sendable, Hashable {
             case "author": m.author = value
             case "description": m.description = value
             case "islibrary": m.isLibrary = value.lowercased() == "true"
-            case "dependson": m.dependsOn = value.split(separator: " ").map { String($0.split(separator: ">")[0]) }
+            case "dependson": m.dependsOn = names(value)
+            case "optionaldependson": m.optionalDependsOn = names(value)
             default: break
             }
         }
         return m
+    }
+
+    /// "LibA>=30 LibB" -> ["LibA", "LibB"].
+    static func names(_ value: String) -> [String] {
+        value.split(whereSeparator: \.isWhitespace).compactMap { part in
+            let name = part.prefix { !"<>=".contains($0) }
+            return name.isEmpty ? nil : String(name)
+        }
     }
 
     /// Reads `<folder>/<name>.txt`, or `<name>.addon` for newer addons.

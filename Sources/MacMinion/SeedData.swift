@@ -33,6 +33,10 @@ enum SeedData {
                dirs: ["DolgubonsLazyWritCreator"], downloads: 3_877_451, daysAgo: 20),
         Sample(id: 2163, name: "Inventory Insight", author: "manavortex, Baertram", category: 17, version: "3.93",
                dirs: ["IIfA"], downloads: 1_654_002, daysAgo: 90),
+        Sample(id: 2275, name: "LibDebugLogger", author: "sirinsidiator", category: 53, version: "2.6.1",
+               dirs: ["LibDebugLogger"], downloads: 1_402_550, daysAgo: 60),
+        Sample(id: 1594, name: "LibLazyCrafting", author: "Dolgubon", category: 53, version: "4.026",
+               dirs: ["LibLazyCrafting"], downloads: 2_118_904, daysAgo: 25),
         Sample(id: 1245, name: "Bandits User Interface", author: "Hoft", category: 17, version: "4.12",
                dirs: ["BanditsUserInterface"], downloads: 1_998_113, daysAgo: 30),
     ]
@@ -136,10 +140,16 @@ enum SeedData {
         return events
     }
 
+    /// Dependencies the sample manifests declare, so the Overview's library card has something to show.
+    static let dependencies: [String: String] = [
+        "HarvestMap": "## OptionalDependsOn: LibDebugLogger LibStub\n",
+        "WritWorthy": "## DependsOn: LibLazyCrafting>=4000\n## OptionalDependsOn: LibDebugLogger\n",
+    ]
+
     private static func writeAddon(_ dir: String, version: String, author: String, in addons: URL) {
         let folder = addons.appending(path: dir, directoryHint: .isDirectory)
         try? FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
-        let text = "## Title: \(dir)\n## Author: \(author)\n## Version: \(version)\n## APIVersion: 101048\n\n\(dir).lua\n"
+        let text = "## Title: \(dir)\n## Author: \(author)\n## Version: \(version)\n## APIVersion: 101048\n\(dependencies[dir] ?? "")\n\(dir).lua\n"
         try? text.write(to: folder.appending(path: "\(dir).txt"), atomically: true, encoding: .utf8)
     }
 

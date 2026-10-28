@@ -347,3 +347,25 @@ private func addon(_ id: Int, _ dirs: [String], version: String = "1", downloads
     let found = AddonSearch.candidates(catalog: catalog, plan: plan, blurbs: [4: "junks items after crafting"], excluded: [5])
     #expect(found.map(\.id) == [1, 2, 4], "name hits first, then a description hit; excluded and unrelated addons left out")
 }
+
+@Test func findsMissingLibraries() {
+    func lib(_ id: Int, _ dir: String, _ cat: Int = AddonCategory.librariesID, downloads: Int = 0) -> CatalogAddon {
+        CatalogAddon(id: id, categoryID: cat, version: "1", date: .now, name: dir, author: "x", downloads: downloads, dirs: [dir])
+    }
+    let catalog = [lib(2275, "LibDebugLogger"), lib(1594, "LibLazyCrafting"), lib(7, "LibAddonMenu-2.0"),
+                   lib(93, "pChat", 17), lib(1, "LibStub"), lib(5, "LibChatMessage", downloads: 9),
+                   CatalogAddon(id: 6, categoryID: 53, version: "1", date: .now, name: "Bundle", author: "x", downloads: 99,
+                                dirs: ["LibChatMessage", "Other"])]
+    var harvest = Manifest(title: "HarvestMap")
+    harvest.optionalDependsOn = ["LibDebugLogger", "LibAddonMenu-2.0", "pChat", "LibStub", "LibChatMessage", "NotOnESOUI"]
+    var writ = Manifest(title: "WritWorthy")
+    writ.dependsOn = ["LibLazyCrafting"]
+    writ.optionalDependsOn = ["LibDebugLogger"]
+    let folders: [String: Manifest?] = ["HarvestMap": harvest, "WritWorthy": writ, "LibAddonMenu-2.0": nil]
+    let missing = LibraryAdvisor.missing(folders: folders, catalog: catalog)
+    #expect(missing.map(\.folder) == ["LibLazyCrafting", "LibDebugLogger", "LibChatMessage"],
+            "required first, then most wanted; installed, obsolete, non-library, and unknown names left out")
+    #expect(missing.first?.required == true && missing[1].wantedBy == ["HarvestMap", "WritWorthy"])
+    #expect(missing.last?.addon.id == 5, "the entry that installs just that folder wins over a bundle")
+    #expect(Manifest.parse("## OptionalDependsOn: LibA>=30 LibB\n## DependsOn: LibC<=2").optionalDependsOn == ["LibA", "LibB"])
+}

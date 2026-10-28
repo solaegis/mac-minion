@@ -152,6 +152,25 @@ enum AgentCommands {
             }
             return ["query": model.searchedFor ?? "", "results": rows, "by": model.aiSource]
         },
+        AgentCommand(name: "libraries missing", summary: "List libraries installed addons ask for (required or optional) that aren't installed.",
+                     example: "macminion libraries missing --json", readOnly: true) { _, model in
+            let rows: [JSONObject] = model.missingLibraries.map { l in
+                var row = json(l.addon)
+                row["folder"] = l.folder
+                row["required"] = l.required
+                row["wantedBy"] = l.wantedBy
+                return row
+            }
+            return ["libraries": rows, "required": model.missingLibraries.filter(\.required).count]
+        },
+        AgentCommand(name: "libraries install", summary: "Install the missing libraries installed addons ask for.",
+                     params: [.init(name: "required", kind: .boolean, help: "only the required ones")],
+                     example: "macminion libraries install --required --json") { args, model in
+            let list = try args.bool("required") == true ? model.missingLibraries.filter(\.required) : model.missingLibraries
+            await model.installLibraries(list)
+            let failed = list.compactMap { l in model.errors[l.addon.id].map { ["name": l.addon.name, "error": $0] } }
+            return ["installed": list.count - failed.count, "failed": failed, "remaining": model.missingLibraries.count]
+        },
         AgentCommand(name: "updates install", summary: "Update every addon that has an update, except ignored ones.",
                      example: "macminion updates install --json") { _, model in
             let before = model.updates.map { ($0.id, $0.catalog.name) }

@@ -78,6 +78,9 @@ final class AppModel {
     private(set) var details: [Int: AddonDetails] = [:]
     /// Bytes on disk in the AddOns folder, after a scan.
     private(set) var addonsSize: Int64?
+    /// Libraries installed addons ask for (DependsOn, OptionalDependsOn) that aren't in AddOns.
+    private(set) var missingLibraries: [MissingLibrary] = []
+    private(set) var installingLibraries = false
     /// True once AddOns was read and matched since launch.
     private(set) var hasScanned = false
     private(set) var scanError: String?
@@ -248,6 +251,7 @@ final class AppModel {
         let result = AddonMatcher.match(folders: folders, catalog: catalog, records: state.records)
         installed = result.installed
         unmatched = result.unmatched
+        missingLibraries = LibraryAdvisor.missing(folders: folders, catalog: catalog)
         // An empty folder with records on file is more likely a wrong folder than a mass uninstall: keep them.
         if !folders.isEmpty || state.records.isEmpty { state.records = result.records }
         hasScanned = true
@@ -320,6 +324,14 @@ final class AppModel {
                 }
             }
         }
+    }
+
+    /// Installs the given missing libraries, or all of them, one after another.
+    func installLibraries(_ libraries: [MissingLibrary]? = nil) async {
+        guard !installingLibraries else { return }
+        installingLibraries = true
+        defer { installingLibraries = false }
+        for library in libraries ?? missingLibraries { await install(library.addon.id) }
     }
 
     func setIgnored(_ id: Int, _ ignored: Bool) {

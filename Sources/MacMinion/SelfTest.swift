@@ -39,6 +39,11 @@ enum SelfTest {
             check("weekly counts cover 26 weeks", Usage.weekly(model.history, weeks: 26).count == 26)
             let historyBefore = model.history.count
 
+            // S-023 Libraries: what installed addons ask for and lack, required first.
+            check("missing libraries are found", model.missingLibraries.map(\.folder) == ["LibLazyCrafting", "LibDebugLogger"])
+            check("a DependsOn library is flagged required", model.missingLibraries.first?.required == true
+                  && model.missingLibraries.last?.wantedBy == ["HarvestMap", "WritWorthy"])
+
             // S-003
             await model.install(7)
             check("an update is added to the history", model.history.count == historyBefore + 1
@@ -55,9 +60,9 @@ enum SelfTest {
             model.search = "merchant"
             check("search matches names", model.findMoreResults.map(\.id) == [1360])
             model.search = "SIRINSIDIATOR"
-            check("search matches authors, ignoring case", model.findMoreResults.map(\.id) == [695])
+            check("search matches authors, ignoring case", Set(model.findMoreResults.map(\.id)) == [695, 2275])
             check("Find More leaves out installed addons", !model.findMoreResults.contains { model.installed($0.id) != nil }
-                  && Set(model.catalogResults(includeInstalled: true).map(\.id)) == [7, 695])
+                  && Set(model.catalogResults(includeInstalled: true).map(\.id)) == [7, 695, 2275])
             model.search = ""
             model.category = 23
             check("a category includes its children", model.catalogResults(includeInstalled: true).count == 8,
@@ -125,6 +130,10 @@ enum SelfTest {
 
             // S-022 AI search: sample results show; with no provider set it explains instead of sending.
             check("search results show on the Overview", model.searchResults.map(\.addon.id) == [1536, 1605])
+
+            await model.installLibraries()
+            check("Install All installs the missing libraries", model.missingLibraries.isEmpty
+                  && model.installed(2275) != nil && model.installed(1594) != nil)
 
             // S-015 Layout
             check("Installed and Find More open as grids", model.prefs.installedLayout == .grid && model.prefs.findMoreLayout == .grid)

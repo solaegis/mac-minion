@@ -10,6 +10,7 @@ struct OverviewView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: Space.xxl) {
                 OverviewHero()
+                if !model.missingLibraries.isEmpty { LibrariesCard() }
                 StatTiles()
                 if model.prefs.aiEnabled {
                     SuggestionsCard()
@@ -404,6 +405,77 @@ private struct MostUpdatedCard: View {
                 }
             }
         }
+    }
+}
+
+/// Libraries the installed addons ask for that aren't installed: required ones first, flagged, then
+/// optional ones that unlock extra features (logging, settings menus, chat output).
+private struct LibrariesCard: View {
+    @Environment(AppModel.self) private var model
+
+    var body: some View {
+        let libraries = model.missingLibraries
+        let required = libraries.filter(\.required).count
+        OverviewCard(title: required > 0 ? "Libraries Your Addons Need" : "Optional Libraries", symbol: "books.vertical") {
+            HStack(spacing: Space.sm) {
+                Text(summary(libraries.count, required)).font(.caption).foregroundStyle(.secondary)
+                if model.installingLibraries {
+                    ProgressView().controlSize(.small)
+                } else {
+                    Button("Install All") { Task { await model.installLibraries() } }
+                        .controlSize(.small)
+                        .help("Install every library listed here")
+                }
+            }
+        } content: {
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: 300), spacing: Space.lg, alignment: .top)], spacing: Space.md) {
+                ForEach(libraries) { LibraryRow(library: $0) }
+            }
+        }
+    }
+
+    private func summary(_ count: Int, _ required: Int) -> String {
+        required > 0 ? "\(required) required, \(count - required) optional" : "\(count) your addons can use"
+    }
+}
+
+private struct LibraryRow: View {
+    @Environment(AppModel.self) private var model
+    let library: MissingLibrary
+
+    var body: some View {
+        HStack(alignment: .top, spacing: Space.md) {
+            Image(systemName: library.required ? "exclamationmark.triangle.fill" : "books.vertical")
+                .foregroundStyle(library.required ? AnyShapeStyle(Palette.negative) : AnyShapeStyle(Palette.accentText))
+                .frame(width: 24)
+            VStack(alignment: .leading, spacing: Space.xs / 2) {
+                Text(library.addon.name).font(.body.weight(.semibold)).lineLimit(1)
+                Text(wantedBy)
+                    .font(.caption)
+                    .foregroundStyle(library.required ? AnyShapeStyle(Palette.negative) : AnyShapeStyle(.secondary))
+                    .lineLimit(2)
+                if let error = model.errors[library.addon.id] {
+                    Text(error).font(.caption).foregroundStyle(Palette.negative).lineLimit(1)
+                }
+            }
+            Spacer(minLength: Space.sm)
+            if model.busy.contains(library.addon.id) {
+                ProgressView().controlSize(.small)
+            } else {
+                Button("Install") { Task { await model.install(library.addon.id) } }
+                    .controlSize(.small)
+                    .disabled(model.offline && model.details[library.addon.id] == nil)
+            }
+        }
+        .contentShape(.rect)
+        .onTapGesture { model.open(.findMore, selecting: library.addon.id) }
+        .help(library.required ? "\(library.wantedBy.joined(separator: ", ")) won't load without it"
+              : "Optional: \(library.wantedBy.joined(separator: ", ")) can use it for extra features")
+    }
+
+    private var wantedBy: String {
+        let names = library.wantedBy.prefix(3).joined(separator: ", ") + (library.wantedBy.count > 3 ? " and \(library.wantedBy.count - 3) more" : "")
+        return library.required ? "Required by \(names)" : "Optional for \(names)"
     }
 }
 
