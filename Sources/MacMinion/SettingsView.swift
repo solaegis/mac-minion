@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 /// The Settings window (Command-Comma). One tab per topic, at most about
@@ -28,7 +29,7 @@ struct SettingsView: View {
         }
         .formStyle(.grouped)
         .fitsContent()
-        .frame(width: 520)
+        .frame(width: 560)
     }
 }
 
@@ -54,11 +55,48 @@ enum SettingsTab: String, CaseIterable, Identifiable {
 }
 
 struct GeneralSettings: View {
-    @AppStorage("confirmDelete") private var confirmDelete = true
+    @Environment(AppModel.self) private var model
 
     var body: some View {
-        Section("Items") {
-            Toggle("Ask before deleting items", isOn: $confirmDelete)
+        @Bindable var model = model
+        Section {
+            LabeledContent("Folder") {
+                Text(model.addonsFolder.path(percentEncoded: false))
+                    .lineLimit(1)
+                    .truncationMode(.head)
+                    .help(model.addonsFolder.path(percentEncoded: false))
+            }
+            HStack {
+                Button("Live") { model.addonsFolder = AddonsLocation.live }
+                Button("PTS") { model.addonsFolder = AddonsLocation.pts }
+                Spacer()
+                Button("Choose…", action: choose)
+            }
+        } header: {
+            Text("AddOns Folder")
+        } footer: {
+            Text("NA and EU share the live folder.").foregroundStyle(.secondary)
         }
+        Section("Updates") {
+            Toggle("Check for updates every hour", isOn: $model.checkHourly)
+            Toggle("Install updates automatically", isOn: $model.autoUpdate)
+        }
+        Section {
+            Button("Import from Minion") { model.importFromMinionIfNeeded(force: true) }
+        } header: {
+            Text("Minion")
+        } footer: {
+            Text("Reads the installed versions from ~/.minion/minion.xml. Minion's own files stay as they are.")
+                .foregroundStyle(.secondary)
+        }
+    }
+
+    private func choose() {
+        let panel = NSOpenPanel()
+        panel.canChooseDirectories = true
+        panel.canChooseFiles = false
+        panel.directoryURL = model.addonsFolder
+        panel.prompt = "Use Folder"
+        if panel.runModal() == .OK, let url = panel.url { model.addonsFolder = url }
     }
 }

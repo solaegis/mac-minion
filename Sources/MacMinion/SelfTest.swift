@@ -1,10 +1,9 @@
 import AppKit
-import SwiftData
-import __APP_NAME__Kit
+import MacMinionKit
 
-/// Self-test for agents: runs the app's real functions on a test store,
+/// Self-test for agents: runs the app's real functions on the seeded /tmp store,
 /// prints PASS or FAIL per check, and quits with exit code 0 or 1.
-///   APP_STORE=/tmp/__APP_NAME__-self.store ~/Applications/__APP_NAME__.app/Contents/MacOS/__APP_NAME__ --selftest
+///   APP_STORE=/tmp/MacMinion-self ~/Applications/MacMinion.app/Contents/MacOS/MacMinion --selftest
 /// (tools/selftest.sh does this.) Add a check for every story with logic.
 @MainActor
 enum SelfTest {
@@ -19,28 +18,57 @@ enum SelfTest {
         // Print each line at once, so a crash keeps the lines before it.
         setvbuf(stdout, nil, _IOLBF, 0)
         guard Store.isOverridden else {
-            print("SELFTEST refused: set APP_STORE to a file in /tmp")
+            print("SELFTEST refused: set APP_STORE to a folder in /tmp")
             finish(code: 1)
             return
         }
         Task {
-            try? await Task.sleep(for: .seconds(0.5))
-            let context = model.container.mainContext
-            func items() -> [Item] { (try? context.fetch(FetchDescriptor<Item>())) ?? [] }
+            @MainActor func status(_ id: Int) -> AddonStatus? { model.installed(id)?.status }
 
-            let before = items().count
-            model.addItem()
-            check("New Item adds one item", items().count == before + 1)
-            check("the new item is selected", model.selection != nil)
+            // S-001, S-002
+            check("the seeded catalog loads", model.catalog.count == SeedData.samples.count)
+            check("installed addons are matched by folder", model.installed.count == 5, "\(model.installed.count)")
+            check("a folder without a catalog entry is unmatched", model.unmatched.map(\.folder) == ["EsoVendorJunk"])
+            check("an older recorded version is an update", status(7) == .updateAvailable)
+            check("a matching manifest version is up to date", status(97) == .upToDate)
+            check("ignored addons are not updates", status(1146) == .ignored && !model.updates.contains { $0.id == 1146 })
+            check("the update count leaves out ignored addons", model.updates.count == 2, "\(model.updates.count)")
 
-            if let item = items().first(where: { $0.id == model.selection }) {
-                item.isStarred.toggle()
-                check("starring an item marks it starred", item.isStarred)
-                context.delete(item)
-                try? context.save()
-                check("deleting the item removes it", items().count == before)
+            // S-003
+            await model.install(7)
+            check("Update installs the latest version", status(7) == .upToDate, model.errors[7] ?? "")
+            let manifest = Manifest.read(folder: model.addonsFolder.appending(path: "LibAddonMenu-2.0"))
+            check("the new folder is on disk", manifest?.version == "2.0 r43")
+
+            // S-004
+            await model.updateAll()
+            check("Update All clears every update", model.updates.isEmpty)
+
+            // S-005
+            model.search = "merchant"
+            check("search matches names", model.findMoreResults.map(\.id) == [1360])
+            model.search = "SIRINSIDIATOR"
+            check("search matches authors, ignoring case", Set(model.findMoreResults.map(\.id)) == [7, 695])
+            model.search = ""
+            model.category = 23
+            check("a category includes its children", model.findMoreResults.count == 8, "\(model.findMoreResults.count)")
+            model.category = nil
+            await model.install(695)
+            check("Install adds a new addon", status(695) == .upToDate, model.errors[695] ?? "")
+
+            // S-007
+            model.setIgnored(695, true)
+            try? await Task.sleep(for: .seconds(0.3))
+            check("Ignore Updates is saved", Store.loadState().records[695]?.ignored == true)
+            model.setIgnored(695, false)
+
+            // S-006
+            if let addon = model.installed(695) {
+                await model.remove(addon)
             }
-            check("titles are cleaned", ItemTitle.clean("  Buy   milk ") == "Buy milk")
+            check("Remove takes the addon off the list", model.installed(695) == nil)
+            check("Remove moves its folder out of AddOns",
+                  !FileManager.default.fileExists(atPath: model.addonsFolder.appending(path: "AwesomeGuildStore").path))
 
             print(failures == 0 ? "SELFTEST PASS \(count) checks" : "SELFTEST FAIL \(failures) of \(count) checks")
             finish(code: failures == 0 ? 0 : 1)

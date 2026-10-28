@@ -3,7 +3,7 @@ import IOKit.pwr_mgt
 import SwiftUI
 
 /// Screenshot mode for agents.
-///   APP_STORE=/tmp/test.store APP_SNAPSHOT=/tmp/shots ~/Applications/__APP_NAME__.app/Contents/MacOS/__APP_NAME__
+///   APP_STORE=/tmp/test.store APP_SNAPSHOT=/tmp/shots ~/Applications/MacMinion.app/Contents/MacOS/MacMinion
 /// writes <page>-light.png and <page>-dark.png for every sidebar page, and
 /// settings-<tab>-light.png and settings-<tab>-dark.png for every Settings tab, then quits.
 /// Each PNG gets a <page>-<mode>-layout.json with the grid probes (tools/check-layout.swift).
@@ -34,6 +34,10 @@ enum Snapshot {
                 NSApp.appearance = NSAppearance(named: mode == "light" ? .aqua : .darkAqua)
                 for page in SidebarItem.allCases where only?.contains(page.rawValue) ?? true {
                     model.sidebar = page
+                    // Show the detail column too: the first addon on the page.
+                    try? await Task.sleep(for: .seconds(0.2))
+                    let first = page == .updates ? model.updates.first?.id : page == .installed ? model.installed.first?.id : model.findMoreResults.first?.id
+                    model.selection = first.map { .addon($0) }
                     try? await Task.sleep(for: .seconds(0.8))
                     capture(to: "\(dir)/\(page.rawValue)-\(mode).png")
                 }
@@ -47,7 +51,8 @@ enum Snapshot {
                     for tab in SettingsTab.allCases {
                         model.settingsTab = tab
                         try? await Task.sleep(for: .seconds(0.8))
-                        let settings = NSApp.windows.first { $0.isVisible && $0 !== main && !$0.isSheet }
+                        // The menu bar item has a window too; Settings is the titled one.
+                        let settings = NSApp.windows.first { $0.isVisible && $0 !== main && !$0.isSheet && $0.styleMask.contains(.titled) }
                         capture(to: "\(dir)/settings-\(tab.rawValue)-\(mode).png", window: settings)
                     }
                 }

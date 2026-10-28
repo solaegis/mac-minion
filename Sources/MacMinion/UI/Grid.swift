@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// The spacing scale. Every padding, spacing, and size sits on a 4 pt grid.
-///   APP_GRID=1 __APP_NAME__     draw the grid, margins, and probes over the window
+///   APP_GRID=1 MacMinion     draw the grid, margins, and probes over the window
 /// Snapshot mode also writes <page>-<mode>-layout.json, which tools/check-layout.swift checks.
 enum Space {
     static let xs: CGFloat = 4
