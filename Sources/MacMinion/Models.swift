@@ -78,8 +78,14 @@ final class AppModel {
     private(set) var details: [Int: AddonDetails] = [:]
     /// Bytes on disk in the AddOns folder, after a scan.
     private(set) var addonsSize: Int64?
-    /// Libraries installed addons ask for (DependsOn, OptionalDependsOn) that aren't in AddOns.
-    private(set) var missingLibraries: [MissingLibrary] = []
+    /// Every library installed addons ask for (DependsOn, OptionalDependsOn) that isn't in AddOns.
+    private(set) var allMissingLibraries: [MissingLibrary] = []
+
+    /// The ones to show: an optional library with a thumbs down stays hidden; a required one always shows,
+    /// since the addon that needs it won't load without it.
+    var missingLibraries: [MissingLibrary] {
+        allMissingLibraries.filter { $0.required || rating($0.addon.id) != .down }
+    }
     private(set) var installingLibraries = false
     /// True once AddOns was read and matched since launch.
     private(set) var hasScanned = false
@@ -253,7 +259,7 @@ final class AppModel {
         let result = AddonMatcher.match(folders: folders, catalog: catalog, records: state.records)
         installed = result.installed
         unmatched = result.unmatched
-        missingLibraries = LibraryAdvisor.missing(folders: folders, nested: nested, catalog: catalog)
+        allMissingLibraries = LibraryAdvisor.missing(folders: folders, nested: nested, catalog: catalog)
         // An empty folder with records on file is more likely a wrong folder than a mass uninstall: keep them.
         if !folders.isEmpty || state.records.isEmpty { state.records = result.records }
         hasScanned = true

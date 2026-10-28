@@ -459,18 +459,21 @@ private struct LibraryRow: View {
                 }
             }
             Spacer(minLength: Space.sm)
-            if model.busy.contains(library.addon.id) {
-                ProgressView().controlSize(.small)
-            } else {
-                Button("Install") { Task { await model.install(library.addon.id) } }
-                    .controlSize(.small)
-                    .disabled(model.offline && model.details[library.addon.id] == nil)
+            VStack(alignment: .trailing, spacing: Space.xs) {
+                if model.busy.contains(library.addon.id) {
+                    ProgressView().controlSize(.small)
+                } else {
+                    Button("Install") { Task { await model.install(library.addon.id) } }
+                        .controlSize(.small)
+                        .disabled(model.offline && model.details[library.addon.id] == nil)
+                }
+                RatingButtons(id: library.addon.id)
             }
         }
         .contentShape(.rect)
         .onTapGesture { model.open(.findMore, selecting: library.addon.id) }
-        .help(library.required ? "\(library.wantedBy.joined(separator: ", ")) won't load without it"
-              : "Optional: \(library.wantedBy.joined(separator: ", ")) can use it for extra features")
+        .help(library.required ? "\(library.wantedBy.joined(separator: ", ")) won't load without it, so it shows even with a thumbs down"
+              : "Optional: \(library.wantedBy.joined(separator: ", ")) can use it for extra features. A thumbs down hides it.")
     }
 
     private var wantedBy: String {

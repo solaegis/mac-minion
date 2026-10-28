@@ -131,6 +131,12 @@ enum SelfTest {
             // S-022 AI search: sample results show; with no provider set it explains instead of sending.
             check("search results show on the Overview", model.searchResults.map(\.addon.id) == [1536, 1605])
 
+            model.setRating(2275, .down)
+            check("an optional library with a thumbs down is hidden", !model.missingLibraries.contains { $0.folder == "LibDebugLogger" })
+            model.setRating(1594, .down)
+            check("a required library shows even with a thumbs down", model.missingLibraries.contains { $0.folder == "LibLazyCrafting" })
+            model.setRating(2275, nil)
+            model.setRating(1594, nil)
             await model.installLibraries()
             check("Install All installs the missing libraries", model.missingLibraries.isEmpty
                   && model.installed(2275) != nil && model.installed(1594) != nil)
