@@ -197,7 +197,7 @@ Acceptance:
 Status: done
 
 ### S-023 Install the libraries my addons can use
-As the user, I see on the Overview, right under the banner, the libraries my addons ask for that I don't have: required ones flagged first, then optional ones, each with the addons that want it, Install, and Install All.
+As the user, I see on the Overview, right under the banner, a "Libraries for Installed Addons" card listing the libraries my addons ask for that I don't have ("Missing: 1 required, 3 optional"): required ones flagged first, then optional ones, each with the addons that want it, Install, and Install All.
 Acceptance:
 - [unit] Read from every manifest's DependsOn and OptionalDependsOn; optional ones must be ESOUI libraries; LibStub and names not on ESOUI are left out.
 - [unit] A library bundled inside another addon (up to three folders down, with its own manifest) counts as installed, as the game loads it.

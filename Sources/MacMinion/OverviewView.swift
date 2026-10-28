@@ -416,7 +416,7 @@ private struct LibrariesCard: View {
     var body: some View {
         let libraries = model.missingLibraries
         let required = libraries.filter(\.required).count
-        OverviewCard(title: required > 0 ? "Libraries Your Addons Need" : "Optional Libraries", symbol: "books.vertical") {
+        OverviewCard(title: "Libraries for Installed Addons", symbol: "books.vertical") {
             HStack(spacing: Space.sm) {
                 Text(summary(libraries.count, required)).font(.caption).foregroundStyle(.secondary)
                 if model.installingLibraries {
@@ -434,8 +434,10 @@ private struct LibrariesCard: View {
         }
     }
 
+    /// "Missing: 1 required, 3 optional".
     private func summary(_ count: Int, _ required: Int) -> String {
-        required > 0 ? "\(required) required, \(count - required) optional" : "\(count) your addons can use"
+        let parts = [required > 0 ? "\(required) required" : nil, count > required ? "\(count - required) optional" : nil]
+        return "Missing: " + parts.compactMap { $0 }.joined(separator: ", ")
     }
 }
 
