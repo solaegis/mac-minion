@@ -224,6 +224,8 @@ private func addon(_ id: Int, _ dirs: [String], version: String = "1", downloads
     let log = "2.0 r43\n- fixed a crash\n\n2.0 r42 (consoles only)\n- console thing\n\n2.0 r41\n- old"
     #expect(ChangelogText.since("2.0 r42", in: log, limit: 10_000) == .init(text: "2.0 r43\n- fixed a crash", shortened: false))
     #expect(ChangelogText.since("9.9", in: log, limit: 10_000).text == log, "an unknown version keeps everything")
+    #expect(ChangelogText.since("2.0 r43", in: log, limit: 10_000).text == "2.0 r43\n- fixed a crash",
+            "on the latest version, only the latest entry")
     #expect(ChangelogText.since("2.0 r4", in: log, limit: 10_000).text == log, "2.0 r4 is not 2.0 r43")
     let short = ChangelogText.since(nil, in: log, limit: 30)
     #expect(short.shortened && short.text == "2.0 r43\n- fixed a crash")

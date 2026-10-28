@@ -309,13 +309,16 @@ public enum ChangelogText {
         public let shortened: Bool
     }
 
-    /// The entries newer than `installed`, at most `limit` characters.
+    /// The entries newer than `installed`, at most `limit` characters. When `installed` is the newest
+    /// entry (nothing newer), the newest entry alone: what the current version changed.
     public static func since(_ installed: String?, in changelog: String, limit: Int) -> Part {
         var text = changelog
-        if let installed, !installed.isEmpty {
-            let lines = changelog.components(separatedBy: "\n")
-            if let cut = lines.firstIndex(where: { startsWithVersion($0, installed) }), cut > 0 {
+        let lines = changelog.components(separatedBy: "\n")
+        if let installed, !installed.isEmpty, let cut = lines.firstIndex(where: { startsWithVersion($0, installed) }) {
+            if cut > 0 {
                 text = lines[..<cut].joined(separator: "\n")
+            } else if let next = lines.indices.dropFirst().first(where: { isHeading(lines[$0]) }) {
+                text = lines[..<next].joined(separator: "\n")
             }
         }
         text = text.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -324,6 +327,13 @@ public enum ChangelogText {
         let head = text[..<end]
         let clean = head.lastIndex(of: "\n").map { head[..<$0] } ?? head
         return Part(text: clean.trimmingCharacters(in: .whitespacesAndNewlines), shortened: true)
+    }
+
+    /// A line that starts a changelog entry: a short line that begins with a version number.
+    static func isHeading(_ line: String) -> Bool {
+        let t = line.trimmingCharacters(in: .whitespaces)
+        guard t.count < 48 else { return false }
+        return t.range(of: #"^(version\s+|v)?\d+(\.\d+)*\b"#, options: [.regularExpression, .caseInsensitive]) != nil
     }
 
     /// A changelog heading for `version`: "2.0 r42", "v2.0 r42 (consoles only)", "Version 2.0 r42".
