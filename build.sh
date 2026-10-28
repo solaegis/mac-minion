@@ -11,7 +11,8 @@
 # Env:   MACMINION_VERSION  CFBundleShortVersionString (default 0.1)
 #        MACMINION_BUILD    CFBundleVersion (default date, or GITHUB_RUN_NUMBER in CI)
 #        APP_DEST           full path of the .app; overrides --package and the home install
-#        SIGN_IDENTITY      codesign identity; default Apple Development, else ad hoc (-)
+#        SIGN_IDENTITY      codesign identity; default Apple Development, then "MacMinion Local"
+#                           (tools/make-signing-identity.sh), else ad hoc (-)
 set -euo pipefail
 here=${0:A:h}
 name="MacMinion"
@@ -42,6 +43,11 @@ build="${MACMINION_BUILD:-${GITHUB_RUN_NUMBER:-$(date +%Y%m%d%H%M)}}"
 identity="${SIGN_IDENTITY:-}"
 if [[ -z "$identity" ]]; then
   identity=$(security find-identity -v -p codesigning 2>/dev/null | grep -m1 -o '"Apple Development: [^"]*"' | tr -d '"' || true)
+fi
+# Next best: the local identity from tools/make-signing-identity.sh. Self-signed, so it is not
+# "valid" to find-identity -v, but codesign uses it and its requirement stays the same every build.
+if [[ -z "$identity" ]] && security find-identity -p codesigning 2>/dev/null | grep -q '"MacMinion Local"'; then
+  identity="MacMinion Local"
 fi
 [[ -n "$identity" ]] || identity=-
 
@@ -79,6 +85,10 @@ fi
 xattr -cr "$app"
 codesign --force --sign "$identity" "$app" 2>&1 | grep -v "replacing existing signature" || true
 echo "installed $app (signed: ${identity}, version: ${version})"
+if [[ "$identity" == "-" && -z "${GITHUB_ACTIONS:-}" ]]; then
+  echo "note: signed ad hoc, so macOS asks for Documents access after every build."
+  echo "      Run tools/make-signing-identity.sh once to stop that."
+fi
 
 # The CLI: the app binary under a short name on PATH (bama agent-cli skill).
 if [[ -z "${APP_DEST:-}" && -z $package_dir ]]; then

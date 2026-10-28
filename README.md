@@ -69,7 +69,7 @@ cd mac-minion
 ./build.sh --open
 ```
 
-That installs `~/Applications/MacMinion.app` and a `macminion` link in `~/.local/bin`. The build signs with your Apple Development certificate when Xcode has one, otherwise ad hoc. An app you build on this Mac is not quarantined, so it usually opens without the Gatekeeper step.
+That installs `~/Applications/MacMinion.app` and a `macminion` link in `~/.local/bin`. To stop macOS asking for Documents access after every build, create a local signing identity once with `tools/make-signing-identity.sh`; `build.sh` uses it from then on. The build signs with your Apple Development certificate when Xcode has one, otherwise ad hoc. An app you build on this Mac is not quarantined, so it usually opens without the Gatekeeper step.
 
 ## Use
 
