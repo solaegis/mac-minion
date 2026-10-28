@@ -152,15 +152,62 @@ enum AgentCommands {
         },
         AgentCommand(name: "ai models", summary: "List the Ollama server's chat models, best for summaries first, and the recommended one.",
                      example: "macminion ai models --json", readOnly: true) { _, model in
-            let models = try await AIClient.ollamaModels(at: model.prefs.aiConfig.ollamaURL)
-            let memory = ProcessInfo.processInfo.physicalMemory
-            let ranked = ModelAdvisor.rank(models, memoryBytes: memory).map(\.name)
-            let pick = ModelAdvisor.recommend(models, memoryBytes: memory)
+            let base = model.prefs.aiConfig.ollamaURL
+            let models = try await AIClient.ollamaModels(at: base)
+            let loaded = await AIClient.loadedModels(at: base)
+            let host = HostProfile.current()
+            let speeds = model.prefs.modelSpeeds
+            let ranked = ModelAdvisor.rank(models, host: host, loaded: loaded, speeds: speeds).map(\.name)
+            let pick = ModelAdvisor.recommend(models, host: host, loaded: loaded, speeds: speeds)
             let rows: [JSONObject] = models.map { m in
-                ["name": m.name, "billions": (m.billions * 10).rounded() / 10, "bytes": m.bytes, "suitable": ranked.contains(m.name)]
+                ["name": m.name, "billions": (m.billions * 10).rounded() / 10, "bytes": m.bytes, "loaded": loaded.contains(m.name),
+                 "rank": ranked.firstIndex(of: m.name).map { $0 + 1 as Any } ?? NSNull(),
+                 "tokensPerSecond": speeds[m.name].map { ($0.tokensPerSecond * 10).rounded() / 10 as Any } ?? NSNull()]
             }
             let recommended: Any = pick.map { ["model": $0.model, "reason": $0.reason] as JSONObject } ?? NSNull()
-            return ["server": model.prefs.ollamaURL, "current": model.prefs.ollamaModel, "recommended": recommended, "models": rows]
+            let hostInfo: JSONObject = ["chip": host.chip, "memoryBytes": host.memoryBytes, "availableBytes": host.availableBytes,
+                                        "performanceCores": host.performanceCores]
+            return ["server": model.prefs.ollamaURL, "current": model.prefs.ollamaModel, "host": hostInfo,
+                    "recommended": recommended, "models": rows]
+        },
+        AgentCommand(name: "ai benchmark", summary: "Measure the three best Ollama candidates' speed on this Mac, then recommend again.",
+                     params: [.init(name: "models", help: "comma-separated model names instead of the top three")],
+                     example: "macminion ai benchmark --json") { args, model in
+            let base = model.prefs.aiConfig.ollamaURL
+            let models = try await AIClient.ollamaModels(at: base)
+            let host = HostProfile.current()
+            let loadedNow = await AIClient.loadedModels(at: base)
+            let names = args.string("models")?.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }
+                ?? ModelAdvisor.rank(models, host: host, loaded: loadedNow).prefix(3).map(\.name)
+            var results: [JSONObject] = []
+            for name in names {
+                do {
+                    let speed = try await AIClient.benchmark(name, at: base)
+                    model.prefs.modelSpeeds[name] = speed
+                    results.append(["model": name, "tokensPerSecond": (speed.tokensPerSecond * 10).rounded() / 10,
+                                    "loadSeconds": (speed.loadSeconds * 10).rounded() / 10])
+                } catch {
+                    results.append(["model": name, "error": error.localizedDescription])
+                }
+            }
+            let pick = ModelAdvisor.recommend(models, host: HostProfile.current(), loaded: await AIClient.loadedModels(at: base),
+                                              speeds: model.prefs.modelSpeeds)
+            let recommended: Any = pick.map { ["model": $0.model, "reason": $0.reason] as JSONObject } ?? NSNull()
+            return ["results": results, "recommended": recommended]
+        },
+        AgentCommand(name: "addons recommend", summary: "Ask the AI provider which uninstalled addons would add something to what is installed.",
+                     params: [.init(name: "refresh", kind: .boolean, help: "ask again instead of showing the saved suggestions")],
+                     example: "macminion addons recommend --refresh --json") { args, model in
+            if try args.bool("refresh") == true || model.suggestionsStale {
+                await model.suggestAddons()
+                if let error = model.suggestError { throw AgentError.invalid(error) }
+            }
+            let rows: [JSONObject] = model.suggestions.map { s in
+                var row = json(s.addon)
+                row["reason"] = s.reason
+                return row
+            }
+            return ["suggestions": rows, "made": model.suggestionsDate.map(JSON.date) ?? NSNull(), "by": model.aiSource]
         },
         AgentCommand(name: "open", summary: "Show a page in the window, optionally with an addon selected.",
                      params: [.init(name: "page", required: true, positional: true,

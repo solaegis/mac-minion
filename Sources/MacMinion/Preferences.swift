@@ -97,11 +97,15 @@ final class Preferences {
     var claudeModel: ClaudeModel { didSet { Self.save(claudeModel.rawValue, "ai.claude.model") } }
     var claudeKey: String { didSet { if Self.persists { Keychain.set(claudeKey, account: Keychain.claudeAccount) } } }
     var summarizeOnOpen: Bool { didSet { Self.save(summarizeOnOpen, "ai.summarizeOnOpen") } }
+    /// Measured Ollama speeds on this Mac, by model, from Settings > AI > Benchmark.
+    var modelSpeeds: [String: ModelSpeed] {
+        didSet { if Self.persists, let data = try? JSONEncoder().encode(modelSpeeds) { Self.defaults.set(data, forKey: "ai.ollama.speeds") } }
+    }
 
     init() {
         let d = Self.persists ? Self.defaults : UserDefaults(suiteName: "MacMinion-test-\(UUID().uuidString)")!
         checkAutomatically = d.object(forKey: "updates.check") as? Bool ?? d.object(forKey: "updates.hourly") as? Bool ?? true
-        checkInterval = CheckInterval(rawValue: d.integer(forKey: "updates.interval")) ?? .hour
+        checkInterval = CheckInterval(rawValue: d.integer(forKey: "updates.interval")) ?? .day
         autoUpdate = d.bool(forKey: "updates.auto")
         concurrentUpdates = min(max(d.object(forKey: "updates.concurrent") as? Int ?? 2, 1), 4)
         notifyUpdates = d.bool(forKey: "updates.notify")
@@ -119,6 +123,7 @@ final class Preferences {
         claudeModel = ClaudeModel(rawValue: d.string(forKey: "ai.claude.model") ?? "") ?? .opus
         claudeKey = Self.persists ? (Keychain.get(account: Keychain.claudeAccount) ?? "") : ""
         summarizeOnOpen = d.bool(forKey: "ai.summarizeOnOpen")
+        modelSpeeds = d.data(forKey: "ai.ollama.speeds").flatMap { try? JSONDecoder().decode([String: ModelSpeed].self, from: $0) } ?? [:]
     }
 
     var aiConfig: AIConfig {

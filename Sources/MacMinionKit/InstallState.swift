@@ -20,6 +20,9 @@ public struct SavedState: Codable, Sendable {
     public var history: [HistoryEvent] = []
     public var importedFromMinion = false
     public var importedMinionHistory = false
+    /// The last AI suggestions and when they were made.
+    public var suggestions: [AddonSuggestion] = []
+    public var suggestionsDate: Date?
 
     /// The history keeps this many events, newest first.
     public static let historyLimit = 5_000
@@ -37,6 +40,8 @@ public struct SavedState: Codable, Sendable {
         history = try c.decodeIfPresent([HistoryEvent].self, forKey: .history) ?? []
         importedFromMinion = try c.decodeIfPresent(Bool.self, forKey: .importedFromMinion) ?? false
         importedMinionHistory = try c.decodeIfPresent(Bool.self, forKey: .importedMinionHistory) ?? false
+        suggestions = try c.decodeIfPresent([AddonSuggestion].self, forKey: .suggestions) ?? []
+        suggestionsDate = try c.decodeIfPresent(Date.self, forKey: .suggestionsDate)
     }
 
     /// Adds events, keeps the list newest first, and trims it to the limit.

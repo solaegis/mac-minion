@@ -102,6 +102,8 @@ final class AppModel {
     private(set) var isDigesting = false
     var digestError: String?
     var showDigest = false
+    private(set) var isSuggesting = false
+    var suggestError: String?
     /// Update ids already announced, so a notification only fires for new ones.
     private var notified: Set<Int> = []
 
@@ -401,8 +403,55 @@ final class AppModel {
                                                            prompt: "Say hello to an Elder Scrolls Online player.")
     }
 
+    // MARK: Suggestions
+
+    /// Saved suggestions still worth showing: in the catalog and not installed since.
+    var suggestions: [(addon: CatalogAddon, reason: String)] {
+        state.suggestions.compactMap { s in
+            guard installed(s.id) == nil, let addon = catalogAddon(s.id) else { return nil }
+            return (addon, s.reason)
+        }
+    }
+
+    var suggestionsDate: Date? { state.suggestionsDate }
+
+    /// Suggestions are a week old, or there are none: the Overview asks again on its own.
+    var suggestionsStale: Bool {
+        guard let date = state.suggestionsDate else { return true }
+        return Date.now.timeIntervalSince(date) > 7 * 86_400 || suggestions.isEmpty
+    }
+
+    /// Asks the AI which uninstalled addons would add something to what is installed.
+    func suggestAddons() async {
+        guard !isSuggesting, !catalog.isEmpty else { return }
+        isSuggesting = true
+        suggestError = nil
+        defer { isSuggesting = false }
+        let candidates = AddonRecommender.candidates(catalog: catalog, installed: Set(installed.map(\.id)))
+        let prompt = AddonRecommender.prompt(installed: installed.map { Usage.shortName($0.catalog.name) },
+                                             candidates: candidates, categories: categories)
+        do {
+            let answer = try await AIClient(config: prefs.aiConfig).complete(system: AIPrompts.recommendSystem, prompt: prompt)
+            let picks = AddonRecommender.parse(answer, candidates: Set(candidates.map(\.id)))
+            guard !picks.isEmpty else { throw AIError.empty }
+            state.suggestions = picks
+            state.suggestionsDate = .now
+            save()
+        } catch AIError.empty {
+            suggestError = "\(aiSource) didn't name any of the candidates. Try again, or pick another model."
+        } catch {
+            suggestError = error.localizedDescription
+        }
+    }
+
     /// Snapshot mode shows a finished summary.
     func setSampleSummary(_ text: String, for id: Int) { summaries[id] = text }
+
+    /// Snapshot mode shows suggestions without asking a model.
+    func setSampleSuggestions(_ suggestions: [AddonSuggestion]) {
+        state.suggestions = suggestions
+        state.suggestionsDate = .now.addingTimeInterval(-3_600)
+    }
 
     // MARK: Minion
 

@@ -235,9 +235,48 @@ private func addon(_ id: Int, _ dirs: [String], version: String = "1", downloads
     let tags = #"{"models":[{"name":"nomic-embed-text:latest","size":274000000,"details":{"family":"nomic-bert","parameter_size":"137M"}},{"name":"phi4:latest","size":9100000000,"details":{"family":"phi3","parameter_size":"14.7B","context_length":16384}},{"name":"llama3.3:70b","size":42500000000,"details":{"family":"llama","parameter_size":"70.6B"}},{"name":"qwen2.5-coder:14b","size":9000000000,"details":{"family":"qwen2","parameter_size":"14.8B"}},{"name":"gemma4:latest","size":9500000000,"details":{"family":"","parameter_size":""}}]}"#
     let models = try OllamaModel.decodeTags(Data(tags.utf8))
     #expect(models.first { $0.name == "gemma4:latest" }.map { Int($0.billions) } == 15, "no parameter_size: estimated from the file size")
-    let pick = try #require(ModelAdvisor.recommend(models.filter { !$0.isEmbedding }, memoryBytes: 192 << 30))
-    #expect(pick.model == "gemma4:latest")
-    #expect(ModelAdvisor.rank(models, memoryBytes: 16 << 30).map(\.name) == ["gemma4:latest", "phi4:latest"],
+    func host(_ gb: UInt64, free: UInt64) -> HostProfile {
+        HostProfile(chip: "Apple M2 Ultra", memoryBytes: gb << 30, availableBytes: free << 30, performanceCores: 16)
+    }
+    let pick = try #require(ModelAdvisor.recommend(models.filter { !$0.isEmbedding }, host: host(192, free: 120)))
+    #expect(pick.model == "gemma4:latest" && pick.reason.contains("Apple M2 Ultra"))
+    #expect(ModelAdvisor.rank(models, host: host(16, free: 12)).map(\.name) == ["gemma4:latest", "phi4:latest"],
             "coding and embedding models never; llama 70B doesn't fit in 16 GB")
-    #expect(ModelAdvisor.rank(models, memoryBytes: 8 << 30).isEmpty, "nothing here fits in 8 GB with room to spare")
+    #expect(ModelAdvisor.rank(models, host: host(8, free: 6)).isEmpty, "nothing here fits in 8 GB with room to spare")
+    // Free memory now: 9.3 GB free fits phi4 (9.1 GB) but not gemma4 (9.5 GB).
+    let tight = HostProfile(chip: "Apple M2", memoryBytes: 16 << 30, availableBytes: 9_300_000_000, performanceCores: 4)
+    #expect(ModelAdvisor.recommend(models, host: tight)?.model == "phi4:latest")
+    // A measured slow model loses to a comfortable one.
+    let slow = ["gemma4:latest": ModelSpeed(tokensPerSecond: 6, loadSeconds: 1), "phi4:latest": ModelSpeed(tokensPerSecond: 40, loadSeconds: 1)]
+    #expect(ModelAdvisor.recommend(models, host: host(192, free: 120), speeds: slow)?.model == "phi4:latest")
+}
+
+@Test func readsBenchmarkTimings() throws {
+    let speed = try AIClient.parseTimings(Data(#"{"eval_count":44,"eval_duration":1000000000,"load_duration":500000000}"#.utf8))
+    #expect(speed.tokensPerSecond == 44 && speed.loadSeconds == 0.5)
+    let host = HostProfile.current()
+    #expect(host.memoryBytes > 0 && host.availableBytes > 0 && host.availableBytes <= host.memoryBytes)
+}
+
+@Test func suggestionCandidatesSkipInstalledAndLibraries() {
+    func a(_ id: Int, _ cat: Int, _ monthly: Int) -> CatalogAddon {
+        CatalogAddon(id: id, categoryID: cat, version: "1", date: .now, name: "A\(id)", author: "x", downloadsMonthly: monthly, dirs: ["A\(id)"])
+    }
+    let catalog = [a(1, 17, 900), a(2, 17, 800), a(3, 53, 5_000), a(4, 18, 700), a(5, 18, 10), a(6, 17, 1)]
+    let picked = AddonRecommender.candidates(catalog: catalog, installed: [6], limit: 3)
+    #expect(!picked.contains { $0.id == 3 || $0.id == 6 }, "no libraries, nothing installed")
+    #expect(picked.map(\.id) == [1, 2, 4], "the installed addon's category first, then the most popular")
+}
+
+@Test func parsesSuggestions() {
+    let answer = """
+    Here are my picks:
+    1360 | Adds price history to the guild store, next to AwesomeGuildStore.
+    • 42 - Not a candidate.
+    [695]: Better guild store filters.
+    1360 | Repeat.
+    """
+    let s = AddonRecommender.parse(answer, candidates: [1360, 695])
+    #expect(s.map(\.id) == [1360, 695])
+    #expect(s.first?.reason == "Adds price history to the guild store, next to AwesomeGuildStore.")
 }

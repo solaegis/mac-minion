@@ -90,6 +90,11 @@ enum SeedData {
         // Snapshots show the assistant set up, with one finished summary. Nothing is sent: the store is in /tmp.
         model.prefs.aiProvider = .ollama
         model.prefs.ollamaModel = "llama3.2"
+        model.setSampleSuggestions([
+            AddonSuggestion(id: 1360, reason: "Tracks guild store prices and sales history, so AwesomeGuildStore shows what items are worth."),
+            AddonSuggestion(id: 1536, reason: "Crafts daily writs in one click; pairs with WritWorthy, which already values master writs."),
+            AddonSuggestion(id: 1245, reason: "Replaces the stock HUD with configurable frames, a different job from anything installed."),
+        ])
         model.setSampleSummary("• Fixes a Lua error when opening the settings panel after Season One.\n• Dropdowns size correctly inside submenus again.\n• Adds Turkish and Ukrainian translations.", for: 7)
     }
 

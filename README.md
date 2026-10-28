@@ -17,7 +17,11 @@ MacMinion runs on this Mac only. There is no account and no server of its own. I
 - Remove an addon to the Trash; SavedVariables are left alone
 - Live or PTS AddOns folder (or any folder you choose)
 - Menu bar extra with the update count and Update All
-- Optional changelog summaries via Ollama on this Mac, or Claude
+- Checks ESOUI for updates once a day by default (Settings → Updates)
+- Optional AI, via Ollama on this Mac or Claude:
+  - changelog summaries for one addon or every pending update
+  - **Recommended for You** on the Overview: addons that would add something to the ones you have
+  - for Ollama, a model recommendation for this Mac from the models on your server, using its memory, what is loaded, and a speed benchmark
 
 ESO only. No WoW catalog, no login, and no cloud backup or SavedVariables sync.
 
@@ -82,7 +86,7 @@ State lives in `~/Library/Application Support/MacMinion/` (install records and a
 
 ## Command line
 
-`./build.sh` also links `macminion` on your PATH. Run `macminion help` for commands such as `status`, `addons list`, `catalog search`, and `updates install`. The app must be running (or the command will launch it).
+`./build.sh` also links `macminion` on your PATH. Run `macminion help` for commands such as `status`, `addons list`, `catalog search`, `updates install`, `addons recommend`, and `ai benchmark`. Add `--json` for agents. The app must be running (or the command will launch it). `.claude/skills/macminion/SKILL.md` teaches Claude Code the commands.
 
 ## Help
 

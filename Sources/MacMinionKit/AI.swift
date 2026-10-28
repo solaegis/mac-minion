@@ -222,6 +222,51 @@ public struct AIClient: Sendable {
     }
 }
 
+extension AIClient {
+    /// Models Ollama has in memory now (`GET /api/ps`).
+    public static func loadedModels(at base: URL, session: URLSession = .shared) async -> Set<String> {
+        struct Running: Decodable { let name: String }
+        struct PS: Decodable { let models: [Running] }
+        guard let (data, _) = try? await session.data(for: URLRequest(url: base.appending(path: "api/ps"), timeoutInterval: 5)),
+              let ps = try? JSONDecoder().decode(PS.self, from: data) else { return [] }
+        return Set(ps.models.map(\.name))
+    }
+
+    /// Writes a short summary with `model` and reports its speed from Ollama's own timings.
+    public static func benchmark(_ model: String, at base: URL, session: URLSession = .shared) async throws -> ModelSpeed {
+        var r = URLRequest(url: base.appending(path: "api/chat"), timeoutInterval: idleTimeout)
+        r.httpMethod = "POST"
+        r.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        let body: [String: Any] = [
+            "model": model, "stream": false, "keep_alive": "5m",
+            "options": ["num_predict": 96, "num_ctx": 4_096],
+            "messages": [["role": "system", "content": AIPrompts.system],
+                         ["role": "user", "content": AIPrompts.changes(name: "LibAddonMenu-2.0", installed: "2.0 r42", latest: "2.0 r43",
+                                                                       changelog: benchmarkChangelog)]],
+        ]
+        r.httpBody = try JSONSerialization.data(withJSONObject: body)
+        let (data, response) = try await session.data(for: r)
+        let status = (response as? HTTPURLResponse)?.statusCode ?? 0
+        guard (200..<300).contains(status) else { throw AIError.http(status, errorMessage(data)) }
+        return try parseTimings(data)
+    }
+
+    static func parseTimings(_ data: Data) throws -> ModelSpeed {
+        struct Timings: Decodable { let eval_count: Int?; let eval_duration: Int64?; let load_duration: Int64? }
+        let t = try JSONDecoder().decode(Timings.self, from: data)
+        guard let count = t.eval_count, let ns = t.eval_duration, ns > 0, count > 0 else { throw AIError.empty }
+        return ModelSpeed(tokensPerSecond: Double(count) / (Double(ns) / 1e9), loadSeconds: Double(t.load_duration ?? 0) / 1e9)
+    }
+
+    static let benchmarkChangelog = """
+    2.0 r43
+    - fixed error when playing in XBox Game Pass PC version
+    - fixed leaking global variable
+    - fixed inconsistent behavior in multi select dropdown when using choiceValues
+    - updated for Seasons Zero
+    """
+}
+
 /// One model from Ollama's `/api/tags`.
 public struct OllamaModel: Sendable, Hashable, Identifiable {
     public var id: String { name }
@@ -263,32 +308,43 @@ public struct OllamaModel: Sendable, Hashable, Identifiable {
     }
 }
 
-/// Picks the Ollama model that suits changelog summaries on this Mac: a general chat model (not a coding
-/// or embedding model) that fits in memory with room to spare, near 8 to 16 billion parameters (fast,
-/// and good at following instructions), from a recent family.
+/// Picks the Ollama model that suits summaries on this Mac. It looks at the host (all memory, memory
+/// free now), which models Ollama has loaded, and measured speed when a benchmark ran; then prefers a
+/// general chat model (not coding or embedding) near 12 billion parameters from a recent family.
 public enum ModelAdvisor {
     public struct Pick: Sendable, Equatable {
         public let model: String
         public let reason: String
     }
 
-    public static func rank(_ models: [OllamaModel], memoryBytes: UInt64) -> [OllamaModel] {
-        models.filter { suitable($0, memoryBytes: memoryBytes) }.sorted { score($0) > score($1) }
+    /// Below this many tokens a second a summary feels slow.
+    public static let comfortableSpeed = 15.0
+
+    public static func rank(_ models: [OllamaModel], host: HostProfile, loaded: Set<String> = [],
+                            speeds: [String: ModelSpeed] = [:]) -> [OllamaModel] {
+        models.filter { suitable($0, host: host) }
+            .sorted { score($0, host: host, loaded: loaded, speeds: speeds) > score($1, host: host, loaded: loaded, speeds: speeds) }
     }
 
-    public static func recommend(_ models: [OllamaModel], memoryBytes: UInt64) -> Pick? {
-        guard let best = rank(models, memoryBytes: memoryBytes).first else { return nil }
+    public static func recommend(_ models: [OllamaModel], host: HostProfile, loaded: Set<String> = [],
+                                 speeds: [String: ModelSpeed] = [:]) -> Pick? {
+        guard let best = rank(models, host: host, loaded: loaded, speeds: speeds).first else { return nil }
         let size = ByteCountFormatter.string(fromByteCount: best.bytes, countStyle: .memory)
-        let params = best.billions >= 1 ? String(format: "%.0fB", best.billions) : "small"
-        return Pick(model: best.name, reason: "\(params) parameters, \(size): quick on this Mac and good at following instructions. Coding and embedding models were left out.")
+        var why = [String(format: "%.0fB parameters, %@", best.billions, size)]
+        if let speed = speeds[best.name] {
+            why.append(String(format: "writes %.0f tokens a second here", speed.tokensPerSecond))
+        }
+        if loaded.contains(best.name) { why.append("already loaded") }
+        if Double(best.bytes) > Double(host.availableBytes) { why.append("needs more than the memory free now") }
+        return Pick(model: best.name, reason: why.joined(separator: ", ") + " on \(host.summary). Coding and embedding models were left out.")
     }
 
-    static func suitable(_ m: OllamaModel, memoryBytes: UInt64) -> Bool {
+    static func suitable(_ m: OllamaModel, host: HostProfile) -> Bool {
         // 60% of memory leaves room for the game and macOS while the model is loaded.
-        !m.isEmbedding && !m.isCodeModel && Double(m.bytes) < Double(memoryBytes) * 0.6
+        !m.isEmbedding && !m.isCodeModel && Double(m.bytes) < Double(host.memoryBytes) * 0.6
     }
 
-    static func score(_ m: OllamaModel) -> Double {
+    static func score(_ m: OllamaModel, host: HostProfile, loaded: Set<String>, speeds: [String: ModelSpeed]) -> Double {
         // Closest to 12B wins; each doubling away costs as much as a generation of family.
         var score = -abs(log2(max(m.billions, 0.5) / 12)) * 10
         let name = m.name.lowercased() + " " + m.family.lowercased()
@@ -297,6 +353,13 @@ public enum ModelAdvisor {
                                             ("llama4", 4), ("llama3", 3), ("mistral", 3), ("qwen2", 2)]
         score += families.first { name.contains($0.0) }?.1 ?? 0
         if (m.contextLength ?? 0) >= 16_384 { score += 2 }
+        // A loaded model answers without a load; one larger than free memory pushes apps out first.
+        if loaded.contains(m.name) { score += 2 }
+        if Double(m.bytes) > Double(host.availableBytes) { score -= 6 }
+        // Measured speed beats the size guess.
+        if let tps = speeds[m.name]?.tokensPerSecond {
+            score += tps < comfortableSpeed ? -12 : min(4, (tps - comfortableSpeed) / 10)
+        }
         return score
     }
 }
@@ -356,6 +419,11 @@ public enum AIPrompts {
     no headings, no Markdown tables. Use short bullet points that start with "• ". Name concrete changes, \
     skip version-bump noise like "updated API version" unless it is the only change, and say plainly when \
     an update fixes a crash, a Lua error, or a game-update breakage.
+    """
+
+    public static let recommendSystem = """
+    You know Elder Scrolls Online addons on ESOUI well. Suggest addons for one player from a list. \
+    Follow the answer format exactly; write nothing else.
     """
 
     /// What changed in one addon, from the version the player has to the latest.

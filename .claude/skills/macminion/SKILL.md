@@ -32,7 +32,9 @@ ESOUI id: the number in `esoui.com/downloads/info<id>`.
 | `macminion addons install <id> --json` | Install, update, or reinstall one addon |
 | `macminion updates install --json` | Update everything that has an update |
 | `macminion addons summarize <id> --json` | What changed since the installed version |
-| `macminion ai models --json` | Ollama models, best for summaries first |
+| `macminion addons recommend [--refresh] --json` | Addons that would add something to what is installed |
+| `macminion ai models --json` | Ollama models ranked for this Mac, with the recommended one |
+| `macminion ai benchmark --json` | Measure the top three models' speed here, then recommend again |
 | `macminion open <page> [--addon <id>]` | Show overview, installed, updates, or findMore |
 
 Everything else: `macminion help`, and `macminion help <command>` for its options.

@@ -206,6 +206,9 @@ struct LayoutSettings: View {
 struct AISettings: View {
     @Environment(AppModel.self) private var model
     @State private var ollamaModels: [OllamaModel] = []
+    @State private var loadedModels: Set<String> = []
+    @State private var host = HostProfile.current()
+    @State private var benchmarking: String?
     @State private var loadingModels = false
     @State private var testResult: String?
     @State private var testFailed = false
@@ -242,6 +245,7 @@ struct AISettings: View {
                         .disabled(loadingModels)
                         .help("Ask Ollama which models are installed")
                 }
+                LabeledContent("This Mac", value: host.summary)
                 if let pick = recommendation {
                     LabeledContent {
                         if pick.model == prefs.ollamaModel {
@@ -252,6 +256,17 @@ struct AISettings: View {
                     } label: {
                         Text("Recommended: \(pick.model)")
                         Text(pick.reason)
+                    }
+                }
+                HStack(spacing: Space.sm) {
+                    Button("Benchmark Top Models") { Task { await benchmark() } }
+                        .disabled(benchmarking != nil || ollamaModels.isEmpty)
+                        .help("Write a short summary with the three best candidates and measure their speed on this Mac")
+                    if let benchmarking {
+                        ProgressView().controlSize(.small)
+                        Text("Testing \(benchmarking)…").font(.caption).foregroundStyle(.secondary)
+                    } else if !speedLine.isEmpty {
+                        Text(speedLine).font(.caption.monospacedDigit()).foregroundStyle(.secondary).lineLimit(2)
                     }
                 }
                 testRow
@@ -282,7 +297,28 @@ struct AISettings: View {
     }
 
     private var recommendation: ModelAdvisor.Pick? {
-        ModelAdvisor.recommend(ollamaModels, memoryBytes: ProcessInfo.processInfo.physicalMemory)
+        ModelAdvisor.recommend(ollamaModels, host: host, loaded: loadedModels, speeds: model.prefs.modelSpeeds)
+    }
+
+    /// "gemma4 44 tok/s · phi4 31 tok/s", for models measured on this Mac.
+    private var speedLine: String {
+        ollamaModels.compactMap { m in
+            model.prefs.modelSpeeds[m.name].map { String(format: "%@ %.0f tok/s", m.name.replacingOccurrences(of: ":latest", with: ""), $0.tokensPerSecond) }
+        }.joined(separator: " · ")
+    }
+
+    /// Measures the three best candidates, one at a time.
+    private func benchmark() async {
+        let base = model.prefs.aiConfig.ollamaURL
+        for candidate in ModelAdvisor.rank(ollamaModels, host: host, loaded: loadedModels).prefix(3) {
+            benchmarking = candidate.name
+            if let speed = try? await AIClient.benchmark(candidate.name, at: base) {
+                model.prefs.modelSpeeds[candidate.name] = speed
+            }
+        }
+        benchmarking = nil
+        host = HostProfile.current()
+        loadedModels = await AIClient.loadedModels(at: base)
     }
 
     private var modelChoices: [String] {
@@ -315,6 +351,8 @@ struct AISettings: View {
         defer { loadingModels = false }
         do {
             ollamaModels = try await AIClient.ollamaModels(at: model.prefs.aiConfig.ollamaURL)
+            loadedModels = await AIClient.loadedModels(at: model.prefs.aiConfig.ollamaURL)
+            host = HostProfile.current()
             if model.prefs.ollamaModel.isEmpty, let pick = recommendation?.model ?? ollamaModels.first?.name {
                 model.prefs.ollamaModel = pick
             }

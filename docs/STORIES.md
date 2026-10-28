@@ -161,7 +161,18 @@ Status: done
 As the user, I see which installed Ollama model suits changelog summaries on this Mac and can switch to it in one click.
 Acceptance:
 - [unit] Coding and embedding models are never recommended; models must fit in 60% of memory; near 12B and newer families rank first.
+- [unit] The host counts: a model larger than the memory free now drops, a loaded model rises, and a benchmarked model slower than 15 tokens/s drops.
+- [manual] Benchmark Top Models measures real tokens per second (M2 Ultra: gemma4 115, phi4 52, llama3.3 70B 13).
 - [snap] Settings > AI shows "Recommended: <model>" with a reason and a Use button.
+Status: done
+
+### S-019 Recommended for You
+As the user, I see on the Overview a few uninstalled addons the AI thinks would add something to the ones I have, each with a reason and Install.
+Screens: overview
+Acceptance:
+- [unit] Candidates are popular, uninstalled, non-library addons, weighted to my most-used categories; answers that name anything else are dropped.
+- [self] Suggestions are saved, hide once installed, and refresh on their own after a week (never in test runs).
+- [manual] Live gemma4 suggestions from 86 installed addons read sensibly.
 Status: done
 
 ## M6 Polish

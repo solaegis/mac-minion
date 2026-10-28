@@ -92,6 +92,10 @@ enum SelfTest {
             check("Ollama without a model asks for one", model.summaryErrors[7] == "Choose an Ollama model in Settings.")
             check("settings stay in memory in test runs", Preferences().aiProvider == .off)
 
+            // S-019 Suggestions: the seeded picks show until installed, and checking never calls a model.
+            check("seeded suggestions show on the Overview", model.suggestions.map(\.addon.id) == [1360, 1536, 1245])
+            check("updates check once a day by default", Preferences().checkInterval == .day)
+
             // S-015 Layout
             check("Installed and Find More open as grids", model.prefs.installedLayout == .grid && model.prefs.findMoreLayout == .grid)
             model.sidebar = .installed

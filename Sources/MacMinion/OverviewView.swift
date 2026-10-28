@@ -11,6 +11,7 @@ struct OverviewView: View {
             VStack(alignment: .leading, spacing: Space.xxl) {
                 OverviewHero()
                 StatTiles()
+                if model.prefs.aiEnabled { SuggestionsCard() }
                 // Two by two, each card as tall as its neighbour.
                 Grid(horizontalSpacing: Space.lg, verticalSpacing: Space.lg) {
                     GridRow {
@@ -426,6 +427,83 @@ private struct PopularCard: View {
                 }
             }
         }
+    }
+}
+
+/// The AI's picks from the catalog, given what is installed.
+private struct SuggestionsCard: View {
+    @Environment(AppModel.self) private var model
+
+    var body: some View {
+        let picks = model.suggestions
+        OverviewCard(title: "Recommended for You", symbol: "sparkles") {
+            HStack(spacing: Space.sm) {
+                if model.isSuggesting {
+                    ProgressView().controlSize(.small)
+                } else if let date = model.suggestionsDate {
+                    Text("\(model.aiSource) · \(date.formatted(.relative(presentation: .named)))")
+                        .font(.caption).foregroundStyle(.secondary)
+                }
+                Button(picks.isEmpty ? "Suggest Addons" : "Suggest Again") { Task { await model.suggestAddons() } }
+                    .buttonStyle(.plain)
+                    .foregroundStyle(Palette.accentText)
+                    .disabled(model.isSuggesting || model.prefs.aiConfig.problem != nil)
+                    .help("Ask \(model.aiSource) which popular addons would add something to the ones you have")
+            }
+        } content: {
+            if let problem = model.prefs.aiConfig.problem {
+                CardEmpty(text: problem)
+            } else if let error = model.suggestError, picks.isEmpty {
+                Label(error, systemImage: "exclamationmark.triangle.fill")
+                    .foregroundStyle(Palette.negative)
+                    .frame(maxWidth: .infinity, minHeight: 80)
+            } else if picks.isEmpty {
+                CardEmpty(text: model.isSuggesting ? "Reading your \(model.installed.count) addons…"
+                          : "Suggestions based on the addons you have show here.")
+            } else {
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: 340), spacing: Space.lg, alignment: .top)], spacing: Space.md) {
+                    ForEach(picks, id: \.addon.id) { pick in
+                        SuggestionRow(addon: pick.addon, reason: pick.reason)
+                    }
+                }
+            }
+        }
+        .task {
+            // Ask on its own once a week; never in test or snapshot runs.
+            if !model.offline, model.prefs.aiConfig.problem == nil, model.suggestionsStale, !model.installed.isEmpty {
+                await model.suggestAddons()
+            }
+        }
+    }
+}
+
+private struct SuggestionRow: View {
+    @Environment(AppModel.self) private var model
+    let addon: CatalogAddon
+    let reason: String
+
+    var body: some View {
+        HStack(alignment: .top, spacing: Space.md) {
+            Thumbnail(url: addon.thumbnails.first, size: 44)
+            VStack(alignment: .leading, spacing: Space.xs / 2) {
+                Text(addon.name).font(.body.weight(.semibold)).lineLimit(1)
+                Text(reason)
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(3)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Spacer(minLength: Space.sm)
+            if model.busy.contains(addon.id) {
+                ProgressView().controlSize(.small)
+            } else {
+                Button("Install") { Task { await model.install(addon.id) } }
+                    .controlSize(.small)
+                    .disabled(model.offline && model.details[addon.id] == nil)
+            }
+        }
+        .contentShape(.rect)
+        .onTapGesture { model.open(.findMore, selecting: addon.id) }
     }
 }
 
