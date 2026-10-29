@@ -66,13 +66,14 @@ struct ContentView: View {
     @ViewBuilder
     private var widePage: some View {
         switch model.sidebar ?? .overview {
-        case .installed: InstalledPage()
-        case .findMore: FindMorePage()
+        case .installed, .findMore: BrowsePage(scope: browseScope)
         case .updates: UpdatesList()
         case .overview: OverviewView()
         case .backups: BackupsPage()
         }
     }
+
+    private var browseScope: FilterScope { model.sidebar == .findMore ? .findMore : .installed }
 
     private var inspectorShown: Binding<Bool> {
         Binding(get: { model.selection != nil && model.sidebar != .overview && model.sidebar != .backups },
@@ -85,9 +86,8 @@ struct ContentView: View {
         } content: {
             Group {
                 switch model.sidebar ?? .installed {
-                case .installed, .overview: InstalledPage()
+                case .installed, .findMore, .overview: BrowsePage(scope: browseScope)
                 case .updates: UpdatesList()
-                case .findMore: FindMorePage()
                 case .backups: BackupsPage()
                 }
             }
@@ -139,43 +139,35 @@ struct ContentView: View {
 
 // MARK: - Pages
 
-/// Installed as a bento grid or a list, per Settings > Layout.
-struct InstalledPage: View {
+/// Installed and Find More, each a bento grid or a list per Settings > Layout.
+/// One view for both pages, so switching between them keeps the toolbar's one
+/// search field and only changes its text. Two `.searchable` pages swapping in
+/// place put a second search field in the toolbar for a moment, and NSToolbar
+/// throws on the duplicate (com.apple.SwiftUI.search) and the app quits.
+struct BrowsePage: View {
     @Environment(AppModel.self) private var model
-
-    var body: some View {
-        @Bindable var prefs = model.prefs
-        @Bindable var model = model
-        Group {
-            if prefs.installedLayout == .grid { InstalledGrid() } else { InstalledList() }
-        }
-        .safeAreaInset(edge: .top, spacing: 0) { FilterChips(scope: .installed) }
-        .searchable(text: $model.installedSearch, placement: .toolbar, prompt: "Filter installed addons")
-        .navigationTitle("Installed")
-        .toolbar {
-            RefreshButton()
-            FilterMenu(scope: .installed)
-            LayoutSwitch(layout: $prefs.installedLayout)
-        }
-    }
-}
-
-/// Find More as a bento grid or a list, with search and the filter menu.
-struct FindMorePage: View {
-    @Environment(AppModel.self) private var model
+    let scope: FilterScope
 
     var body: some View {
         @Bindable var model = model
         @Bindable var prefs = model.prefs
+        let installed = scope == .installed
         Group {
-            if prefs.findMoreLayout == .grid { FindMoreGrid() } else { FindMoreList() }
+            switch (scope, installed ? prefs.installedLayout : prefs.findMoreLayout) {
+            case (.installed, .grid): InstalledGrid()
+            case (.installed, .list): InstalledList()
+            case (.findMore, .grid): FindMoreGrid()
+            case (.findMore, .list): FindMoreList()
+            }
         }
-        .safeAreaInset(edge: .top, spacing: 0) { FilterChips(scope: .findMore) }
-        .searchable(text: $model.search, placement: .toolbar, prompt: "Search addons or authors")
-        .navigationTitle("Find More")
+        .safeAreaInset(edge: .top, spacing: 0) { FilterChips(scope: scope) }
+        .searchable(text: installed ? $model.installedSearch : $model.search, placement: .toolbar,
+                    prompt: installed ? "Filter installed addons" : "Search addons or authors")
+        .navigationTitle(installed ? "Installed" : "Find More")
         .toolbar {
-            FilterMenu(scope: .findMore)
-            LayoutSwitch(layout: $prefs.findMoreLayout)
+            if installed { RefreshButton() }
+            FilterMenu(scope: scope)
+            LayoutSwitch(layout: installed ? $prefs.installedLayout : $prefs.findMoreLayout)
         }
     }
 }
