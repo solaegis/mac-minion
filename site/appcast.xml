@@ -6,5 +6,15 @@
     <link>https://solaegis.github.io/mac-minion/</link>
     <description>Updates for MacMinion</description>
     <language>en</language>
+    <item>
+      <title>MacMinion 0.5</title>
+      <pubDate>Thu, 29 Oct 2026 00:10:03 GMT</pubDate>
+      <sparkle:version>1</sparkle:version>
+      <sparkle:shortVersionString>0.5</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>26.0</sparkle:minimumSystemVersion>
+      <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
+      <sparkle:releaseNotesLink>https://github.com/solaegis/mac-minion/releases/tag/v0.5</sparkle:releaseNotesLink>
+      <enclosure url="https://github.com/solaegis/mac-minion/releases/download/v0.5/MacMinion-0.5-macos-arm64.zip" sparkle:edSignature="gM56Qas57lMzre3UzFsb7svh0wGSLAmKDAMwMrq2nWw+FXHRoAVUA89+BuNZQJqMZ/B3JjwfCR9DA9vGJGl5DQ==" length="4178889" type="application/octet-stream" />
+    </item>
   </channel>
 </rss>
