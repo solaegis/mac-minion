@@ -2,7 +2,7 @@ import Foundation
 
 /// Where AI requests go. Off sends nothing anywhere.
 public enum AIProvider: String, CaseIterable, Codable, Sendable, Identifiable {
-    case off, ollama, claude
+    case off, ollama, claude, openai
 
     public var id: String { rawValue }
 
@@ -11,58 +11,73 @@ public enum AIProvider: String, CaseIterable, Codable, Sendable, Identifiable {
         case .off: "Off"
         case .ollama: "Ollama (on this Mac)"
         case .claude: "Claude"
-        }
-    }
-}
-
-/// The Claude models offered in Settings. Opus 5.5 is the default.
-public enum ClaudeModel: String, CaseIterable, Codable, Sendable, Identifiable {
-    case opus = "claude-opus-5-5"
-    case sonnet = "claude-sonnet-5-5"
-    case haiku = "claude-haiku-5-5"
-
-    public var id: String { rawValue }
-
-    public var title: String {
-        switch self {
-        case .opus: "Claude Opus 5.5"
-        case .sonnet: "Claude Sonnet 5.5"
-        case .haiku: "Claude Haiku 5.5"
+        case .openai: "OpenAI"
         }
     }
 
-    /// Opus 5.5 and Sonnet 5.5 can retry a refused request on another model server-side. Haiku 5.5 cannot.
-    var supportsFallbacks: Bool { self != .haiku }
+    public var needsKey: Bool { self == .claude || self == .openai }
 }
 
-/// Everything needed to send one request.
+/// Everything needed to send one request. The single place that knows which provider, model, URL,
+/// and key are in use.
 public struct AIConfig: Sendable, Equatable {
     public var provider: AIProvider
     public var ollamaURL: URL
     public var ollamaModel: String
-    public var claudeModel: ClaudeModel
+    public var claudeModel: String
     public var claudeKey: String
+    public var openAIModel: String
+    public var openAIKey: String
 
     public init(provider: AIProvider, ollamaURL: URL = AIConfig.defaultOllamaURL, ollamaModel: String = "",
-                claudeModel: ClaudeModel = .opus, claudeKey: String = "") {
+                claudeModel: String = AnthropicProvider.defaultModelID, claudeKey: String = "",
+                openAIModel: String = OpenAIProvider.defaultModelID, openAIKey: String = "") {
         self.provider = provider; self.ollamaURL = ollamaURL; self.ollamaModel = ollamaModel
         self.claudeModel = claudeModel; self.claudeKey = claudeKey
+        self.openAIModel = openAIModel; self.openAIKey = openAIKey
     }
 
     public static let defaultOllamaURL = URL(string: "http://localhost:11434")!
+
+    /// The selected provider's adapter, or nil when AI is off.
+    public var llm: (any LLMProvider)? {
+        switch provider {
+        case .off: nil
+        case .ollama: OllamaProvider(base: ollamaURL)
+        case .claude: AnthropicProvider(key: claudeKey)
+        case .openai: OpenAIProvider(key: openAIKey)
+        }
+    }
+
+    /// The selected provider's model.
+    public var model: String {
+        switch provider {
+        case .off: ""
+        case .ollama: ollamaModel
+        case .claude: claudeModel
+        case .openai: openAIModel
+        }
+    }
 
     /// Why this config can't send a request yet, or nil when it can.
     public var problem: String? {
         switch provider {
         case .off: "AI is turned off in Settings."
         case .ollama: ollamaModel.isEmpty ? "Choose an Ollama model in Settings." : nil
-        case .claude: claudeKey.isEmpty ? "Add a Claude API key in Settings." : nil
+        case .claude: claudeKey.isEmpty ? "Add a Claude API key in Settings." : claudeModel.isEmpty ? "Choose a Claude model in Settings." : nil
+        case .openai: openAIKey.isEmpty ? "Add an OpenAI API key in Settings." : openAIModel.isEmpty ? "Choose an OpenAI model in Settings." : nil
         }
     }
 }
 
+/// What went wrong, in words for the person using the app. Never contains an API key.
 public enum AIError: LocalizedError, Equatable {
     case notConfigured(String)
+    case badKey(String)
+    case rateLimited(String)
+    case outage(String)
+    case unreachable(String)
+    case timedOut
     case http(Int, String)
     case refused(String?)
     case empty
@@ -70,20 +85,84 @@ public enum AIError: LocalizedError, Equatable {
     public var errorDescription: String? {
         switch self {
         case .notConfigured(let why): why
+        case .badKey(let provider): "\(provider) didn't accept the API key. Check your API key in Settings > AI."
+        case .rateLimited(let provider): "\(provider) is rate limiting requests. Wait a minute and try again."
+        case .outage(let provider): "\(provider) is having problems right now. Try again later."
+        case .unreachable(let message): message
+        case .timedOut: "The AI took too long to answer. Try again."
         case .http(let code, let message): message.isEmpty ? "The AI service answered \(code)." : message
-        case .refused(let why): why.map { "Claude declined: \($0)" } ?? "Claude declined to answer."
+        case .refused(let why): why.map { "The model declined: \($0)" } ?? "The model declined to answer."
         case .empty: "The answer was empty."
+        }
+    }
+
+    /// Worth another try on a setup request: rate limits and outages.
+    public var isRetryable: Bool {
+        switch self {
+        case .rateLimited, .outage: true
+        default: false
+        }
+    }
+
+    /// 401/403: the key; 429: rate limit; 5xx and Anthropic's 529: outage; anything else: the provider's message.
+    public static func forStatus(_ status: Int, body: Data, provider: String) -> AIError {
+        switch status {
+        case 401, 403: .badKey(provider)
+        case 429: .rateLimited(provider)
+        case 500...599: .outage(provider)
+        default: .http(status, redacted(AIClient.errorMessage(body)))
+        }
+    }
+
+    /// Network failures in plain words; cancellation stays a CancellationError.
+    static func wrap(_ error: Error, provider: any LLMProvider) -> Error {
+        if error is AIError || error is CancellationError { return error }
+        guard let url = error as? URLError else { return error }
+        switch url.code {
+        case .cancelled: return CancellationError()
+        case .timedOut: return AIError.timedOut
+        case .cannotConnectToHost, .cannotFindHost, .notConnectedToInternet, .networkConnectionLost, .dnsLookupFailed:
+            return AIError.unreachable(provider.unreachableMessage)
+        default: return error
+        }
+    }
+
+    /// Provider messages sometimes quote part of a bad key ("Incorrect API key provided: sk-ab***yz").
+    public static func redacted(_ text: String) -> String {
+        text.replacingOccurrences(of: #"(sk-[A-Za-z0-9_\-*.]+|Bearer\s+\S+)"#, with: "[key]", options: .regularExpression)
+    }
+}
+
+/// How a keyed provider stands, for Settings.
+public enum ConnectionStatus: Equatable, Sendable {
+    case noKey, untested, testing, connected, invalidKey, rateLimited, failed(String)
+
+    public init(_ error: Error) {
+        switch error as? AIError {
+        case .badKey?: self = .invalidKey
+        case .rateLimited?: self = .rateLimited
+        default: self = .failed(error.localizedDescription)
+        }
+    }
+
+    public var title: String {
+        switch self {
+        case .noKey: "No key configured"
+        case .untested: "Not tested"
+        case .testing: "Testing…"
+        case .connected: "Connected"
+        case .invalidKey: "Invalid key"
+        case .rateLimited: "Rate limited"
+        case .failed(let why): why
         }
     }
 }
 
-/// One request, one answer. Ollama runs on this Mac; Claude goes to api.anthropic.com.
+/// One request, one answer, through the provider in `config`. Ollama runs on this Mac; Claude goes to
+/// api.anthropic.com; OpenAI to api.openai.com. Nothing else is sent anywhere.
 public struct AIClient: Sendable {
     public let config: AIConfig
     let session: URLSession
-
-    public static let anthropicURL = URL(string: "https://api.anthropic.com/v1/messages")!
-    public static let anthropicVersion = "2026-10-21"
 
     public init(config: AIConfig, session: URLSession = .shared) {
         self.config = config
@@ -101,121 +180,37 @@ public struct AIClient: Sendable {
     /// connection busy, so a slow local model never trips the request timeout.
     public func stream(system: String, prompt: String, onText: @Sendable (String) async -> Void) async throws -> String {
         if let problem = config.problem { throw AIError.notConfigured(problem) }
-        let request = try makeRequest(system: system, prompt: prompt, streaming: true)
-        let (bytes, response) = try await session.bytes(for: request)
-        let status = (response as? HTTPURLResponse)?.statusCode ?? 0
-        guard (200..<300).contains(status) else {
-            var body = Data()
-            for try await byte in bytes { body.append(byte) }
-            throw AIError.http(status, Self.errorMessage(body))
-        }
+        guard let llm = config.llm else { throw AIError.notConfigured("AI is turned off in Settings.") }
         var text = ""
-        for try await line in bytes.lines {
-            guard let piece = try config.provider == .claude ? Self.claudeEvent(line) : Self.ollamaChunk(line) else { continue }
-            text += piece
-            await onText(text)
+        for try await event in llm.streamChat(messages: [ChatMessage(.user, prompt)], model: config.model, system: system,
+                                              session: session) {
+            switch event {
+            case .text(let piece):
+                text += piece
+                await onText(text)
+            case .done(.refused):
+                throw AIError.refused(nil)
+            case .usage, .done:
+                break
+            }
         }
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { throw AIError.empty }
         return trimmed
     }
 
-    /// One Server-Sent Events line from the Messages API: the text it adds, or nil.
-    static func claudeEvent(_ line: String) throws -> String? {
-        guard line.hasPrefix("data:") else { return nil }
-        struct Delta: Decodable { let type: String?; let text: String?; let stop_reason: String? }
-        struct ErrorBody: Decodable { let message: String }
-        struct Details: Decodable { let explanation: String? }
-        struct Event: Decodable { let type: String; let delta: Delta?; let error: ErrorBody?; let stop_details: Details? }
-        let json = line.dropFirst(5).trimmingCharacters(in: .whitespaces)
-        guard let event = try? JSONDecoder().decode(Event.self, from: Data(json.utf8)) else { return nil }
-        switch event.type {
-        case "content_block_delta" where event.delta?.type == "text_delta": return event.delta?.text
-        case "message_delta" where event.delta?.stop_reason == "refusal": throw AIError.refused(event.stop_details?.explanation)
-        case "error": throw AIError.http(0, event.error?.message ?? "The stream failed.")
-        default: return nil
-        }
-    }
-
-    /// One NDJSON line from Ollama's /api/chat stream: the text it adds, or nil.
-    static func ollamaChunk(_ line: String) throws -> String? {
-        struct Message: Decodable { let content: String? }
-        struct Chunk: Decodable { let message: Message?; let error: String? }
-        guard !line.isEmpty, let chunk = try? JSONDecoder().decode(Chunk.self, from: Data(line.utf8)) else { return nil }
-        if let error = chunk.error { throw AIError.http(0, error) }
-        return chunk.message?.content
-    }
-
-    func makeRequest(system: String, prompt: String, streaming: Bool = false) throws -> URLRequest {
-        switch config.provider {
-        case .off:
-            throw AIError.notConfigured("AI is turned off in Settings.")
-        case .ollama:
-            var r = URLRequest(url: config.ollamaURL.appending(path: "api/chat"), timeoutInterval: Self.idleTimeout)
-            r.httpMethod = "POST"
-            r.setValue("application/json", forHTTPHeaderField: "Content-Type")
-            let body: [String: Any] = [
-                "model": config.ollamaModel,
-                "stream": streaming,
-                "messages": [["role": "system", "content": system], ["role": "user", "content": prompt]],
-                // Room for a long changelog: Ollama's default window cuts long prompts off silently.
-                "options": ["num_ctx": 16_384],
-                "keep_alive": "10m",
-            ]
-            r.httpBody = try JSONSerialization.data(withJSONObject: body)
-            return r
-        case .claude:
-            var r = URLRequest(url: Self.anthropicURL, timeoutInterval: Self.idleTimeout)
-            r.httpMethod = "POST"
-            r.setValue("application/json", forHTTPHeaderField: "Content-Type")
-            r.setValue(config.claudeKey, forHTTPHeaderField: "x-api-key")
-            r.setValue(Self.anthropicVersion, forHTTPHeaderField: "anthropic-version")
-            var body: [String: Any] = [
-                "model": config.claudeModel.rawValue,
-                "max_tokens": 16_000,
-                "system": system,
-                "messages": [["role": "user", "content": prompt]],
-                // Summaries are short and simple work.
-                "output_config": ["effort": "low"],
-            ]
-            if streaming { body["stream"] = true }
-            if config.claudeModel.supportsFallbacks {
-                // A refused request is retried on a fitting model instead of failing.
-                r.setValue("server-side-fallback-2026-07-01", forHTTPHeaderField: "anthropic-beta")
-                body["fallbacks"] = "default"
-            }
-            r.httpBody = try JSONSerialization.data(withJSONObject: body)
-            return r
-        }
-    }
-
-    static func parseClaude(_ data: Data) throws -> String {
-        struct Block: Decodable { let type: String; let text: String? }
-        struct StopDetails: Decodable { let explanation: String? }
-        struct Response: Decodable { let content: [Block]; let stop_reason: String?; let stop_details: StopDetails? }
-        let r = try JSONDecoder().decode(Response.self, from: data)
-        if r.stop_reason == "refusal" { throw AIError.refused(r.stop_details?.explanation) }
-        // Thinking blocks come first; only text blocks are the answer.
-        return r.content.filter { $0.type == "text" }.compactMap(\.text).joined(separator: "\n")
-    }
-
-    static func parseOllama(_ data: Data) throws -> String {
-        struct Message: Decodable { let content: String }
-        struct Response: Decodable { let message: Message }
-        return try JSONDecoder().decode(Response.self, from: data).message.content
-    }
-
+    /// The `message` from an error body: Anthropic and OpenAI nest it in `error`; Ollama's `error` is the text.
     static func errorMessage(_ data: Data) -> String {
-        struct Claude: Decodable { struct E: Decodable { let message: String }; let error: E }
-        struct Ollama: Decodable { let error: String }
-        if let c = try? JSONDecoder().decode(Claude.self, from: data) { return c.error.message }
-        if let o = try? JSONDecoder().decode(Ollama.self, from: data) { return o.error }
+        struct Nested: Decodable { struct E: Decodable { let message: String }; let error: E }
+        struct Flat: Decodable { let error: String }
+        if let n = try? JSONDecoder().decode(Nested.self, from: data) { return n.error.message }
+        if let f = try? JSONDecoder().decode(Flat.self, from: data) { return f.error }
         return ""
     }
 
     /// The chat models installed in Ollama (`GET /api/tags`), without embedding models.
     public static func ollamaModels(at base: URL, session: URLSession = .shared) async throws -> [OllamaModel] {
-        let (data, response) = try await session.data(for: URLRequest(url: base.appending(path: "api/tags"), timeoutInterval: 10))
+        let (data, response) = try await session.data(for: OllamaProvider(base: base).modelsRequest())
         let status = (response as? HTTPURLResponse)?.statusCode ?? 0
         guard (200..<300).contains(status) else { throw AIError.http(status, errorMessage(data)) }
         return try OllamaModel.decodeTags(data).filter { !$0.isEmbedding }.sorted { $0.name < $1.name }

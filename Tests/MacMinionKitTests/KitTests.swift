@@ -148,51 +148,6 @@ private func addon(_ id: Int, _ dirs: [String], version: String = "1", downloads
     #expect(Manifest.read(folder: addons.appending(path: "Alpha"))?.version == "2")
 }
 
-@Test func claudeRequestShape() throws {
-    let client = AIClient(config: AIConfig(provider: .claude, claudeModel: .opus, claudeKey: "sk-test"))
-    let r = try client.makeRequest(system: "S", prompt: "P")
-    #expect(r.url == AIClient.anthropicURL)
-    #expect(r.value(forHTTPHeaderField: "x-api-key") == "sk-test")
-    #expect(r.value(forHTTPHeaderField: "anthropic-version") == "2026-10-21")
-    #expect(r.value(forHTTPHeaderField: "anthropic-beta") == "server-side-fallback-2026-07-01")
-    let body = try #require(JSONSerialization.jsonObject(with: r.httpBody ?? Data()) as? [String: Any])
-    #expect(body["model"] as? String == "claude-opus-5-5")
-    #expect(body["system"] as? String == "S")
-    #expect(body["fallbacks"] as? String == "default")
-    #expect(body["temperature"] == nil)
-
-    let haiku = AIClient(config: AIConfig(provider: .claude, claudeModel: .haiku, claudeKey: "k"))
-    let hr = try haiku.makeRequest(system: "S", prompt: "P")
-    let hb = try #require(JSONSerialization.jsonObject(with: hr.httpBody ?? Data()) as? [String: Any])
-    #expect(hb["fallbacks"] == nil && hr.value(forHTTPHeaderField: "anthropic-beta") == nil, "Haiku 5.5 has no server-side fallback")
-}
-
-@Test func ollamaRequestShape() throws {
-    let client = AIClient(config: AIConfig(provider: .ollama, ollamaModel: "llama3.2"))
-    let r = try client.makeRequest(system: "S", prompt: "P")
-    #expect(r.url?.absoluteString == "http://localhost:11434/api/chat")
-    let body = try #require(JSONSerialization.jsonObject(with: r.httpBody ?? Data()) as? [String: Any])
-    #expect(body["model"] as? String == "llama3.2" && body["stream"] as? Bool == false)
-    #expect((body["options"] as? [String: Any])?["num_ctx"] as? Int == 16_384)
-    #expect(r.timeoutInterval == AIClient.idleTimeout)
-}
-
-@Test func parsesAnswers() throws {
-    let claude = #"{"content":[{"type":"thinking","thinking":""},{"type":"text","text":"• Fixed a crash"}],"stop_reason":"end_turn","stop_details":null}"#
-    #expect(try AIClient.parseClaude(Data(claude.utf8)) == "• Fixed a crash")
-    let refusal = #"{"content":[],"stop_reason":"refusal","stop_details":{"type":"refusal","category":null,"explanation":"no"}}"#
-    #expect(throws: AIError.refused("no")) { try AIClient.parseClaude(Data(refusal.utf8)) }
-    let ollama = #"{"model":"x","message":{"role":"assistant","content":"hi"},"done":true}"#
-    #expect(try AIClient.parseOllama(Data(ollama.utf8)) == "hi")
-    #expect(AIClient.errorMessage(Data(#"{"type":"error","error":{"type":"authentication_error","message":"invalid x-api-key"}}"#.utf8)) == "invalid x-api-key")
-}
-
-@Test func unconfiguredProvidersExplainWhy() {
-    #expect(AIConfig(provider: .claude).problem == "Add a Claude API key in Settings.")
-    #expect(AIConfig(provider: .ollama).problem == "Choose an Ollama model in Settings.")
-    #expect(AIConfig(provider: .ollama, ollamaModel: "m").problem == nil)
-}
-
 @Test func bentoPacksDensely() {
     // A 2x2 hero, then small cards: they fill the two columns beside it before starting a new row.
     let (slots, rows) = BentoPacker.place([.large, .small, .small, .small, .small, .small], columns: 4)
@@ -210,18 +165,6 @@ private func addon(_ id: Int, _ dirs: [String], version: String = "1", downloads
     // Three columns: wide, wide leaves a gap at the end of row 0 that the next small card takes.
     let (slots, _) = BentoPacker.place([.wide, .wide, .small], columns: 3)
     #expect(slots.map { [$0.column, $0.row] } == [[0, 0], [0, 1], [2, 0]])
-}
-
-@Test func parsesStreams() throws {
-    #expect(try AIClient.ollamaChunk(#"{"message":{"role":"assistant","content":"• Fix"},"done":false}"#) == "• Fix")
-    #expect(try AIClient.ollamaChunk(#"{"done":true}"#) == nil)
-    #expect(throws: AIError.http(0, "model not found")) { try AIClient.ollamaChunk(#"{"error":"model not found"}"#) }
-    #expect(try AIClient.claudeEvent(#"data: {"type":"content_block_delta","index":1,"delta":{"type":"text_delta","text":"Hi"}}"#) == "Hi")
-    #expect(try AIClient.claudeEvent("event: ping") == nil)
-    #expect(try AIClient.claudeEvent(#"data: {"type":"content_block_delta","index":0,"delta":{"type":"thinking_delta","thinking":"x"}}"#) == nil)
-    #expect(throws: AIError.refused("no")) {
-        try AIClient.claudeEvent(#"data: {"type":"message_delta","delta":{"stop_reason":"refusal"},"stop_details":{"explanation":"no"}}"#)
-    }
 }
 
 @Test func changelogSinceInstalled() {

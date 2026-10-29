@@ -123,7 +123,7 @@ Acceptance:
 - [unit] A refusal or HTTP error shows its reason; an unconfigured provider says what to set instead of sending anything.
 - [snap] The "What's New" card sits under the facts and names the model that wrote it.
 - [manual] A live Ollama summary of a real ESOUI changelog reads correctly.
-UX: Provider choices read "Off", "Ollama (on this Mac)", "Claude". AI is off until chosen.
+UX: Provider choices read "Off", "Ollama (on this Mac)", "Claude", "OpenAI". AI is off until chosen.
 Status: done
 
 ### S-014 Settings for updates, the app, and AI
@@ -229,6 +229,19 @@ Acceptance:
 Status: done
 
 ## M6 Polish
+
+### S-027 Use OpenAI, with keys kept per provider
+As the user, I pick OpenAI (or Claude) in Settings > AI, save my own API key to the Keychain, choose or type a model, and test the connection; Ollama keeps working as before.
+Screens: settings-ai, settings-ai-openai
+Depends: S-013
+Acceptance:
+- [unit] Each adapter encodes its own request (Ollama NDJSON chat, Anthropic Messages with a top-level system and no temperature, OpenAI Chat Completions with max_completion_tokens) and parses a recorded stream into text, usage, and a stop reason.
+- [unit] 401/403 read "Check your API key", 429 "rate limiting", 5xx "having problems"; provider messages never show a key; model lists retry with backoff, streams never retry; cancelling stops the request.
+- [self] OpenAI without a key asks for one; a saved key belongs to one provider and stays out of UserDefaults; Remove Key forgets it.
+- [snap] Settings > AI with OpenAI shows Status, API Key, Remove Key, Save to Keychain, Model with a list, and Test Connection.
+- [manual] With real keys: tokens stream into What's New, a wrong key shows Invalid key, and Ollama still summarizes offline.
+UX: Status reads "No key configured", "Not tested", "Connected", "Invalid key", or "Rate limited".
+Status: done
 
 ### S-011 App icon and empty states
 Acceptance:

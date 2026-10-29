@@ -303,18 +303,11 @@ struct AISettings: View {
             }
             .task { await loadModels() }
         case .claude:
-            Section {
-                SecureField("API Key", text: $prefs.claudeKey, prompt: Text("sk-ant-…"))
-                Picker("Model", selection: $prefs.claudeModel) {
-                    ForEach(ClaudeModel.allCases) { Text($0.title).tag($0) }
-                }
-                testRow
-            } header: {
-                Text("Claude")
-            } footer: {
-                Text("The key is kept in your login Keychain. Create one at console.anthropic.com.")
-                    .foregroundStyle(.secondary)
-            }
+            KeyedProviderSection(provider: .claude, model: $prefs.claudeModel)
+                .id(AIProvider.claude)
+        case .openai:
+            KeyedProviderSection(provider: .openai, model: $prefs.openAIModel)
+                .id(AIProvider.openai)
         }
     }
 
@@ -322,7 +315,8 @@ struct AISettings: View {
         switch model.prefs.aiProvider {
         case .off: "Summaries of addon changelogs. Nothing is sent anywhere while this is off."
         case .ollama: "Changelogs stay on this Mac. Ollama must be running."
-        case .claude: "Changelog text is sent to Anthropic to write each summary."
+        case .claude: "Addon names and changelog text are sent to Anthropic, and nowhere else."
+        case .openai: "Addon names and changelog text are sent to OpenAI, and nowhere else."
         }
     }
 
@@ -403,6 +397,151 @@ struct AISettings: View {
         } catch {
             testResult = error.localizedDescription
             testFailed = true
+        }
+    }
+}
+
+/// API key, model, and connection status for a hosted provider (Claude, OpenAI).
+struct KeyedProviderSection: View {
+    let provider: AIProvider
+    @Binding var model: String
+    @Environment(AppModel.self) private var app
+    @State private var keyDraft = ""
+    @State private var status = ConnectionStatus.untested
+    @State private var keychainFailed = false
+    @State private var fetched: [String] = []
+    @State private var loadingModels = false
+    @State private var listIsCached = false
+
+    private var llm: any LLMProvider {
+        provider == .claude ? AnthropicProvider(key: app.prefs.claudeKey) : OpenAIProvider(key: app.prefs.openAIKey)
+    }
+    private var hasKey: Bool { !app.prefs.apiKey(for: provider).isEmpty }
+
+    var body: some View {
+        Section {
+            LabeledContent("Status") {
+                if status == .testing {
+                    ProgressView().controlSize(.small)
+                } else {
+                    Label(shownStatus.title, systemImage: symbol).foregroundStyle(color).lineLimit(2)
+                }
+            }
+            SecureField("API Key", text: $keyDraft, prompt: Text(hasKey ? "Saved in Keychain" : keyPrompt))
+                .onSubmit(save)
+            HStack(spacing: Space.sm) {
+                Spacer()
+                Button("Remove Key", role: .destructive) {
+                    app.prefs.removeKey(for: provider)
+                    status = .noKey
+                }
+                .disabled(!hasKey)
+                Button("Save to Keychain", action: save)
+                    .disabled(keyDraft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            }
+            HStack(spacing: Space.sm) {
+                TextField("Model", text: $model, prompt: Text(llm.defaultModel))
+                Menu("Choose Model", systemImage: "list.bullet") {
+                    ForEach(modelChoices, id: \.self) { id in
+                        Button(title(id)) { model = id }
+                    }
+                }
+                .labelStyle(.iconOnly)
+                .menuIndicator(.hidden)
+                .fixedSize()
+                .help("Pick from the models \(llm.displayName) offers")
+                if loadingModels {
+                    ProgressView().controlSize(.small)
+                } else {
+                    Button("Refresh Models", systemImage: "arrow.clockwise") { Task { await loadModels() } }
+                        .labelStyle(.iconOnly)
+                        .disabled(!hasKey)
+                        .help("Ask \(llm.displayName) which models this key can use")
+                }
+            }
+            Button("Test Connection") { Task { await test() } }
+                .disabled(status == .testing || app.prefs.aiConfig.problem != nil)
+        } header: {
+            Text(llm.displayName)
+        } footer: {
+            Text(footer).foregroundStyle(.secondary)
+        }
+        .onAppear {
+            status = hasKey ? .untested : .noKey
+            fetched = app.prefs.cachedModels[provider] ?? []
+        }
+    }
+
+    private var keyPrompt: String { provider == .claude ? "sk-ant-…" : "sk-…" }
+
+    private var footer: String {
+        let site = provider == .claude ? "console.anthropic.com" : "platform.openai.com"
+        var text = "The key is kept in your login Keychain, for this Mac user only, and sent only to \(llm.displayName). Create one at \(site). Model IDs change: choose one from the list or type it."
+        if keychainFailed { text = "The Keychain didn't save the key. " + text }
+        if listIsCached { text += " Showing the last model list; \(llm.displayName) couldn't be reached." }
+        return text
+    }
+
+    private var shownStatus: ConnectionStatus { hasKey ? status : .noKey }
+
+    private var symbol: String {
+        switch shownStatus {
+        case .connected: "checkmark.circle.fill"
+        case .invalidKey, .failed: "xmark.circle.fill"
+        case .rateLimited: "clock.badge.exclamationmark"
+        case .noKey: "key"
+        case .untested, .testing: "circle.dashed"
+        }
+    }
+
+    private var color: Color {
+        switch shownStatus {
+        case .connected: Palette.positive
+        case .invalidKey, .failed, .rateLimited: Palette.negative
+        default: .secondary
+        }
+    }
+
+    /// Fetched or cached models, else the known defaults, with the current model kept in the list.
+    private var modelChoices: [String] {
+        let list = fetched.isEmpty ? llm.availableModels : fetched
+        return model.isEmpty || list.contains(model) ? list : [model] + list
+    }
+
+    private func title(_ id: String) -> String {
+        provider == .claude ? AnthropicProvider.title(for: id) : OpenAIProvider.title(for: id)
+    }
+
+    private func save() {
+        keychainFailed = !app.prefs.saveKey(keyDraft, for: provider)
+        guard !keychainFailed else { return }
+        keyDraft = ""
+        status = .untested
+        Task { await loadModels() }
+    }
+
+    private func loadModels() async {
+        guard hasKey, !Store.isOverridden else { return }
+        loadingModels = true
+        defer { loadingModels = false }
+        do {
+            fetched = try await llm.fetchModels()
+            app.prefs.cachedModels[provider] = fetched
+            listIsCached = false
+        } catch {
+            fetched = app.prefs.cachedModels[provider] ?? []
+            listIsCached = !fetched.isEmpty
+            if case .invalidKey = ConnectionStatus(error) { status = .invalidKey }
+        }
+    }
+
+    private func test() async {
+        status = .testing
+        do {
+            _ = try await app.testAI()
+            status = .connected
+        } catch {
+            status = ConnectionStatus(error)
         }
     }
 }

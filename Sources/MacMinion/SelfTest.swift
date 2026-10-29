@@ -91,9 +91,25 @@ enum SelfTest {
 
             // S-013 AI: an unconfigured provider explains itself instead of sending anything.
             model.prefs.aiProvider = .claude
-            model.prefs.claudeKey = ""
+            model.prefs.removeKey(for: .claude)
             await model.summarize(7)
             check("Claude without a key asks for one", model.summaryErrors[7] == "Add a Claude API key in Settings.")
+
+            // S-027 OpenAI: a third provider, its key per provider and only in memory in test runs.
+            model.prefs.aiProvider = .openai
+            model.prefs.removeKey(for: .openai)
+            await model.summarize(7)
+            check("OpenAI without a key asks for one", model.summaryErrors[7] == "Add an OpenAI API key in Settings.")
+            check("OpenAI defaults to GPT-6 Astra", model.prefs.aiConfig.model == "gpt-6-astra")
+            check("a saved key belongs to its provider", model.prefs.saveKey("sk-selftest-1", for: .openai)
+                  && model.prefs.apiKey(for: .openai) == "sk-selftest-1" && model.prefs.apiKey(for: .claude).isEmpty)
+            check("a key is never saved for Ollama", !model.prefs.saveKey("x", for: .ollama))
+            check("keys stay out of UserDefaults", !UserDefaults.standard.dictionaryRepresentation().values
+                  .contains { ($0 as? String) == "sk-selftest-1" })
+            check("keys stay out of new Preferences in test runs", Preferences().apiKey(for: .openai).isEmpty)
+            model.prefs.removeKey(for: .openai)
+            check("Remove Key forgets it", model.prefs.apiKey(for: .openai).isEmpty)
+            check("OpenAI summaries name the model", model.aiSource == "GPT-6 Astra on OpenAI")
             model.prefs.aiProvider = .ollama
             model.prefs.ollamaModel = ""
             await model.summarize(7)

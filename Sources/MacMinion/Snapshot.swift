@@ -68,6 +68,14 @@ enum Snapshot {
                         // The menu bar item has a window too; Settings is the titled one.
                         let settings = NSApp.windows.first { $0.isVisible && $0 !== main && !$0.isSheet && $0.styleMask.contains(.titled) }
                         capture(to: "\(dir)/settings-\(tab.rawValue)-\(mode).png", window: settings)
+                        // The OpenAI section, standing for both keyed providers.
+                        if tab == .ai {
+                            let provider = model.prefs.aiProvider
+                            model.prefs.aiProvider = .openai
+                            try? await Task.sleep(for: .seconds(0.8))
+                            capture(to: "\(dir)/settings-ai-openai-\(mode).png", window: settings)
+                            model.prefs.aiProvider = provider
+                        }
                     }
                 }
             }

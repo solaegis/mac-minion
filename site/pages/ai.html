@@ -1,7 +1,7 @@
 <!-- title: AI -->
 <!-- description: Optional AI in MacMinion: changelog summaries, addon suggestions, plain-words search, ratings, and choosing an Ollama model. -->
 <h1>AI</h1>
-<p class="lead">Optional, and off until you pick a provider. Use Ollama on your Mac, so nothing leaves it, or Claude.</p>
+<p class="lead">Optional, and off until you pick a provider. Use Ollama on your Mac, so nothing leaves it, or Claude or OpenAI with your own API key.</p>
 
 <!-- shot: settings-ai | Settings > AI with Ollama: the model recommended for this Mac, and a speed benchmark. -->
 
@@ -10,9 +10,19 @@
   <tr><th>Provider</th><th>What's needed</th><th>Where your data goes</th></tr>
   <tr><td>Off</td><td>Nothing</td><td>Nowhere. AI features are hidden.</td></tr>
   <tr><td>Ollama (on this Mac)</td><td><a href="https://ollama.com">Ollama</a> running, and a chat model. Server defaults to <code>http://localhost:11434</code>.</td><td>Stays on your Mac.</td></tr>
-  <tr><td>Claude</td><td>An API key from <a href="https://console.anthropic.com">console.anthropic.com</a>, kept in your login Keychain.</td><td>Addon names, descriptions, and changelog text go to Anthropic.</td></tr>
+  <tr><td>Claude</td><td>An API key from <a href="https://console.anthropic.com">console.anthropic.com</a>, kept in your login Keychain. Model <code>claude-opus-5-5</code> by default.</td><td>Addon names, descriptions, and changelog text go to Anthropic, and nowhere else.</td></tr>
+  <tr><td>OpenAI</td><td>An API key from <a href="https://platform.openai.com">platform.openai.com</a>, kept in your login Keychain. Model <code>gpt-6-astra</code> by default.</td><td>Addon names, descriptions, and changelog text go to OpenAI, and nowhere else.</td></tr>
 </table>
-<p>Set it up in Settings &gt; AI, then press <strong>Test Connection</strong>.</p>
+<p>Set it up in Settings &gt; AI, then press <strong>Test Connection</strong>. MacMinion sends no telemetry.</p>
+
+<!-- shot: settings-ai-openai | Settings > AI with OpenAI: the key's status, Save to Keychain, and the model. -->
+
+<h2 id="keys">API keys and models</h2>
+<ul>
+  <li>Paste a key and press <strong>Save to Keychain</strong>. <strong>Remove Key</strong> deletes it. Each provider has its own key, readable only while your Mac is unlocked.</li>
+  <li>The status reads <em>No key configured</em>, <em>Not tested</em>, <em>Connected</em>, <em>Invalid key</em>, or <em>Rate limited</em>.</li>
+  <li>Model IDs change often. Type any ID, or press the list button to choose from the models your key can use. The last list is kept for when you're offline.</li>
+</ul>
 
 <h2 id="models">Choosing an Ollama model</h2>
 <p>MacMinion reads the models on your Ollama server and recommends one for this Mac:</p>

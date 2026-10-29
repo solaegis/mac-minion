@@ -1,7 +1,6 @@
 import Foundation
 import CoreGraphics
 import MacMinionKit
-import Security
 import UserNotifications
 
 /// How often MacMinion checks ESOUI on its own.
@@ -120,7 +119,7 @@ enum OverviewSection: String, CaseIterable, Identifiable {
     }
 }
 
-/// Settings people change in the Settings window. Saved to UserDefaults (the Claude key to the
+/// Settings people change in the Settings window. Saved to UserDefaults (API keys to the
 /// Keychain), except in test and snapshot runs, which keep everything in memory.
 @Observable
 final class Preferences {
@@ -197,8 +196,15 @@ final class Preferences {
     var aiProvider: AIProvider { didSet { Self.save(aiProvider.rawValue, "ai.provider") } }
     var ollamaURL: String { didSet { Self.save(ollamaURL, "ai.ollama.url") } }
     var ollamaModel: String { didSet { Self.save(ollamaModel, "ai.ollama.model") } }
-    var claudeModel: ClaudeModel { didSet { Self.save(claudeModel.rawValue, "ai.claude.model") } }
-    var claudeKey: String { didSet { if Self.persists { Keychain.set(claudeKey, account: Keychain.claudeAccount) } } }
+    var claudeModel: String { didSet { Self.save(claudeModel, "ai.claude.model") } }
+    var openAIModel: String { didSet { Self.save(openAIModel, "ai.openai.model") } }
+    /// Saved keys, read from the Keychain at launch. Change them with `saveKey` and `removeKey`.
+    private(set) var claudeKey: String
+    private(set) var openAIKey: String
+    /// Last model lists fetched from each provider, for offline use. Model IDs only, never keys.
+    var cachedModels: [AIProvider: [String]] {
+        didSet { Self.save(Dictionary(uniqueKeysWithValues: cachedModels.map { ($0.key.rawValue, $0.value) }), "ai.models") }
+    }
     var summarizeOnOpen: Bool { didSet { Self.save(summarizeOnOpen, "ai.summarizeOnOpen") } }
     /// Measured Ollama speeds on this Mac, by model, from Settings > AI > Benchmark.
     var modelSpeeds: [String: ModelSpeed] {
@@ -239,8 +245,12 @@ final class Preferences {
         aiProvider = AIProvider(rawValue: d.string(forKey: "ai.provider") ?? "") ?? .off
         ollamaURL = d.string(forKey: "ai.ollama.url") ?? AIConfig.defaultOllamaURL.absoluteString
         ollamaModel = d.string(forKey: "ai.ollama.model") ?? ""
-        claudeModel = ClaudeModel(rawValue: d.string(forKey: "ai.claude.model") ?? "") ?? .opus
-        claudeKey = Self.persists ? (Keychain.get(account: Keychain.claudeAccount) ?? "") : ""
+        claudeModel = d.string(forKey: "ai.claude.model") ?? AnthropicProvider.defaultModelID
+        openAIModel = d.string(forKey: "ai.openai.model") ?? OpenAIProvider.defaultModelID
+        claudeKey = Self.persists ? (Self.keychain.key(for: .claude) ?? "") : ""
+        openAIKey = Self.persists ? (Self.keychain.key(for: .openai) ?? "") : ""
+        let models = d.dictionary(forKey: "ai.models") as? [String: [String]] ?? [:]
+        cachedModels = Dictionary(uniqueKeysWithValues: models.compactMap { k, v in AIProvider(rawValue: k).map { ($0, v) } })
         summarizeOnOpen = d.bool(forKey: "ai.summarizeOnOpen")
         modelSpeeds = d.data(forKey: "ai.ollama.speeds").flatMap { try? JSONDecoder().decode([String: ModelSpeed].self, from: $0) } ?? [:]
     }
@@ -248,38 +258,48 @@ final class Preferences {
     var aiConfig: AIConfig {
         AIConfig(provider: aiProvider,
                  ollamaURL: URL(string: ollamaURL.trimmingCharacters(in: .whitespaces)) ?? AIConfig.defaultOllamaURL,
-                 ollamaModel: ollamaModel, claudeModel: claudeModel,
-                 claudeKey: claudeKey.trimmingCharacters(in: .whitespacesAndNewlines))
+                 ollamaModel: ollamaModel,
+                 claudeModel: claudeModel.trimmingCharacters(in: .whitespaces), claudeKey: claudeKey,
+                 openAIModel: openAIModel.trimmingCharacters(in: .whitespaces), openAIKey: openAIKey)
+    }
+
+    private static let keychain = KeychainStore()
+
+    func apiKey(for provider: AIProvider) -> String {
+        switch provider {
+        case .claude: claudeKey
+        case .openai: openAIKey
+        case .off, .ollama: ""
+        }
+    }
+
+    /// Stores the key in the Keychain (in memory only in test runs). False when the Keychain refused it.
+    @discardableResult
+    func saveKey(_ key: String, for provider: AIProvider) -> Bool {
+        let key = key.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard provider.needsKey, !key.isEmpty else { return false }
+        if Self.persists, !Self.keychain.save(key, for: provider) { return false }
+        setKey(key, for: provider)
+        return true
+    }
+
+    func removeKey(for provider: AIProvider) {
+        if Self.persists { Self.keychain.remove(for: provider) }
+        setKey("", for: provider)
+    }
+
+    private func setKey(_ key: String, for provider: AIProvider) {
+        switch provider {
+        case .claude: claudeKey = key
+        case .openai: openAIKey = key
+        case .off, .ollama: break
+        }
     }
 
     var aiEnabled: Bool { aiProvider != .off }
 
     private static func save(_ value: Any, _ key: String) {
         if persists { defaults.set(value, forKey: key) }
-    }
-}
-
-/// The Claude API key lives in the login Keychain, never in UserDefaults or state.json.
-enum Keychain {
-    static let service = "com.solaegis.macminion"
-    static let claudeAccount = "claude-api-key"
-
-    static func get(account: String) -> String? {
-        let query: [String: Any] = [kSecClass as String: kSecClassGenericPassword, kSecAttrService as String: service,
-                                    kSecAttrAccount as String: account, kSecReturnData as String: true]
-        var out: AnyObject?
-        guard SecItemCopyMatching(query as CFDictionary, &out) == errSecSuccess, let data = out as? Data else { return nil }
-        return String(decoding: data, as: UTF8.self)
-    }
-
-    static func set(_ value: String, account: String) {
-        let query: [String: Any] = [kSecClass as String: kSecClassGenericPassword, kSecAttrService as String: service,
-                                    kSecAttrAccount as String: account]
-        SecItemDelete(query as CFDictionary)
-        guard !value.isEmpty else { return }
-        var add = query
-        add[kSecValueData as String] = Data(value.utf8)
-        SecItemAdd(add as CFDictionary, nil)
     }
 }
 

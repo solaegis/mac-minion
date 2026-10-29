@@ -19,6 +19,7 @@ let package = Package(
             // build.sh copies Sparkle.framework into Contents/Frameworks; find it there.
             linkerSettings: [.unsafeFlags(["-Xlinker", "-rpath", "-Xlinker", "@executable_path/../Frameworks"])]
         ),
-        .testTarget(name: "MacMinionKitTests", dependencies: ["MacMinionKit"]),
+        // Fixtures: recorded NDJSON and SSE streams, so no test touches the network.
+        .testTarget(name: "MacMinionKitTests", dependencies: ["MacMinionKit"], resources: [.copy("Fixtures")]),
     ]
 )
