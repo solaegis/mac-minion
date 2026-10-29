@@ -1,0 +1,45 @@
+name: Docs
+
+# Builds the documentation site and update feed (site/ -> _site/) and publishes it to GitHub Pages:
+# https://solaegis.github.io/mac-minion/ (docs) and .../appcast.xml (Sparkle's feed).
+# The release workflow starts this with workflow_dispatch after adding a release to site/appcast.xml.
+
+on:
+  push:
+    branches: [main]
+    paths: ["site/**", "tools/build-site.py", ".github/workflows/pages.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: main
+      - name: Build the site
+        run: python3 tools/build-site.py
+      - name: Check the update feed is valid XML
+        run: python3 -c "import xml.dom.minidom; xml.dom.minidom.parse('_site/appcast.xml'); print('appcast.xml OK')"
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{title}} · MacMinion</title>
+<meta name="description" content="{{description}}">
+<meta name="color-scheme" content="light dark">
+<link rel="icon" href="images/icon.png">
+<link rel="stylesheet" href="style.css">
+<link rel="alternate" type="application/rss+xml" title="MacMinion releases" href="appcast.xml">
+</head>
+<body>
+<header class="top">
+  <a class="brand" href="index.html"><img src="images/icon.png" alt="" width="32" height="32"> MacMinion</a>
+  <nav class="top-links">
+    <a href="https://github.com/solaegis/mac-minion/releases/latest">Download</a>
+    <a href="https://github.com/solaegis/mac-minion">GitHub</a>
+  </nav>
+  <details class="menu">
+    <summary>Menu</summary>
+    <ul>{{nav}}</ul>
+  </details>
+</header>
+<div class="layout">
+  <nav class="side" aria-label="Documentation">
+    <ul>{{nav}}</ul>
+  </nav>
+  <main>
+{{content}}
+  </main>
+</div>
+<footer>
+  <p>MacMinion is a personal, noncommercial project (PolyForm Noncommercial 1.0.0). It isn't affiliated with ZeniMax, ESOUI, or MMOUI.
+  <a href="https://github.com/solaegis/mac-minion/issues">Report an issue</a>.</p>
+</footer>
+</body>
+</html>

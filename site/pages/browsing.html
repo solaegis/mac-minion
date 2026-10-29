@@ -1,0 +1,53 @@
+<!-- title: Installed & Find More -->
+<!-- description: Browse your installed addons and the ESOUI catalog as a card grid or list, filter, rate, choose versions, and remove. -->
+<h1>Installed &amp; Find More</h1>
+<p class="lead">Your addons, and everything on ESOUI you don't have yet. Both show as a card grid or a list.</p>
+
+<h2 id="installed">Installed</h2>
+<!-- shot: installed | Updates first as wide cards, then addons, libraries, and folders not on ESOUI. -->
+<p>MacMinion matches each folder in AddOns to an ESOUI entry. Each card shows the installed version and its status:</p>
+<table>
+  <tr><th>Status</th><th>Meaning</th></tr>
+  <tr><td>Up to date</td><td>The installed version is ESOUI's latest.</td></tr>
+  <tr><td>Update available</td><td>ESOUI has a newer version. <strong>Update</strong> is on the card.</td></tr>
+  <tr><td>Ignored</td><td>Updates are skipped for this addon (pinned, or you chose Ignore Updates).</td></tr>
+  <tr><td>Version unknown</td><td>Installed outside MacMinion and Minion, so the version isn't recorded. Reinstall it once to track it.</td></tr>
+</table>
+<p><strong>Not on ESOUI</strong> lists folders no ESOUI entry claims: addons you made or copied by hand. MacMinion
+leaves them alone, but you can remove them.</p>
+
+<h2 id="find-more">Find More</h2>
+<!-- shot: findMore | The top four by the chosen sort above a grid of equal cards. -->
+<p>The whole ESOUI catalog, minus what you have installed. Search by name or author in the toolbar. Select a card to
+read its details, description, and changelog in the inspector, then <strong>Install</strong>.</p>
+
+<h2 id="filters">Filters</h2>
+<p>The <strong>Filter</strong> menu in the toolbar narrows either page. Active filters show as chips above the results;
+click a chip's × to turn it off, or <strong>Clear Filters</strong> (<kbd>⌥</kbd><kbd>⌘</kbd><kbd>0</kbd>).</p>
+<table>
+  <tr><th>Filter</th><th>Installed</th><th>Find More</th></tr>
+  <tr><td>Category (with counts)</td><td>✓</td><td>✓</td></tr>
+  <tr><td>Status</td><td>✓</td><td></td></tr>
+  <tr><td>Updated (past week, month, 3 months, year)</td><td></td><td>✓</td></tr>
+  <tr><td>Rating (thumbs up, not rated, hide thumbs down…)</td><td>✓</td><td>✓</td></tr>
+  <tr><td>Works with the current game version</td><td>✓</td><td>✓</td></tr>
+  <tr><td>Hide libraries</td><td>✓</td><td>✓</td></tr>
+  <tr><td>Sort</td><td>Name, author, recently updated, downloads</td><td>Downloads, monthly, favorites, newest, name</td></tr>
+</table>
+
+<h2 id="ratings">Thumbs up and down</h2>
+<p>Every card, row menu, and details pane has 👍 and 👎. Ratings steer the AI: a thumbs up means "more like this", and
+a thumbs down keeps that addon out of suggestions and AI search for good.</p>
+
+<h2 id="versions">Install a specific version</h2>
+<p>In an addon's details, the <strong>Version</strong> menu lists every release ESOUI still keeps. Choosing an older one
+installs it and pins it: Update All skips it until you install the latest again. ESOUI publishes no checksum for
+archived releases, so MacMinion checks only that the zip unpacks into addon folders.</p>
+
+<h2 id="remove">Remove</h2>
+<p>The trash button on a card (or <strong>Remove…</strong> in its menu) asks first, then moves the addon's folders to
+the Trash. Its SavedVariables stay, so reinstalling keeps your settings.</p>
+
+<h2 id="layout">Grid or list</h2>
+<p>Switch with the toolbar control, <kbd>⌥</kbd><kbd>⌘</kbd><kbd>1</kbd> (grid) and <kbd>⌥</kbd><kbd>⌘</kbd><kbd>2</kbd> (list).
+Card size, preview images, and grouping are in <a href="settings.html#layout">Settings &gt; Layout</a>.</p>

@@ -1,0 +1,55 @@
+<!-- title: Troubleshooting -->
+<!-- description: Fixes for common MacMinion problems: Gatekeeper, Documents access, missing addons, updates, and AI. -->
+<h1>Troubleshooting</h1>
+
+<h2 id="gatekeeper">"MacMinion can't be opened" the first time</h2>
+<p>It isn't notarized by Apple. Right-click the app &gt; <strong>Open</strong>, or System Settings &gt; Privacy &amp; Security &gt;
+<strong>Open Anyway</strong>. See <a href="install.html#download">Install</a>.</p>
+
+<h2 id="documents">It keeps asking for access to Documents</h2>
+<ul>
+  <li><strong>Downloaded releases</strong> are all signed with the same certificate, so macOS remembers your answer across updates. Choose Allow once.</li>
+  <li><strong>Builds you make yourself</strong> signed ad hoc are a new app every time. Run <code>tools/make-signing-identity.sh</code> once; see <a href="install.html#source">Build from source</a>.</li>
+  <li>To ask again from scratch: <code>tccutil reset SystemPolicyDocumentsFolder com.solaegis.macminion</code>.</li>
+</ul>
+
+<h2 id="empty">Installed is empty or shows 0 addons</h2>
+<ul>
+  <li>Check Settings &gt; General points at the right AddOns folder.</li>
+  <li>If the toolbar says "Can't read the AddOns folder", allow Documents access in System Settings &gt; Privacy &amp; Security &gt; Files and Folders.</li>
+  <li>Right after launch the app is still reading the folder and the catalog; give it a few seconds.</li>
+</ul>
+
+<h2 id="unknown">"Version unknown" on an addon</h2>
+<p>It was installed by hand, so no version is recorded. Choose <strong>Reinstall</strong> once; after that it's tracked.</p>
+
+<h2 id="not-on-esoui">An addon is under "Not on ESOUI"</h2>
+<p>No ESOUI entry lists that folder: it's yours, from another site, or copied by hand. MacMinion can't update it, but leaves it alone.</p>
+
+<h2 id="app-update">MacMinion doesn't find its own updates</h2>
+<ul>
+  <li>MacMinion &gt; Check for MacMinion Updates… shows any error.</li>
+  <li>Builds you make yourself have a higher build number than releases, so they aren't offered updates.</li>
+  <li>The feed is <a href="appcast.xml">appcast.xml</a>; it should list the latest release.</li>
+</ul>
+
+<h2 id="ai">AI summaries time out or fail</h2>
+<ul>
+  <li>Ollama must be running. Settings &gt; AI &gt; <strong>Test Connection</strong> shows the error.</li>
+  <li>Large models are slow to load the first time. Use the recommended model, or <strong>Benchmark Top Models</strong>.</li>
+  <li>Claude needs a valid API key; the error message says what's wrong.</li>
+</ul>
+
+<h2 id="data">Where MacMinion keeps things</h2>
+<table>
+  <tr><th>What</th><th>Where</th></tr>
+  <tr><td>Install records, history, ratings, suggestions</td><td><code>~/Library/Application Support/MacMinion/state.json</code></td></tr>
+  <tr><td>Catalog cache</td><td><code>~/Library/Application Support/MacMinion/catalog.json</code></td></tr>
+  <tr><td>Backups</td><td>Minion's backup folder, usually <code>~/.minion/minion-backups/ESO-1</code></td></tr>
+  <tr><td>Safety copies made before a restore</td><td><code>~/Library/Application Support/MacMinion/restore-safety</code></td></tr>
+  <tr><td>Claude API key</td><td>Your login Keychain</td></tr>
+</table>
+
+<h2>Still stuck?</h2>
+<p><a href="https://github.com/solaegis/mac-minion/issues">Open an issue</a> with what you did, what you expected, and what
+happened. <code>macminion status --json</code> output helps.</p>

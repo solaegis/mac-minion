@@ -1,0 +1,33 @@
+<!-- title: Updates -->
+<!-- description: Update ESOUI addons one at a time or all together, pin versions, and keep MacMinion itself up to date with Sparkle. -->
+<h1>Updates</h1>
+<p class="lead">Two kinds: your addons, from ESOUI, and MacMinion itself, from GitHub.</p>
+
+<h2 id="addons">Addon updates</h2>
+<!-- shot: updates | The Updates page, with an AI summary of what changed. -->
+<ul>
+  <li><strong>Update</strong> on a card or row updates one addon. <strong>Update All</strong> (<kbd>⌘</kbd><kbd>U</kbd>) updates every addon that has one, a few at a time.</li>
+  <li>Each download is checked against ESOUI's MD5 checksum before anything changes. If any step fails, the old folders are put back.</li>
+  <li><strong>Check for Updates</strong> (<kbd>⌘</kbd><kbd>R</kbd>) downloads the catalog again. MacMinion also checks on its own, once a day by default.</li>
+  <li><strong>Ignore Updates</strong> (in an addon's menu) keeps an addon at its version; Update All skips it.</li>
+  <li>The menu bar item shows the number of updates and offers Update All.</li>
+</ul>
+
+<h3>Settings</h3>
+<p>In <a href="settings.html#updates">Settings &gt; Updates</a>: how often to check, whether to install updates
+automatically, how many downloads run at once, and a notification when updates are ready.</p>
+<div class="note"><p>If you still have Minion, turn off its auto-update so the two apps don't both write to AddOns.</p></div>
+
+<h2 id="app">Updating MacMinion</h2>
+<p>MacMinion updates itself with <a href="https://sparkle-project.org">Sparkle</a>. It checks once a day, and
+<strong>MacMinion &gt; Check for MacMinion Updates…</strong> checks now.</p>
+<ul>
+  <li>Each release is a zip on <a href="https://github.com/solaegis/mac-minion/releases">GitHub Releases</a>, listed in an
+  update feed at <a href="appcast.xml"><code>solaegis.github.io/mac-minion/appcast.xml</code></a>.</li>
+  <li>Every update is signed with an EdDSA key. MacMinion has the public key built in and installs an update only when its
+  signature matches. Apple notarization isn't part of this; the signature is what makes an update trustworthy.</li>
+  <li>Releases are signed with the same certificate every time, so macOS keeps your permissions (such as Documents
+  access) across updates.</li>
+  <li>Settings &gt; Updates &gt; MacMinion shows your version and lets you turn automatic checks and automatic installs on or off.</li>
+</ul>
+<!-- shot: settings-updates | MacMinion's own update settings, above the addon ones. -->

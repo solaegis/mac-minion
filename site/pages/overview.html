@@ -1,0 +1,33 @@
+<!-- title: Overview -->
+<!-- description: MacMinion's home page: status, stats, libraries your addons need, suggestions, AI search, and history. -->
+<h1>Overview</h1>
+<p class="lead">The page MacMinion opens to: how your addons stand today, and how they've been kept current.</p>
+
+<!-- shot: overview | Every section can be hidden or moved. -->
+
+<h2>Sections</h2>
+<table>
+  <tr><th>Section</th><th>What it shows</th></tr>
+  <tr><td>Status Banner</td><td>"Everything's up to date" or how many updates are ready, with <strong>Update All</strong>.</td></tr>
+  <tr><td>Libraries for Installed Addons</td><td>Libraries your addons name in their manifests (<code>DependsOn</code>, <code>OptionalDependsOn</code>) that aren't installed. Required ones come first, in red: the addon won't load without them. Shows only while something is missing.</td></tr>
+  <tr><td>At a Glance</td><td>Addons from ESOUI, updates ready, libraries, folders not on ESOUI, ignored, and size on disk. Click a tile to open its page.</td></tr>
+  <tr><td>Recommended for You</td><td>Addons the AI thinks would add something to what you have. Shows when an AI provider is set; see <a href="ai.html#suggestions">AI</a>.</td></tr>
+  <tr><td>AI Search</td><td>Describe what you want in your own words; the AI finds catalog addons that fit. See <a href="ai.html#search">AI search</a>.</td></tr>
+  <tr><td>Updates Installed &amp; By Category</td><td>Updates per week for 26 weeks, and your addons by ESOUI category.</td></tr>
+  <tr><td>Recent Activity &amp; Updated Most Often</td><td>Your latest installs, updates, and removals (Minion's history included) and the addons that change the most.</td></tr>
+  <tr><td>Popular This Month</td><td>The most downloaded addons you don't have.</td></tr>
+</table>
+
+<h2 id="libraries">Libraries for installed addons</h2>
+<p>MacMinion reads every addon's manifest. A library that's bundled inside another addon's folder counts as installed,
+because the game loads it from there. Obsolete libraries such as LibStub are left out.</p>
+<ul>
+  <li><strong>Install</strong> one, or <strong>Install All</strong>.</li>
+  <li>A thumbs down hides an <em>optional</em> library for good. A required one keeps showing, whatever its rating.</li>
+</ul>
+
+<h2 id="customize">Arrange the Overview</h2>
+<p>Choose <strong>Customize Overview</strong> in the toolbar (or Settings &gt; Layout &gt; Customize Overview…). Check the
+sections to show and drag them into order. You can also right-click any section for <strong>Move Up</strong>,
+<strong>Move Down</strong>, or <strong>Hide</strong>. <strong>Reset to Default</strong> brings everything back.</p>
+<!-- shot: customize | Check to show, drag to reorder. -->

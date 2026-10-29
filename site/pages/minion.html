@@ -1,0 +1,30 @@
+<!-- title: Coming from Minion -->
+<!-- description: What MacMinion takes from the Java Minion app, how to switch, and what's different. -->
+<h1>Coming from Minion</h1>
+<p class="lead">MacMinion replaces the Java Minion app on the Mac, and picks up where it left off.</p>
+
+<h2>What it imports</h2>
+<p>On first launch MacMinion reads Minion's settings file, <code>~/.minion/minion.xml</code>, once:</p>
+<ul>
+  <li>Installed addons and their versions, so updates are tracked from day one.</li>
+  <li>Your AddOns folder.</li>
+  <li>Minion's auto-update log, which becomes the start of your update history and charts.</li>
+  <li>Where Minion keeps backups, so both apps share them (see <a href="backups.html">Backups</a>).</li>
+</ul>
+<p>Minion's files are never changed. Settings &gt; General &gt; <strong>Import from Minion</strong> reads them again.</p>
+
+<h2>Switching</h2>
+<ol>
+  <li>In Minion, turn off auto-update so the two apps don't both write to AddOns.</li>
+  <li>Open MacMinion and check Installed matches what you expect.</li>
+  <li>When you're happy, quit Minion. You can keep it installed; nothing depends on it.</li>
+</ol>
+
+<h2>What's different</h2>
+<ul>
+  <li>Native: no bundled Java, a Mac window, menu bar item, and Settings.</li>
+  <li>Thumbs up and down, filters, version choice, and an Overview with history and suggestions.</li>
+  <li>Optional AI: changelog summaries, suggestions, and search.</li>
+  <li>A <a href="cli.html">command line</a> for scripts and AI agents.</li>
+  <li>ESO only: no World of Warcraft catalog, no account, and no cloud backup or SavedVariables sync.</li>
+</ul>

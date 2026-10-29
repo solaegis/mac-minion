@@ -1,0 +1,41 @@
+<!-- title: Backups -->
+<!-- description: Back up and restore SavedVariables, settings files, and your addon list, compatible with Minion's backups. -->
+<h1>Backups</h1>
+<p class="lead">Your SavedVariables, settings files, and addon list, in Minion's own format and folder, so either app can restore the other's backups.</p>
+
+<!-- shot: backups | Backups made by MacMinion and Minion, side by side. -->
+
+<h2>What a backup holds</h2>
+<ul>
+  <li>Everything in <code>SavedVariables</code>: your addons' settings and data.</li>
+  <li><code>AddOnSettings.txt</code> and <code>UserSettings.txt</code> (and their <code>.bak</code> copies).</li>
+  <li>The list of installed addons, as ESOUI ids.</li>
+</ul>
+<p>Back up from the <strong>Backups</strong> page or with <kbd>⌘</kbd><kbd>B</kbd>. MacMinion also backs up on its own
+every week by default, keeping the newest 10; older ones go to the Trash.</p>
+
+<h2 id="format">Minion's format</h2>
+<pre><code>&lt;folder&gt;/minion-backups/ESO-1/2026-10-28.zip          settings and SavedVariables
+&lt;folder&gt;/minion-backups/ESO-1/2026-10-28-addons.txt   "7,57,1360,"
+&lt;folder&gt;/initial-backup/ESO-1.zip                     Minion's first backup: the whole AddOns folder</code></pre>
+<p>The folder is Minion's (<code>~/.minion</code> unless you changed it in Minion), and the game name is Minion's
+(<code>ESO-1</code>). MacMinion reads both from Minion's settings. One backup per day: a second one the same day replaces it, as in Minion.</p>
+
+<h2 id="restore">Restore</h2>
+<p>Choose <strong>Restore…</strong> on a backup and pick what to bring back:</p>
+<ul>
+  <li><strong>SavedVariables and settings files</strong>: replaced with the backup's. For Minion's first backup this
+  restores whole AddOns folders instead (yours go to the Trash).</li>
+  <li><strong>Install missing addons</strong>: addons on the backup's list that aren't installed now, at their latest version.</li>
+  <li><strong>Remove addons not in the backup</strong>: moved to the Trash, their SavedVariables kept. Off by default.</li>
+</ul>
+<div class="note">
+  <p>Before a restore changes anything, MacMinion backs up what you have now to
+  <code>~/Library/Application Support/MacMinion/restore-safety</code>, so a restore can be undone.</p>
+  <p>Quit the game first: it writes SavedVariables when it quits and would undo the restore. MacMinion warns you if it's running.</p>
+</div>
+<p>A backup made on another Mac, by another user, or on the PTS restores into your current game folder.</p>
+
+<h2>Settings</h2>
+<p>In <a href="settings.html#backups">Settings &gt; Backups</a>: the folder (<strong>Use Minion's Folder</strong> or
+<strong>Choose…</strong>), the game name, how often to back up (never, daily, weekly), and how many to keep.</p>

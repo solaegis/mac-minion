@@ -1,0 +1,50 @@
+<!-- title: Install -->
+<!-- description: Download MacMinion, open it the first time, put the CLI on your PATH, or build it from source. -->
+<h1>Install</h1>
+<p class="lead">Download a release, or build it yourself. Either way it lives in Applications and keeps itself up to date.</p>
+
+<h2>Requirements</h2>
+<ul>
+  <li>macOS 26 or later, Apple silicon.</li>
+  <li>The Elder Scrolls Online, with its AddOns folder (by default <code>~/Documents/Elder Scrolls Online/live/AddOns</code>).</li>
+  <li>To build from source: Xcode 26 or later (Swift 6.2).</li>
+</ul>
+
+<h2 id="download">Download</h2>
+<ol>
+  <li>Open the <a href="https://github.com/solaegis/mac-minion/releases/latest">latest release</a> and download <code>MacMinion-<em>version</em>-macos-arm64.zip</code>.</li>
+  <li>Unzip it and drag <strong>MacMinion.app</strong> into <code>/Applications</code> or <code>~/Applications</code>.</li>
+  <li>Open it the first time with right-click &gt; <strong>Open</strong>, then <strong>Open</strong> again.</li>
+  <li>When macOS asks whether MacMinion may access files in your Documents folder, choose <strong>Allow</strong>: that's where the AddOns folder is.</li>
+</ol>
+<div class="note">
+  <p><strong>Why the first-open step?</strong> MacMinion is signed with its own certificate, not an Apple Developer ID,
+  and isn't notarized, so Gatekeeper asks once for a download from the internet. If macOS still blocks it, use
+  System Settings &gt; Privacy &amp; Security &gt; <strong>Open Anyway</strong>, or run:</p>
+  <pre><code>xattr -cr ~/Applications/MacMinion.app
+open ~/Applications/MacMinion.app</code></pre>
+  <p>After that, updates install through MacMinion itself and are checked with their own signature (see <a href="updates.html#app">Updating MacMinion</a>).</p>
+</div>
+
+<h2 id="cli">Put the command line on your PATH</h2>
+<pre><code>mkdir -p ~/.local/bin
+ln -sf ~/Applications/MacMinion.app/Contents/MacOS/MacMinion ~/.local/bin/macminion
+macminion help</code></pre>
+<p>Use <code>/Applications</code> in the path if you installed there. See <a href="cli.html">Command line</a>.</p>
+
+<h2 id="source">Build from source</h2>
+<pre><code>git clone https://github.com/solaegis/mac-minion.git
+cd mac-minion
+./build.sh --open</code></pre>
+<p>That builds <code>~/Applications/MacMinion.app</code> and links <code>macminion</code> into <code>~/.local/bin</code>.</p>
+<p>Builds signed ad hoc are a new app to macOS each time, so it asks for Documents access after every build. Create a
+local signing identity once and <code>build.sh</code> signs with it from then on:</p>
+<pre><code>tools/make-signing-identity.sh</code></pre>
+<p>A build you make yourself has a higher build number than any release, so MacMinion doesn't offer it updates.</p>
+
+<h2 id="uninstall">Uninstall</h2>
+<ol>
+  <li>Quit MacMinion (menu bar item &gt; Quit, or <kbd>⌘</kbd><kbd>Q</kbd>) and move it to the Trash.</li>
+  <li>Optionally remove its data: <code>~/Library/Application Support/MacMinion</code> and the <code>com.solaegis.macminion</code> preferences.</li>
+  <li>Your addons, SavedVariables, and backups stay where they are.</li>
+</ol>

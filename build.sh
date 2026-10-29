@@ -11,6 +11,7 @@
 # Env:   MACMINION_VERSION  CFBundleShortVersionString (default 0.1)
 #        MACMINION_BUILD    CFBundleVersion (default date, or GITHUB_RUN_NUMBER in CI)
 #        APP_DEST           full path of the .app; overrides --package and the home install
+#        SIGN_KEYCHAIN      keychain file to sign from (tests, CI), instead of the search list
 #        SIGN_IDENTITY      codesign identity; default Apple Development, then "MacMinion Local"
 #                           (tools/make-signing-identity.sh), else ad hoc (-)
 set -euo pipefail
@@ -88,7 +89,10 @@ fw_src="$scratch/$config/Sparkle.framework"
 mkdir -p "$app/Contents/Frameworks"
 ditto "$fw_src" "$app/Contents/Frameworks/Sparkle.framework"
 xattr -cr "$app"
-sign() { codesign --force --sign "$identity" "$@" 2>&1 | grep -v "replacing existing signature" || true; }
+# SIGN_KEYCHAIN signs from one keychain (tests, CI) instead of the search list.
+kc_args=()
+[[ -n "${SIGN_KEYCHAIN:-}" ]] && kc_args=(--keychain "$SIGN_KEYCHAIN")
+sign() { codesign --force "${kc_args[@]}" --sign "$identity" "$@" 2>&1 | grep -v "replacing existing signature" || true; }
 # Inside-out, never --deep (Sparkle's sandboxing guide): its helpers, the framework, then the app.
 fw="$app/Contents/Frameworks/Sparkle.framework/Versions/B"
 sign -o runtime "$fw/XPCServices/Installer.xpc"

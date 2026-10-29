@@ -1,0 +1,44 @@
+<!-- title: AI -->
+<!-- description: Optional AI in MacMinion: changelog summaries, addon suggestions, plain-words search, ratings, and choosing an Ollama model. -->
+<h1>AI</h1>
+<p class="lead">Optional, and off until you pick a provider. Use Ollama on your Mac, so nothing leaves it, or Claude.</p>
+
+<!-- shot: settings-ai | Settings > AI with Ollama: the model recommended for this Mac, and a speed benchmark. -->
+
+<h2 id="providers">Providers</h2>
+<table>
+  <tr><th>Provider</th><th>What's needed</th><th>Where your data goes</th></tr>
+  <tr><td>Off</td><td>Nothing</td><td>Nowhere. AI features are hidden.</td></tr>
+  <tr><td>Ollama (on this Mac)</td><td><a href="https://ollama.com">Ollama</a> running, and a chat model. Server defaults to <code>http://localhost:11434</code>.</td><td>Stays on your Mac.</td></tr>
+  <tr><td>Claude</td><td>An API key from <a href="https://console.anthropic.com">console.anthropic.com</a>, kept in your login Keychain.</td><td>Addon names, descriptions, and changelog text go to Anthropic.</td></tr>
+</table>
+<p>Set it up in Settings &gt; AI, then press <strong>Test Connection</strong>.</p>
+
+<h2 id="models">Choosing an Ollama model</h2>
+<p>MacMinion reads the models on your Ollama server and recommends one for this Mac:</p>
+<ul>
+  <li>Coding and embedding models are left out; the model must fit in 60% of your memory.</li>
+  <li>It prefers recent chat models around 8 to 16 billion parameters, models already loaded, and ones that fit in the memory free right now.</li>
+  <li><strong>Benchmark Top Models</strong> writes a short summary with the three best candidates and measures their speed here. A model slower than 15 tokens a second drops down the list.</li>
+</ul>
+<p>Choose <strong>Use</strong> next to the recommendation, or any model in the menu.</p>
+
+<h2 id="summaries">Changelog summaries</h2>
+<p>An addon's details show <strong>What's New</strong>: a few bullets on what changed since your installed version, written
+as the model streams them. <strong>Summarize Updates</strong> on the Updates page writes one digest for every pending update.
+Turn on Settings &gt; AI &gt; "Summarize changes when I open an addon with an update" to have it happen on its own.
+Summaries can be wrong: check the changelog before relying on one.</p>
+
+<h2 id="suggestions">Recommended for You</h2>
+<p>On the Overview, the AI looks at what you have installed (with each addon's category and a one-line description) and
+suggests up to six popular addons that would add something without doing the same job as one you have. Forks of
+installed addons are never suggested. Suggestions refresh on their own once a week, or with <strong>Suggest Again</strong>.</p>
+
+<h2 id="search">AI search</h2>
+<p>Under Recommended for You, describe what you want, such as "show me where treasure maps and survey reports are" or "a
+cleaner combat HUD", and press Return. The AI turns it into search words and categories, narrows the catalog, then picks the best
+matches with a reason for each.</p>
+
+<h2 id="ratings">Ratings steer the AI</h2>
+<p>A thumbs up adds "favor addons like these" to the AI's instructions; a thumbs down adds "avoid addons like these" and
+removes that addon from suggestions and search results. Rate from any card, menu, details pane, or AI pick.</p>

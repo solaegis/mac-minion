@@ -1,44 +1,145 @@
 name: Release
 
+# On a version tag (v0.5, v1.2.0): build MacMinion, sign it and Sparkle's helpers with the stable
+# "MacMinion Release" certificate, zip it, sign the zip for Sparkle (EdDSA), publish a GitHub Release,
+# add it to site/appcast.xml, and redeploy the docs site so the update feed lists it.
+#
+# Secrets (never printed):
+#   SIGNING_CERT_P12_BASE64  base64 of the "MacMinion Release" .p12
+#   SIGNING_CERT_PASSWORD    its password
+#   SPARKLE_ED_PRIVATE_KEY   the EdDSA private key (Sparkle key-file format: base64 seed). The public
+#                            half is SUPublicEDKey in Info.plist.in.
+
 on:
   push:
-    tags:
-      - "v*.*.*"
+    tags: ["v*"]
 
 permissions:
-  contents: write
+  contents: write   # the release, and the appcast commit on main
+  actions: write    # start the docs deploy
+
+env:
+  SIGN_IDENTITY: "MacMinion Release"
+  SPARKLE_VERSION: "2.10.1"   # the same as Package.swift
 
 jobs:
-  macos-arm64:
+  release:
     runs-on: macos-26
     steps:
-      - name: Check out
-        uses: actions/checkout@v5
+      - uses: actions/checkout@v5
 
-      - name: Build app
+      - name: Version
+        id: version
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "zip=MacMinion-$version-macos-arm64.zip" >> "$GITHUB_OUTPUT"
+          echo "MacMinion $version, build $GITHUB_RUN_NUMBER"
+
+      - name: Import the signing certificate into a temporary keychain
         env:
-          SIGN_IDENTITY: "-"
+          P12_BASE64: ${{ secrets.SIGNING_CERT_P12_BASE64 }}
+          P12_PASSWORD: ${{ secrets.SIGNING_CERT_PASSWORD }}
         run: |
           set -euo pipefail
-          version="${GITHUB_REF_NAME#v}"
-          export MACMINION_VERSION="$version"
-          export MACMINION_BUILD="${GITHUB_RUN_NUMBER}"
-          mkdir -p dist
-          ./build.sh --package dist
-          binary="dist/MacMinion.app/Contents/MacOS/MacMinion"
-          archs=$(lipo -archs "$binary")
-          echo "archs: $archs"
-          echo "$archs" | grep -qw arm64
-          file "$binary"
-          ditto -c -k --keepParent dist/MacMinion.app "dist/MacMinion-${version}-macos-arm64.zip"
+          kc="$RUNNER_TEMP/signing.keychain-db"
+          kcpass=$(openssl rand -hex 16)
+          printf '%s' "$P12_BASE64" | base64 --decode > "$RUNNER_TEMP/release.p12"
+          security create-keychain -p "$kcpass" "$kc"
+          security set-keychain-settings -lut 21600 "$kc"
+          security unlock-keychain -p "$kcpass" "$kc"
+          security import "$RUNNER_TEMP/release.p12" -k "$kc" -P "$P12_PASSWORD" -T /usr/bin/codesign >/dev/null
+          security set-key-partition-list -S apple-tool:,apple: -s -k "$kcpass" "$kc" >/dev/null
+          security list-keychains -d user -s "$kc" $(security list-keychains -d user | tr -d '"')
+          rm "$RUNNER_TEMP/release.p12"
+          security find-identity -p codesigning "$kc" | grep -q "\"$SIGN_IDENTITY\""
 
-      - name: Create release
+      - name: Build and sign
+        env:
+          MACMINION_VERSION: ${{ steps.version.outputs.version }}
+          MACMINION_BUILD: ${{ github.run_number }}   # CFBundleVersion: only ever goes up
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          ./build.sh --package dist   # signs Sparkle's helpers inside-out, then the app, with $SIGN_IDENTITY
+          app=dist/MacMinion.app
+          lipo -archs "$app/Contents/MacOS/MacMinion" | grep -qw arm64
+          codesign --verify --strict --verbose=2 "$app"
+          req=$(codesign -dr - "$app" 2>&1 | grep 'designated =>')
+          echo "$req"
+          [[ "$req" == *"certificate leaf"* ]] || { echo "not signed with the release certificate"; exit 1; }
+          /usr/libexec/PlistBuddy -c "Print :SUPublicEDKey" "$app/Contents/Info.plist" >/dev/null
+          ditto -c -k --sequesterRsrc --keepParent "$app" "dist/${{ steps.version.outputs.zip }}"
+
+      - name: Sign the update for Sparkle
+        env:
+          SPARKLE_ED_PRIVATE_KEY: ${{ secrets.SPARKLE_ED_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          tools="$RUNNER_TEMP/sparkle"
+          mkdir -p "$tools"
+          curl -fsSL "https://github.com/sparkle-project/Sparkle/releases/download/$SPARKLE_VERSION/Sparkle-$SPARKLE_VERSION.tar.xz" \
+            | tar -xJ -C "$tools"
+          key="$RUNNER_TEMP/ed.key"
+          printf '%s' "$SPARKLE_ED_PRIVATE_KEY" > "$key"
+          zip="dist/${{ steps.version.outputs.zip }}"
+          "$tools/bin/sign_update" --ed-key-file "$key" "$zip" > "$RUNNER_TEMP/enclosure.txt"
+          sig=$("$tools/bin/sign_update" --ed-key-file "$key" -p "$zip")
+          "$tools/bin/sign_update" --verify --ed-key-file "$key" "$zip" "$sig"
+          rm "$key"
+          cat "$RUNNER_TEMP/enclosure.txt"   # public: sparkle:edSignature="..." length="..."
+
+      - name: Publish the GitHub Release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          gh release create "$GITHUB_REF_NAME" --title "MacMinion ${{ steps.version.outputs.version }}" \
+            --generate-notes "dist/${{ steps.version.outputs.zip }}"
+
+      - name: Add the release to the update feed (site/appcast.xml on main)
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+          ZIP: ${{ steps.version.outputs.zip }}
+        run: |
           set -euo pipefail
-          version="${GITHUB_REF_NAME#v}"
-          gh release create "$GITHUB_REF_NAME" \
-            --title "MacMinion ${version}" \
-            --generate-notes \
-            "dist/MacMinion-${version}-macos-arm64.zip"
+          git fetch origin main
+          git worktree add "$RUNNER_TEMP/main" origin/main
+          python3 - "$RUNNER_TEMP/main/site/appcast.xml" "$(cat "$RUNNER_TEMP/enclosure.txt")" <<'PY'
+          import email.utils, os, sys
+          path, enclosure = sys.argv[1], sys.argv[2].strip()
+          version, build, zip_name = os.environ["VERSION"], os.environ["GITHUB_RUN_NUMBER"], os.environ["ZIP"]
+          text = open(path).read()
+          if f"<sparkle:shortVersionString>{version}</sparkle:shortVersionString>" in text:
+              print(f"{version} is already in the feed"); sys.exit(0)
+          repo = os.environ["GITHUB_REPOSITORY"]
+          item = f"""
+              <item>
+                <title>MacMinion {version}</title>
+                <pubDate>{email.utils.formatdate(usegmt=True)}</pubDate>
+                <sparkle:version>{build}</sparkle:version>
+                <sparkle:shortVersionString>{version}</sparkle:shortVersionString>
+                <sparkle:minimumSystemVersion>26.0</sparkle:minimumSystemVersion>
+                <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
+                <sparkle:releaseNotesLink>https://github.com/{repo}/releases/tag/v{version}</sparkle:releaseNotesLink>
+                <enclosure url="https://github.com/{repo}/releases/download/v{version}/{zip_name}" {enclosure} type="application/octet-stream" />
+              </item>"""
+          marker = "<language>en</language>"   # newest first: right after the channel header
+          assert marker in text, "site/appcast.xml needs its <language>en</language> line"
+          open(path, "w").write(text.replace(marker, marker + item, 1))
+          print(f"added {version} (build {build})")
+          PY
+          cd "$RUNNER_TEMP/main"
+          if git diff --quiet; then exit 0; fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -am "Update feed: MacMinion $VERSION"
+          git push origin HEAD:main
+
+      - name: Redeploy the docs and feed
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh workflow run pages.yml --ref main
+
+      - name: Remove the temporary keychain
+        if: always()
+        run: security delete-keychain "$RUNNER_TEMP/signing.keychain-db" || true

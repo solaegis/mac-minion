@@ -1,0 +1,126 @@
+<!-- title: Command Line -->
+<!-- description: The macminion command: every command, its options, and examples. Generated from the app. -->
+<h1>Command line</h1>
+<p class="lead"><code>macminion</code> runs commands in the MacMinion app, so the window updates as they run. If the
+app is closed, a command opens it in the background.</p>
+<h2>Basics</h2>
+<ul>
+  <li>Put it on your PATH: see <a href="install.html#cli">Install</a>.</li>
+  <li>Add <code>--json</code> for output scripts and AI agents can read. Errors come back as <code>{"error": {"code", "message"}}</code> with a nonzero exit code.</li>
+  <li>Addons are named by their ESOUI id: the number in <code>esoui.com/downloads/info&lt;id&gt;</code>.</li>
+  <li>Commands that remove things only report what they would do until you add <code>--yes</code>.</li>
+  <li><code>macminion help</code> lists everything; <code>macminion help &lt;command&gt;</code> shows one.</li>
+  <li><code>macminion mcp</code> serves the same commands to MCP clients such as Claude Desktop.</li>
+</ul>
+<pre><code>macminion status --json
+macminion addons list --status update --json
+macminion updates install --json</code></pre>
+<p>This page is generated from the app's own command list.</p>
+<h2>Status and catalog</h2>
+<h3 id="status"><code>macminion status</code> <small>· reads only</small></h3>
+<p>Show the AddOns folder, catalog, and counts of installed addons and updates.</p>
+
+<pre><code>macminion status --json</code></pre>
+<h3 id="folders-list"><code>macminion folders list</code> <small>· reads only</small></h3>
+<p>List folders in AddOns that no ESOUI entry lists (your own or hand-copied addons).</p>
+
+<pre><code>macminion folders list --json</code></pre>
+<h3 id="catalog-search"><code>macminion catalog search</code> <small>· reads only</small></h3>
+<p>Search the ESOUI catalog by name or author, like Find More: installed addons are left out unless --installed.</p>
+<table><tr><th>Option</th><th>Type</th><th>Meaning</th></tr><tr><td><code>--category</code></td><td>integer</td><td>only this category id (see `macminion categories list`)</td></tr><tr><td><code>--compatible</code></td><td>boolean</td><td>only addons that list the current game version</td></tr><tr><td><code>--installed</code></td><td>boolean</td><td>include installed addons (Find More leaves them out)</td></tr><tr><td><code>--limit</code></td><td>integer</td><td>at most this many (default 25)</td></tr><tr><td><code>--no-libraries</code></td><td>boolean</td><td>leave libraries out</td></tr><tr><td><code>--offset</code></td><td>integer</td><td>skip this many, for the next page</td></tr><tr><td><code>--query</code></td><td>string</td><td>text to find; leave out to browse</td></tr><tr><td><code>--rating</code></td><td>string</td><td>only: up, down, unrated, or not-down</td></tr><tr><td><code>--sort</code></td><td>string</td><td>downloads, monthly, favorites, newest, or name (default downloads)</td></tr><tr><td><code>--updated</code></td><td>string</td><td>only updated within: week, month, quarter, or year</td></tr></table>
+<pre><code>macminion catalog search &quot;master merchant&quot; --limit 5 --json</code></pre>
+<h3 id="categories-list"><code>macminion categories list</code> <small>· reads only</small></h3>
+<p>List ESOUI categories and their ids.</p>
+
+<pre><code>macminion categories list --json</code></pre>
+<h3 id="history-list"><code>macminion history list</code> <small>· reads only</small></h3>
+<p>List recent installs, updates, and removals, newest first.</p>
+<table><tr><th>Option</th><th>Type</th><th>Meaning</th></tr><tr><td><code>--limit</code></td><td>integer</td><td>at most this many (default 20)</td></tr><tr><td><code>--offset</code></td><td>integer</td><td>skip this many, for the next page</td></tr></table>
+<pre><code>macminion history list --limit 10 --json</code></pre>
+<h3 id="catalog-ask"><code>macminion catalog ask</code> <small>· changes things</small></h3>
+<p>Ask the AI provider to find catalog addons for a request in plain words.</p>
+<table><tr><th>Option</th><th>Type</th><th>Meaning</th></tr><tr><td><code>--query</code> (required)</td><td>string</td><td>what you want, in your own words</td></tr></table>
+<pre><code>macminion catalog ask &quot;track my crafting writs&quot; --json</code></pre>
+<h3 id="open"><code>macminion open</code> <small>· changes things</small></h3>
+<p>Show a page in the window, optionally with an addon selected.</p>
+<table><tr><th>Option</th><th>Type</th><th>Meaning</th></tr><tr><td><code>--addon</code></td><td>integer</td><td>the ESOUI id to select</td></tr><tr><td><code>--page</code> (required)</td><td>string</td><td>overview, installed, updates, findMore, backups</td></tr></table>
+<pre><code>macminion open findMore --addon 7</code></pre>
+<h2>Addons</h2>
+<h3 id="addons-list"><code>macminion addons list</code> <small>· reads only</small></h3>
+<p>List installed addons, by name.</p>
+<table><tr><th>Option</th><th>Type</th><th>Meaning</th></tr><tr><td><code>--category</code></td><td>integer</td><td>only this category id and those under it</td></tr><tr><td><code>--limit</code></td><td>integer</td><td>at most this many (default 100)</td></tr><tr><td><code>--offset</code></td><td>integer</td><td>skip this many, for the next page</td></tr><tr><td><code>--rating</code></td><td>string</td><td>only: up, down, or unrated</td></tr><tr><td><code>--search</code></td><td>string</td><td>only names or authors containing this text</td></tr><tr><td><code>--status</code></td><td>string</td><td>only this status: update, uptodate, ignored, unknown</td></tr></table>
+<pre><code>macminion addons list --status update --json</code></pre>
+<h3 id="addons-show"><code>macminion addons show</code> <small>· reads only</small></h3>
+<p>Show one installed or catalog addon, with its changelog since the installed version.</p>
+<table><tr><th>Option</th><th>Type</th><th>Meaning</th></tr><tr><td><code>--changelog</code></td><td>boolean</td><td>include the changelog text</td></tr><tr><td><code>--id</code> (required)</td><td>string</td><td>the ESOUI id</td></tr></table>
+<pre><code>macminion addons show 7 --changelog --json</code></pre>
+<h3 id="refresh"><code>macminion refresh</code> <small>· changes things</small></h3>
+<p>Download the ESOUI catalog again and rescan AddOns.</p>
+
+<pre><code>macminion refresh --json</code></pre>
+<h3 id="addons-install"><code>macminion addons install</code> <small>· changes things</small></h3>
+<p>Install an addon, or update or reinstall one. --version installs an archived release and pins it.</p>
+<table><tr><th>Option</th><th>Type</th><th>Meaning</th></tr><tr><td><code>--id</code> (required)</td><td>string</td><td>the ESOUI id</td></tr><tr><td><code>--version</code></td><td>string</td><td>a version from `macminion addons versions &lt;id&gt;`; older ones are pinned</td></tr></table>
+<pre><code>macminion addons install 57 --version 3.16.4 --json</code></pre>
+<h3 id="addons-versions"><code>macminion addons versions</code> <small>· reads only</small></h3>
+<p>List the releases ESOUI still has for an addon, newest first.</p>
+<table><tr><th>Option</th><th>Type</th><th>Meaning</th></tr><tr><td><code>--id</code> (required)</td><td>string</td><td>the ESOUI id</td></tr></table>
+<pre><code>macminion addons versions 57 --json</code></pre>
+<h3 id="addons-rate"><code>macminion addons rate</code> <small>· changes things</small></h3>
+<p>Thumbs up or down on an addon. Down keeps it out of suggestions and searches; both steer the AI.</p>
+<table><tr><th>Option</th><th>Type</th><th>Meaning</th></tr><tr><td><code>--id</code> (required)</td><td>string</td><td>the ESOUI id</td></tr><tr><td><code>--rating</code> (required)</td><td>string</td><td>up, down, or none</td></tr></table>
+<pre><code>macminion addons rate 1812 down --json</code></pre>
+<h3 id="libraries-missing"><code>macminion libraries missing</code> <small>· reads only</small></h3>
+<p>List libraries installed addons ask for that aren&#x27;t installed. Optional ones with a thumbs down are left out.</p>
+
+<pre><code>macminion libraries missing --json</code></pre>
+<h3 id="libraries-install"><code>macminion libraries install</code> <small>· changes things</small></h3>
+<p>Install the missing libraries installed addons ask for.</p>
+<table><tr><th>Option</th><th>Type</th><th>Meaning</th></tr><tr><td><code>--required</code></td><td>boolean</td><td>only the required ones</td></tr></table>
+<pre><code>macminion libraries install --required --json</code></pre>
+<h3 id="updates-install"><code>macminion updates install</code> <small>· changes things</small></h3>
+<p>Update every addon that has an update, except ignored ones.</p>
+
+<pre><code>macminion updates install --json</code></pre>
+<h3 id="addons-ignore"><code>macminion addons ignore</code> <small>· changes things</small></h3>
+<p>Skip an addon in Update All and the update count, or stop skipping it.</p>
+<table><tr><th>Option</th><th>Type</th><th>Meaning</th></tr><tr><td><code>--id</code> (required)</td><td>string</td><td>the ESOUI id of an installed addon</td></tr><tr><td><code>--off</code></td><td>boolean</td><td>stop ignoring it</td></tr></table>
+<pre><code>macminion addons ignore 1146 --json</code></pre>
+<h3 id="addons-remove"><code>macminion addons remove</code> <small>· asks for --yes</small></h3>
+<p>Move an installed addon&#x27;s folders to the Trash. Saved settings stay.</p>
+<table><tr><th>Option</th><th>Type</th><th>Meaning</th></tr><tr><td><code>--id</code> (required)</td><td>string</td><td>the ESOUI id of an installed addon</td></tr><tr><td><code>--yes</code></td><td>boolean</td><td>Do it. Without yes it only shows what it would change.</td></tr></table>
+<pre><code>macminion addons remove 1146 --yes --json</code></pre>
+<h3 id="addons-summarize"><code>macminion addons summarize</code> <small>· changes things</small></h3>
+<p>Ask the AI provider set in Settings what changed since the installed version.</p>
+<table><tr><th>Option</th><th>Type</th><th>Meaning</th></tr><tr><td><code>--id</code> (required)</td><td>string</td><td>the ESOUI id</td></tr></table>
+<pre><code>macminion addons summarize 7 --json</code></pre>
+<h3 id="updates-summarize"><code>macminion updates summarize</code> <small>· changes things</small></h3>
+<p>Ask the AI provider what every pending update brings, in one digest.</p>
+
+<pre><code>macminion updates summarize --json</code></pre>
+<h3 id="addons-recommend"><code>macminion addons recommend</code> <small>· changes things</small></h3>
+<p>Ask the AI provider which uninstalled addons would add something to what is installed.</p>
+<table><tr><th>Option</th><th>Type</th><th>Meaning</th></tr><tr><td><code>--refresh</code></td><td>boolean</td><td>ask again instead of showing the saved suggestions</td></tr></table>
+<pre><code>macminion addons recommend --refresh --json</code></pre>
+<h2>Backups</h2>
+<h3 id="backups-list"><code>macminion backups list</code> <small>· reads only</small></h3>
+<p>List backups in Minion&#x27;s folder and format, newest first.</p>
+
+<pre><code>macminion backups list --json</code></pre>
+<h3 id="backups-create"><code>macminion backups create</code> <small>· changes things</small></h3>
+<p>Back up SavedVariables, settings files, and the addon list now, in Minion&#x27;s format.</p>
+
+<pre><code>macminion backups create --json</code></pre>
+<h3 id="backups-restore"><code>macminion backups restore</code> <small>· asks for --yes</small></h3>
+<p>Restore a backup by name (2026-09-14, or Initial). Saves the current state first.</p>
+<table><tr><th>Option</th><th>Type</th><th>Meaning</th></tr><tr><td><code>--name</code> (required)</td><td>string</td><td>a name from `macminion backups list`</td></tr><tr><td><code>--no-files</code></td><td>boolean</td><td>leave SavedVariables and settings files as they are</td></tr><tr><td><code>--no-install</code></td><td>boolean</td><td>don&#x27;t install addons missing from the backup&#x27;s list</td></tr><tr><td><code>--remove-others</code></td><td>boolean</td><td>move installed addons not on the list to the Trash</td></tr><tr><td><code>--yes</code></td><td>boolean</td><td>Do it. Without yes it only shows what it would change.</td></tr></table>
+<pre><code>macminion backups restore 2026-09-14 --yes --json</code></pre>
+<h2>AI</h2>
+<h3 id="ai-models"><code>macminion ai models</code> <small>· reads only</small></h3>
+<p>List the Ollama server&#x27;s chat models, best for summaries first, and the recommended one.</p>
+
+<pre><code>macminion ai models --json</code></pre>
+<h3 id="ai-benchmark"><code>macminion ai benchmark</code> <small>· changes things</small></h3>
+<p>Measure the three best Ollama candidates&#x27; speed on this Mac, then recommend again.</p>
+<table><tr><th>Option</th><th>Type</th><th>Meaning</th></tr><tr><td><code>--models</code></td><td>string</td><td>comma-separated model names instead of the top three</td></tr></table>
+<pre><code>macminion ai benchmark --json</code></pre>

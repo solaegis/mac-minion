@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- MacMinion's Sparkle 2 update feed. The release workflow adds an <item> per release, newest first. -->
+<rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">
+  <channel>
+    <title>MacMinion</title>
+    <link>https://solaegis.github.io/mac-minion/</link>
+    <description>Updates for MacMinion</description>
+    <language>en</language>
+  </channel>
+</rss>
