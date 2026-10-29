@@ -41,6 +41,7 @@ struct MacMinionApp: App {
             }
             CommandGroup(replacing: .newItem) {}
             CommandGroup(after: .appInfo) { CheckForAppUpdatesButton() }
+            CommandGroup(after: .appSettings) { AppearanceCommands() }
             AddonCommands(model: model)
             HelpCommands(model: model)
         }
@@ -114,6 +115,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // Started from a terminal, the process is not a foreground app yet.
         NSApp.setActivationPolicy(.regular)
         NSApp.activate()
+        AppearanceController.applySaved()
     }
 
     /// The menu bar item keeps checking for updates after the window closes.

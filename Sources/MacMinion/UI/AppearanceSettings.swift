@@ -1,11 +1,18 @@
 import SwiftUI
 
-/// Settings > Appearance: the accent color. Light and dark mode follow the Mac.
+/// Settings > Appearance: light, dark, or the Mac's mode, and the accent color.
 struct AppearanceSettings: View {
     @Bindable private var store = ThemeStore.shared
+    @AppStorage(AppearanceController.key) private var preference = AppearancePreference.system
 
     var body: some View {
         Section {
+            Picker("Appearance", selection: AppearanceController.binding($preference)) {
+                ForEach(AppearancePreference.allCases) { mode in
+                    Label(mode.title, systemImage: mode.symbolName).tag(mode)
+                }
+            }
+            .pickerStyle(.segmented)
             AccentPreview()
                 .padding(.vertical, Space.xs)
             LabeledContent("Accent color") {
@@ -23,6 +30,8 @@ struct AppearanceSettings: View {
                 }
             }
         }
+        // Again here, in case the launch-time apply ran before the app was ready.
+        .onAppear { AppearanceController.applySaved() }
     }
 }
 
