@@ -121,6 +121,10 @@ Pick one in Settings → AI. Each keeps its own model and key, so switching back
 
 The [documentation](https://solaegis.github.io/mac-minion/) covers install, first open, backups, AI setup, and [troubleshooting](https://solaegis.github.io/mac-minion/troubleshooting.html). For anything else, [open an issue](https://github.com/solaegis/mac-minion/issues/new/choose). Report security problems privately, as [SECURITY.md](SECURITY.md) explains.
 
+## Support
+
+MacMinion is free for personal use. If it saves you time, you can [buy solaegis a coffee](https://www.buymeacoffee.com/lewisvavasw). Optional — nothing in the app is locked behind it.
+
 ## Contributing
 
 Bug reports and ideas are welcome. Read [CONTRIBUTING.md](CONTRIBUTING.md) for how to build, test, and send a change.
