@@ -13,6 +13,7 @@
 <key>LSMinimumSystemVersion</key><string>26.0</string>
 <key>LSApplicationCategoryType</key><string>public.app-category.productivity</string>
 <key>NSHighResolutionCapable</key><true/>
+<key>NSDocumentsFolderUsageDescription</key><string>MacMinion reads and writes your Elder Scrolls Online AddOns folder in Documents so it can install, update, and remove addons.</string>
 <key>NSPrincipalClass</key><string>NSApplication</string>
 <key>SUFeedURL</key><string>https://solaegis.github.io/mac-minion/appcast.xml</string>
 <key>SUPublicEDKey</key><string>3Eb5UL7T93lj85T5BdP0XIX/kxhMace86KUnu05ksvQ=</string>

@@ -53,7 +53,7 @@ ESO only. No WoW catalog, no login, and no cloud backup or SavedVariables sync.
 3. Unzip and drag `MacMinion.app` into `/Applications` or `~/Applications`.
 4. Open it the first time with a right-click → **Open**.
 
-The release is ad-hoc signed (there is no Apple Developer ID), so macOS treats a download from the internet as unsigned. That first-open step is expected. If macOS still blocks it, use System Settings → Privacy & Security → **Open Anyway**, or:
+The release is signed with MacMinion's own certificate, not an Apple Developer ID, and isn't notarized, so Gatekeeper asks once for a download from the internet. That first-open step is expected. If macOS still blocks it, use System Settings → Privacy & Security → **Open Anyway**, or:
 
 ```bash
 xattr -cr ~/Applications/MacMinion.app

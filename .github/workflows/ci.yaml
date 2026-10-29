@@ -1,0 +1,25 @@
+name: CI
+
+# Unit tests on every pull request and on pushes to main. Selftest and snapshots
+# stay local: they need a signed .app and a display.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: swift test
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v5
+      - name: Run unit tests
+        run: swift test --scratch-path "$RUNNER_TEMP/MacMinion-test-build"
