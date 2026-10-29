@@ -38,10 +38,11 @@ struct MacMinionApp: App {
                 Button("Clear Filters") { model.sidebar == .findMore ? model.clearFindMoreFilters() : model.clearInstalledFilters() }
                     .keyboardShortcut("0", modifiers: [.command, .option])
                     .disabled(model.sidebar != .installed && model.sidebar != .findMore)
+                Divider()
+                AppearanceCommands()
             }
             CommandGroup(replacing: .newItem) {}
             CommandGroup(after: .appInfo) { CheckForAppUpdatesButton() }
-            CommandGroup(after: .appSettings) { AppearanceCommands() }
             AddonCommands(model: model)
             HelpCommands(model: model)
         }

@@ -112,8 +112,7 @@ struct ContentView: View {
                 .badge(badge(for: page))
                 .tag(page)
         }
-        // A gear at the foot of the sidebar opens Settings, like Command-Comma;
-        // beside it, light, dark, or the Mac's mode.
+        // A gear at the foot of the sidebar opens Settings, like Command-Comma.
         .safeAreaInset(edge: .bottom, spacing: 0) {
             HStack {
                 SettingsLink {
@@ -121,7 +120,6 @@ struct ContentView: View {
                 }
                 .buttonStyle(.borderless)
                 .help("Open Settings (Command-Comma)")
-                AppearanceMenu()
                 Spacer()
             }
             .padding(.horizontal, Space.lg)

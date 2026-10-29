@@ -1,8 +1,8 @@
 import AppKit
 import SwiftUI
 
-/// Light, dark, or the Mac's own mode. Settings > Appearance, the button next
-/// to the sidebar's Settings gear, and MacMinion > Appearance all set it.
+/// Light, dark, or the Mac's own mode. Settings > Appearance and
+/// View > Appearance both set it.
 enum AppearancePreference: String, CaseIterable, Identifiable {
     case system, light, dark
 
@@ -24,7 +24,7 @@ enum AppearancePreference: String, CaseIterable, Identifiable {
         }
     }
 
-    /// Control-Command-1, 2, 3 in the app menu.
+    /// Control-Command-1, 2, 3 in the View menu.
     var shortcut: KeyEquivalent {
         switch self {
         case .system: "1"
@@ -73,31 +73,7 @@ enum AppearanceController {
     }
 }
 
-/// The icon button beside the Settings gear: its symbol shows the current mode.
-struct AppearanceMenu: View {
-    @AppStorage(AppearanceController.key) private var preference = AppearancePreference.system
-
-    var body: some View {
-        Menu {
-            Picker("Appearance", selection: AppearanceController.binding($preference)) {
-                ForEach(AppearancePreference.allCases) { mode in
-                    Label(mode.title, systemImage: mode.symbolName).tag(mode)
-                }
-            }
-            .pickerStyle(.inline)
-            .labelsHidden()
-        } label: {
-            Label("Appearance", systemImage: preference.symbolName)
-                .labelStyle(.iconOnly)
-        }
-        .menuStyle(.borderlessButton)
-        .menuIndicator(.hidden)
-        .fixedSize()
-        .help("Appearance: \(preference.title)")
-    }
-}
-
-/// MacMinion > Appearance, next to Settings…. Toggles rather than a Picker so
+/// View > Appearance, after the layout items. Toggles rather than a Picker so
 /// each mode can carry its own shortcut; they show the same checkmark.
 struct AppearanceCommands: View {
     @AppStorage(AppearanceController.key) private var preference = AppearancePreference.system
