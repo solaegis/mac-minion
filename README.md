@@ -1,7 +1,13 @@
-# MacMinion
+# MacMinion — ESO addon manager for macOS
 
-A native macOS addon manager for The Elder Scrolls Online.
-Find, install, update, and remove [ESOUI](https://www.esoui.com) addons without the Java Minion app.
+[![Latest release](https://img.shields.io/github/v/release/solaegis/mac-minion)](https://github.com/solaegis/mac-minion/releases/latest)
+![macOS 26+, Apple Silicon](https://img.shields.io/badge/macOS-26%2B%20Apple%20Silicon-blue)
+[![License: PolyForm Noncommercial](https://img.shields.io/badge/license-PolyForm%20Noncommercial-lightgrey)](LICENSE)
+
+A native macOS addon manager for The Elder Scrolls Online (ESO), and a Mac alternative to Minion.
+Find, install, update, back up, and remove [ESOUI](https://www.esoui.com) addons without the Java Minion app.
+
+**[Download](https://github.com/solaegis/mac-minion/releases/latest)** · **[Documentation](https://solaegis.github.io/mac-minion/)** · [Changelog](CHANGELOG.md)
 
 ![MacMinion Overview showing addon counts, update history, and popular addons](docs/images/overview.png)
 
@@ -113,7 +119,11 @@ Pick one in Settings → AI. Each keeps its own model and key, so switching back
 
 ## Help
 
-[Open an issue](https://github.com/solaegis/mac-minion/issues) on this repository.
+The [documentation](https://solaegis.github.io/mac-minion/) covers install, first open, backups, AI setup, and [troubleshooting](https://solaegis.github.io/mac-minion/troubleshooting.html). For anything else, [open an issue](https://github.com/solaegis/mac-minion/issues/new/choose). Report security problems privately, as [SECURITY.md](SECURITY.md) explains.
+
+## Contributing
+
+Bug reports and ideas are welcome. Read [CONTRIBUTING.md](CONTRIBUTING.md) for how to build, test, and send a change.
 
 ## Credits
 

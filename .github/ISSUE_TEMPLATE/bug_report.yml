@@ -1,0 +1,51 @@
+name: Bug report
+description: MacMinion did something wrong (install, update, match, remove, backup, AI, or the app itself).
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        A problem inside one addon in game belongs to that addon's author on [ESOUI](https://www.esoui.com).
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you did, what you expected, and what happened instead.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to show it
+      placeholder: |
+        1. Open Find More
+        2. Search for ...
+        3. Press Install
+  - type: input
+    id: version
+    attributes:
+      label: MacMinion version
+      description: MacMinion > About MacMinion
+    validations:
+      required: true
+  - type: input
+    id: macos
+    attributes:
+      label: macOS version
+    validations:
+      required: true
+  - type: dropdown
+    id: folder
+    attributes:
+      label: AddOns folder
+      options: [Live, PTS, Another folder]
+  - type: dropdown
+    id: ai
+    attributes:
+      label: AI provider (if the bug involves AI)
+      options: [None, Ollama, Claude, OpenAI]
+  - type: textarea
+    id: addons
+    attributes:
+      label: Addons involved
+      description: Names or ESOUI links, if one addon shows the problem.

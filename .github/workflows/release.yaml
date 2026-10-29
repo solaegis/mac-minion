@@ -93,8 +93,13 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          # Notes: this version's section of CHANGELOG.md ("## 0.6 — date" up to the next "## "),
+          # or GitHub's generated notes when there is none.
+          awk -v v="${{ steps.version.outputs.version }}" \
+            '/^## /{p = ($2 == v)} p' CHANGELOG.md | tail -n +2 > "$RUNNER_TEMP/notes.md"
+          if [ -s "$RUNNER_TEMP/notes.md" ]; then notes=(--notes-file "$RUNNER_TEMP/notes.md"); else notes=(--generate-notes); fi
           gh release create "$GITHUB_REF_NAME" --title "MacMinion ${{ steps.version.outputs.version }}" \
-            --generate-notes "dist/${{ steps.version.outputs.zip }}"
+            "${notes[@]}" "dist/${{ steps.version.outputs.zip }}"
 
       - name: Add the release to the update feed (site/appcast.xml on main)
         env:
