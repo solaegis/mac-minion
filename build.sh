@@ -83,6 +83,8 @@ if [[ -d "$here/Icon/AppIcon.icon" ]]; then
   fi
   cp -X "$car" "$here/Resources/AppIcon.icns" "$app/Contents/Resources/"
 fi
+# Credits for the About panel: what MacMinion owes the original Minion.
+cp -X "$here/Resources/Credits.rtf" "$app/Contents/Resources/"
 # Sparkle, for app updates: SwiftPM leaves the framework next to the binary.
 fw_src="$scratch/$config/Sparkle.framework"
 [[ -d "$fw_src" ]] || { echo "build failed: no Sparkle.framework in $scratch/$config"; exit 1; }

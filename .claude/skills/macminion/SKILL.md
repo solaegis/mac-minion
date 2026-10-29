@@ -1,11 +1,12 @@
 ---
 name: macminion
-description: Drive the MacMinion app on this Mac from the shell with the `macminion` command: list installed Elder Scrolls Online addons and pending updates, search the ESOUI catalog, install, update, ignore, or remove addons, and summarize changelogs with the configured AI. Use when the user asks about their ESO addons, ESOUI, Minion, or MacMinion.
+description: "Drive the MacMinion app on this Mac from the shell with the `macminion` command: list installed Elder Scrolls Online addons and pending updates, search the ESOUI catalog, install, update, ignore, or remove addons, and summarize changelogs with the configured AI. Use when the user asks about their ESO addons, ESOUI, Minion, or MacMinion."
 ---
 
 # MacMinion
 
-`macminion` runs commands in the MacMinion app (a native replacement for Minion). Changes show in its
+`macminion` runs commands in the MacMinion app, an unofficial native Mac replacement for
+[Minion](https://minion.mmoui.com), the addon manager made by MMOUI for ESOUI. Changes show in its
 window at once. If the app is closed, the command opens it in the background. Addons are named by their
 ESOUI id: the number in `esoui.com/downloads/info<id>`.
 
@@ -19,7 +20,7 @@ ESOUI id: the number in `esoui.com/downloads/info<id>`.
 - Installs and updates write to the live AddOns folder. Ask before `addons install` or `updates install`
   unless the user asked for that change.
 - `addons summarize` and `updates summarize` send changelog text to the AI provider in Settings
-  (Ollama on this Mac, or Claude). They can take a minute on a local model.
+  (Ollama on this Mac, Claude, or OpenAI). They can take a minute on a local model.
 - To try something without real data, put `APP_STORE=/tmp/macminion-test` in front of the command.
 
 ## Main commands
