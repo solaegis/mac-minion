@@ -10,7 +10,9 @@ A problem inside one addon (an error in game, a broken feature) belongs to that 
 
 ## Pull requests
 
-Open an issue first so we can agree on the change before you write it. MacMinion is licensed under the [PolyForm Noncommercial License 1.0.0](LICENSE), which is not an open-source license; please read it before you contribute.
+Open an issue first so we can agree on the change before you write it. MacMinion is licensed under the [PolyForm Noncommercial License 1.0.0](LICENSE), which is not an open-source license; please read it before you contribute. By sending a pull request, you agree that your contribution may be distributed under this license and under any other license the author offers MacMinion under later.
+
+Everyone who takes part follows the [code of conduct](CODE_OF_CONDUCT.md).
 
 ## Build and check
 
