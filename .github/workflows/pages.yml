@@ -30,7 +30,7 @@ jobs:
         run: python3 tools/build-site.py
       - name: Check the update feed is valid XML
         run: python3 -c "import xml.dom.minidom; xml.dom.minidom.parse('_site/appcast.xml'); print('appcast.xml OK')"
-      - uses: actions/upload-pages-artifact@v4
+      - uses: actions/upload-pages-artifact@v5
         with:
           path: _site
 
