@@ -171,12 +171,14 @@ private func body(_ r: URLRequest) throws -> [String: Any] {
     #expect(once.n == 1, "a bad key is not retried")
 }
 
-/// A server that sends headers, then nothing. Records when URLSession stops the request.
+/// A server that sends headers, then nothing. Records when URLSession starts and stops the request.
 final class HangingProtocol: URLProtocol, @unchecked Sendable {
+    nonisolated(unsafe) static var started = false
     nonisolated(unsafe) static var stopped = false
     override class func canInit(with request: URLRequest) -> Bool { true }
     override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
     override func startLoading() {
+        Self.started = true
         let response = HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!
         client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
     }
@@ -184,16 +186,19 @@ final class HangingProtocol: URLProtocol, @unchecked Sendable {
 }
 
 @Test func cancellingStopsTheRequest() async throws {
+    HangingProtocol.started = false
+    HangingProtocol.stopped = false
     let config = URLSessionConfiguration.ephemeral
     config.protocolClasses = [HangingProtocol.self]
     let session = URLSession(configuration: config)
     let task = Task {
         for try await _ in OllamaProvider().streamChat(messages: [ChatMessage(.user, "P")], model: "m", system: nil, session: session) {}
     }
-    try await Task.sleep(for: .milliseconds(200))
+    for _ in 0..<40 where !HangingProtocol.started { try await Task.sleep(for: .milliseconds(50)) }
+    #expect(HangingProtocol.started, "the hanging request should start before cancel")
     task.cancel()
     _ = await task.result
-    for _ in 0..<20 where !HangingProtocol.stopped { try await Task.sleep(for: .milliseconds(50)) }
+    for _ in 0..<40 where !HangingProtocol.stopped { try await Task.sleep(for: .milliseconds(50)) }
     #expect(HangingProtocol.stopped, "cancelling the consumer aborts the HTTP request")
 }
 

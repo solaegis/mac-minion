@@ -72,16 +72,22 @@ extension LLMProvider {
                 do {
                     let request = try chatRequest(messages: messages, model: model, system: system, options: options)
                     let (bytes, response) = try await session.bytes(for: request)
-                    let status = (response as? HTTPURLResponse)?.statusCode ?? 0
-                    guard (200..<300).contains(status) else {
-                        var body = Data()
-                        for try await byte in bytes where body.count < 65_536 { body.append(byte) }
-                        throw AIError.forStatus(status, body: body, provider: displayName)
+                    // Task.cancel alone does not always abort the URLSession task promptly;
+                    // cancel the data task explicitly so stopLoading runs under load.
+                    try await withTaskCancellationHandler {
+                        let status = (response as? HTTPURLResponse)?.statusCode ?? 0
+                        guard (200..<300).contains(status) else {
+                            var body = Data()
+                            for try await byte in bytes where body.count < 65_536 { body.append(byte) }
+                            throw AIError.forStatus(status, body: body, provider: displayName)
+                        }
+                        for try await line in bytes.lines {
+                            for event in try events(fromLine: line) { continuation.yield(event) }
+                        }
+                        continuation.finish()
+                    } onCancel: {
+                        bytes.task.cancel()
                     }
-                    for try await line in bytes.lines {
-                        for event in try events(fromLine: line) { continuation.yield(event) }
-                    }
-                    continuation.finish()
                 } catch {
                     continuation.finish(throwing: AIError.wrap(error, provider: self))
                 }
