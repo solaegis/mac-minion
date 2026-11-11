@@ -81,6 +81,8 @@ It should:
 
 Watch with `gh run list --workflow=release.yaml --limit 3` and open the run if anything fails.
 
+If step 6 fails because branch protection rejects `github-actions[bot]` (`Required status check "swift test" is expected`), the GitHub Release and zip are still good. Finish by hand: copy `sparkle:edSignature` and `length` from the “Sign the update for Sparkle” log into `site/appcast.xml` (newest first, `sparkle:version` = that run’s number), commit and push `main`, then `gh workflow run pages.yml --ref main`.
+
 ### 7. Smoke after publish
 
 - Release asset: `MacMinion-X.Y.Z-macos-arm64.zip` on the GitHub Release.
