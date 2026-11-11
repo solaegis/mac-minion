@@ -106,10 +106,37 @@ enum Palette {
     /// The border of an accent wash, and the selection ring on cards.
     static var accentEdge: Color { accent.opacity(0.32) }
 
+    /// The other of two things side by side, beside the accent (Compare's second character): orange, or teal
+    /// when the accent is warm itself, so the two never look alike. Dark enough to read as text.
+    static var counterpart: Color {
+        ["ember", "red", "orange", "yellow", "pink"].contains(ThemeStore.shared.theme.id)
+            ? Color(light: 0x0F766E, dark: 0x5EEAD4, highContrastLight: 0x0B5B55, highContrastDark: 0x99F6E4)
+            : Color(light: 0xC2410C, dark: 0xFB923C, highContrastLight: 0x9A3412, highContrastDark: 0xFDBA74)
+    }
+    /// A soft fill of the counterpart, like `accentWash`.
+    static var counterpartWash: Color { counterpart.opacity(0.10) }
+    /// Solid bars in a chart: the accent for the first or most common value, the counterpart for the others.
+    static var accentFill: Color { accent.opacity(0.65) }
+    static var counterpartFill: Color { counterpart.opacity(0.6) }
+
+    /// The second and third kinds in a graph whose first kind is the accent (Connections: files, then other
+    /// things). System teal and purple, swapped for orange and pink when the accent is close to them.
+    static var series2: Color {
+        ["teal", "mint"].contains(ThemeStore.shared.theme.id) ? Color(nsColor: .systemOrange) : Color(nsColor: .systemTeal)
+    }
+    static var series3: Color {
+        ["violet", "indigo"].contains(ThemeStore.shared.theme.id) ? Color(nsColor: .systemPink) : Color(nsColor: .systemPurple)
+    }
+
     /// Healthy states: up to date, a passing connection test.
     static let positive = Color(light: 0x1E8E4E, dark: 0x4CD787, highContrastLight: 0x146B39, highContrastDark: 0x7BE6A8)
+    /// Problems that need a look but are not failures yet: data at risk, warnings. System orange.
+    static var caution: Color { Color(nsColor: .systemOrange) }
     /// Problems: failed downloads, timeouts, and errors.
     static let negative = Color(light: 0xD12B1F, dark: 0xFF6A5C, highContrastLight: 0xA31A10, highContrastDark: 0xFF9A90)
+    /// A soft fill and border of the negative color, for a card that flags a problem.
+    static var negativeWash: Color { negative.opacity(0.15) }
+    static var negativeEdge: Color { negative.opacity(0.5) }
 }
 
 extension View {

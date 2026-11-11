@@ -9,10 +9,11 @@ struct BackupsPage: View {
 
     var body: some View {
         @Bindable var model = model
-        List {
+        List(selection: $model.selectedBackupID) {
+            if let file = model.backupFocus { RestoreOneFileSection(file: file) }
             Section {
                 ForEach(model.backups) { backup in
-                    BackupRow(backup: backup)
+                    BackupRow(backup: backup).readableRow().tag(backup.id)
                 }
             } header: {
                 Text(model.prefs.backupFolder.appending(path: "minion-backups/\(model.prefs.backupGameID)").path(percentEncoded: false))
@@ -45,18 +46,89 @@ struct BackupsPage: View {
                 Button("Show in Finder", systemImage: "folder") {
                     NSWorkspace.shared.activateFileViewerSelecting([model.prefs.backupFolder])
                 }
-                .help("Show the backup folder in Finder")
+                .help("Show the backup folder in Finder (Option-Command-B)")
             }
         }
         .sheet(item: $model.pendingRestore) { RestoreSheet(backup: $0) }
+        .alert("Move the backup from \(model.pendingBackupDeletion?.title ?? "") to the Trash?",
+               isPresented: Binding(get: { model.pendingBackupDeletion != nil }, set: { if !$0 { model.pendingBackupDeletion = nil } }),
+               presenting: model.pendingBackupDeletion) { backup in
+            Button("Move to Trash", role: .destructive) { model.deleteBackup(backup) }
+            Button("Cancel", role: .cancel) {}
+        } message: { _ in
+            Text("Its zip and addon list go to the Trash. You can put them back from there.")
+        }
         .task { model.loadBackups() }
     }
 
     private var footer: String {
         let schedule = model.prefs.backupSchedule
         let keep = model.prefs.backupsToKeep
-        return (schedule == .off ? "Automatic backups are off." : "Backs up \(schedule.title.lowercased()), keeping the newest \(keep == 0 ? "all" : String(keep)).")
-            + " Minion uses this folder too. Change it in Settings > Backups."
+        let first = switch (schedule, keep) {
+        case (.off, _): String(localized: "Automatic backups are off.")
+        case (.daily, 0): String(localized: "Backs up every day, keeping all of them.")
+        case (.daily, _): String(localized: "Backs up every day, keeping the newest \(keep).")
+        case (.weekly, 0): String(localized: "Backs up every week, keeping all of them.")
+        case (.weekly, _): String(localized: "Backs up every week, keeping the newest \(keep).")
+        }
+        return first + " " + String(localized: "Minion uses this folder too. Change it in Settings > Backups.")
+    }
+}
+
+/// Putting back one damaged file (from Problems): the backups that hold it, newest first, each with a button
+/// that restores only that file.
+private struct RestoreOneFileSection: View {
+    @Environment(AppModel.self) private var model
+    let file: String
+
+    var body: some View {
+        Section {
+            if let holding = model.backupsHoldingFocus {
+                let matching = model.backups.filter { holding.contains($0.id) }
+                if matching.isEmpty {
+                    Text("No backup has \(file) yet.").foregroundStyle(.secondary)
+                }
+                // Their own IDs: the list below shows the same backups, and shared IDs make the list reuse those rows.
+                ForEach(matching, id: \.restoreFileRowID) { backup in
+                    HStack(spacing: Space.md) {
+                        Label(backup.title, systemImage: backup.kind == .initial ? "archivebox.fill" : "clock.arrow.circlepath")
+                        Spacer()
+                        Button("Restore This File") { Task { await model.restoreFile(file, from: backup) } }
+                            .disabled(model.backupBusy != nil || model.gameIsRunning)
+                            .help(model.gameIsRunning ? "Quit Elder Scrolls Online first"
+                                  : String(localized: "Save what you have now, then put back \(file) from this backup"))
+                    }
+                    .readableRow()
+                }
+            } else {
+                HStack(spacing: Space.sm) {
+                    ProgressView().controlSize(.small)
+                    Text("Looking through your backups…").foregroundStyle(.secondary)
+                }
+            }
+        } header: {
+            HStack {
+                Text("Restore \(file)")
+                Spacer()
+                Button("Done") { model.backupFocus = nil }
+                    .keyboardShortcut(.cancelAction)
+                    .help("Stop restoring this file and show every backup")
+            }
+            .readableRow()
+        } footer: {
+            Text("Puts back this one file and leaves your other files as they are. First, MacMinion saves what you have now in \(model.restoreSafetyFolder.path(percentEncoded: false)).")
+                .foregroundStyle(.secondary)
+        }
+    }
+}
+
+extension Backup {
+    fileprivate var restoreFileRowID: String { "restore-file|" + id }
+
+    /// "Saturday, 7 November 2026", or "Minion's First Backup".
+    var title: String {
+        if kind == .initial { return String(localized: "Minion's First Backup") }
+        return date?.formatted(date: .complete, time: .omitted) ?? name
     }
 }
 
@@ -110,25 +182,22 @@ private struct BackupRow: View {
             }
             if backup.kind == .snapshot {
                 Divider()
-                Button("Move to Trash", role: .destructive) { model.deleteBackup(backup) }
+                Button("Move to Trash…", role: .destructive) { model.pendingBackupDeletion = backup }
             }
         }
     }
 
-    private var title: String {
-        if backup.kind == .initial { return "Minion's First Backup" }
-        return backup.date?.formatted(date: .complete, time: .omitted) ?? backup.name
-    }
+    private var title: String { backup.title }
 
     private var detail: String {
         if backup.kind == .initial {
-            return "The whole AddOns folder · \(backup.bytes.formatted(.byteCount(style: .file)))"
+            return String(localized: "The whole AddOns folder · \(backup.bytes.formatted(.byteCount(style: .file)))")
                 + (backup.date.map { " · \($0.formatted(date: .abbreviated, time: .omitted))" } ?? "")
         }
         let count = backup.addonIDs.count
-        var parts = ["\(count) addons"]
-        if backup.zip != nil { parts.append("settings and SavedVariables, \(backup.bytes.formatted(.byteCount(style: .file)))") }
-        else { parts.append("addon list only") }
+        var parts = [String(localized: "\(count) addons")]
+        if backup.zip != nil { parts.append(String(localized: "settings and SavedVariables, \(backup.bytes.formatted(.byteCount(style: .file)))")) }
+        else { parts.append(String(localized: "addon list only")) }
         return parts.joined(separator: " · ")
     }
 }
@@ -149,8 +218,8 @@ private struct RestoreSheet: View {
             Form {
                 if backup.zip != nil {
                     Toggle(isOn: $options.files) {
-                        Text(backup.kind == .initial ? "AddOns folders from the backup" : "SavedVariables and settings files")
-                        Text(backup.kind == .initial ? "Each addon folder in the backup replaces the one you have; yours go to the Trash."
+                        Text(backup.kind == .initial ? String(localized: "AddOns folders from the backup") : String(localized: "SavedVariables and settings files"))
+                        Text(backup.kind == .initial ? String(localized: "Each addon folder in the backup replaces the one you have; yours go to the Trash.")
                              : "Replaces your SavedVariables, AddOnSettings.txt, and UserSettings.txt with the backup's.")
                     }
                 }
@@ -185,7 +254,7 @@ private struct RestoreSheet: View {
                     Task { await model.restore(backup, options: options) }
                 }
                 .keyboardShortcut(.defaultAction)
-                .disabled(!options.files && !options.reinstallMissing && !options.removeOthers)
+                .disabled(model.gameIsRunning || (!options.files && !options.reinstallMissing && !options.removeOthers))
             }
         }
         .padding(Space.xxl)
@@ -222,7 +291,7 @@ struct BackupSettings: View {
                 ForEach(BackupSchedule.allCases) { Text($0.title).tag($0) }
             }
             Stepper(value: $prefs.backupsToKeep, in: 0...60) {
-                LabeledContent("Keep", value: prefs.backupsToKeep == 0 ? "Every backup" : "Newest \(prefs.backupsToKeep)")
+                LabeledContent("Keep", value: prefs.backupsToKeep == 0 ? String(localized: "Every backup") : String(localized: "Newest \(prefs.backupsToKeep)"))
             }
             Button("Back Up Now") { Task { await model.backUp() } }
                 .disabled(model.backupBusy != nil)
@@ -235,7 +304,7 @@ struct BackupSettings: View {
         panel.canChooseFiles = false
         panel.canCreateDirectories = true
         panel.directoryURL = model.prefs.backupFolder
-        panel.prompt = "Use Folder"
+        panel.prompt = String(localized: "Use Folder")
         if panel.runModal() == .OK, let url = panel.url {
             model.prefs.backupDir = url.path
             model.loadBackups()

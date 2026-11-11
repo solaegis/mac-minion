@@ -5,6 +5,10 @@ DerivedData/
 xcuserdata/
 .DS_Store
 .env*
+*.p12
+*.pem
+*.key
 /shots/
 /dist/
 _site/
+/snapshots/

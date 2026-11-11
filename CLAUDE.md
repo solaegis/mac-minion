@@ -16,18 +16,21 @@ SwiftData database and no server.
 
 - Build and install: `./build.sh`. Add `--open` to restart the app with the new build. The build shows warnings; fix them.
 - Unit tests: `swift test --scratch-path ~/Library/Developer/MacMinion/test-build`.
-- Self-test (the app's real functions on a /tmp store): `tools/selftest.sh`. Exit 0 when every check passes. Add a check for every story with logic in `SelfTest.swift`.
+- Self-test (the app's real functions on a /tmp store): `tools/selftest.sh`. Exit 0 when every check passes. Add a check for every story with logic, in its area's file in `SelfTest/`.
+- UI text goes through the string catalogs: SwiftUI literals, or `String(localized:)` (with `bundle: .module` in MacMinionKit) for text built as a `String`. `tools/missing-strings.sh` lists keys the code uses that a catalog lacks; add each with de, es, fr, and ru. AI prompts, data keys, and file names stay as written.
 - After every UI change, take snapshots with sample data and look at them: `tools/snap.sh`.
-  It writes `/tmp/MacMinion-shots/<page>-light.png` and `-dark.png` for every sidebar page, and `settings-<tab>-light.png` and `-dark.png` for every Settings tab, then quits. `APP_SNAPSHOT_PAGES=all,settings tools/snap.sh` limits the pages.
+  It writes `/tmp/MacMinion-shots/<page>-light.png` and `-dark.png` for every sidebar page, and `settings-<tab>-light.png` and `-dark.png` for every Settings tab, then quits. `APP_SNAPSHOT_PAGES=all,settings tools/snap.sh` limits the pages. The main window is set to 1180 x 760 (`APP_SNAPSHOT_SIZE=1600x900` picks another), and each page is also taken at the minimum size as `<page>-min-light.png` and `-dark.png`. Read the run's `SNAPSHOT warning:` lines: they say when the window was not the key window, or did not keep its size (then there are no `-min` pictures). Each run also copies its PNGs to `snapshots/` in the repo (git-ignored), replacing only the pages it took, so the latest of every page stays there for review.
   For a panel, sheet, or popover, add a capture to `Snapshot.swift` like the Settings loop.
 - Snapshots, seed data, and the self-test refuse to run without `APP_STORE` in /tmp.
 - Never test against the real database in `~/Library/Application Support/MacMinion/`.
 - Then check the grid: `tools/grid-lint.sh` and `swift tools/check-layout.swift /tmp/MacMinion-shots/*-layout.json`. Both print PASS.
+- Then check the macOS rules: `tools/hig-lint.sh` (raw colors, font sizes, motion, glass, sheet focus, standard shortcuts). It prints PASS. Fix what it flags or mark the line `// hig: ok <why>`. Its warnings (taps with no keyboard path) are known gaps in `design/MACOS-UI-ARCHITECTURE.md`; add no new ones.
 - A change is done when the build has no errors, the grid checks pass, and you looked at the light and dark snapshots.
 
 ## Design rules
 
 - Design rules: `design/DESIGN-SYSTEM.md`. Use its tokens; never raw colors, radii, or durations.
+- macOS structure and platform rules (windows, menus, toolbar, sheets, settings, keyboard, accessibility), from Apple's HIG: `design/MACOS-UI-ARCHITECTURE.md`. Read it before adding a window, page, sheet, menu item, or setting, and run its review checklist (section 11) on every UI change.
 
 - Use Apple's controls and system styles. Only the accent color is custom: `UI/Theme.swift` (`ThemeStore.defaultID`). People change it, and light or dark mode, in Settings > Appearance.
 - Views use `.tint`, `Palette.accent`, `Palette.accentText` (accent-colored text), and `Palette.onAccent` (text on an accent fill). Never hard-code colors, radii, or durations in views.

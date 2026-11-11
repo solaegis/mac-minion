@@ -4,6 +4,10 @@ import CoreGraphics
 enum Radius {
     /// Chart bars.
     static let bar: CGFloat = 2
+    /// Grid cells and color swatches.
+    static let cell: CGFloat = 4
+    /// Value cells in Compare, inside a tile.
+    static let small: CGFloat = 6
     /// Thumbnails, icon wells, chips.
     static let chip: CGFloat = 8
     /// Stat tiles, the AI card, small bento cards.

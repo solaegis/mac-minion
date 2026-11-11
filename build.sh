@@ -83,6 +83,39 @@ if [[ -d "$here/Icon/AppIcon.icon" ]]; then
   fi
   cp -X "$car" "$here/Resources/AppIcon.icns" "$app/Contents/Resources/"
 fi
+# Credits for the About panel: what MacMinion owes the original Minion.
+cp -X "$here/Resources/Credits.rtf" "$app/Contents/Resources/"
+# Localizations: compile String Catalogs into .lproj next to Bundle.main resources.
+loc_tmp=$(mktemp -d)
+xcrun xcstringstool compile "$here/Sources/MacMinion/Resources/Localizable.xcstrings" \
+  --output-directory "$loc_tmp" --language en --language de --language es --language fr --language ru
+xcrun xcstringstool compile "$here/Sources/MacMinion/Resources/InfoPlist.xcstrings" \
+  --output-directory "$loc_tmp" --language en --language de --language es --language fr --language ru
+# Merge every locale folder into Contents/Resources (Localizable.strings + InfoPlist.strings).
+for lproj in "$loc_tmp"/*.lproj; do
+  [[ -d $lproj ]] || continue
+  dest="$app/Contents/Resources/${lproj:t}"
+  mkdir -p "$dest"
+  ditto "$lproj" "$dest"
+done
+rm -rf "$loc_tmp"
+# Kit catalog: SPM embeds MacMinionKit_MacMinionKit.bundle beside the binary; copy it so Bundle.module resolves in the app.
+for kit_bundle in "$scratch/$config"/MacMinionKit_MacMinionKit.bundle "$scratch/$config"/MacMinion_MacMinionKit.bundle; do
+  if [[ -d $kit_bundle ]]; then
+    ditto "$kit_bundle" "$app/Contents/Resources/${kit_bundle:t}"
+    break
+  fi
+done
+# ESO Mac Minion, the in-game companion: copy the addon payload when the sibling repo is present.
+companion_src="$(cd "$here/../eso-mac-minion" 2>/dev/null && pwd || true)"
+if [[ -f "$companion_src/EsoMacMinion.txt" ]]; then
+  dest="$app/Contents/Resources/EsoMacMinion"
+  mkdir -p "$dest"
+  version="$(git -C "$companion_src" describe --tags --always 2>/dev/null || echo dev)"
+  sed -e "s/@project-version@/${version}/" -e "s/@addon-build-version@/$(date +%Y%m%d)/" \
+    "$companion_src/EsoMacMinion.txt" > "$dest/EsoMacMinion.txt"
+  ditto "$companion_src/src" "$dest/src"
+fi
 # Sparkle, for app updates: SwiftPM leaves the framework next to the binary.
 fw_src="$scratch/$config/Sparkle.framework"
 [[ -d "$fw_src" ]] || { echo "build failed: no Sparkle.framework in $scratch/$config"; exit 1; }

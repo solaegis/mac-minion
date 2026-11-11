@@ -32,7 +32,7 @@ struct OverviewView: View {
             RefreshButton()
             ToolbarItem {
                 Button("Customize Overview", systemImage: "slider.horizontal.3") { model.customizingOverview = true }
-                    .help("Choose which sections the Overview shows, and their order")
+                    .help("Choose which sections the Overview shows, and their order (Option-Command-O)")
             }
         }
         .sheet(isPresented: Binding(get: { model.customizingOverview }, set: { model.customizingOverview = $0 })) {
@@ -46,7 +46,7 @@ struct OverviewView: View {
         case .banner: OverviewHero()
         case .libraries: if !model.missingLibraries.isEmpty { LibrariesCard() }
         case .stats: StatTiles()
-        case .recommended: if model.prefs.aiEnabled { SuggestionsCard() }
+        case .recommended: if model.prefs.aiEnabled || model.needsCompanion { SuggestionsCard() }
         case .search:
             if model.prefs.aiEnabled {
                 VStack(alignment: .leading, spacing: Space.xxl) {
@@ -128,6 +128,8 @@ struct OverviewSectionRows: View {
 struct OverviewCustomizeSheet: View {
     @Environment(AppModel.self) private var model
     @Environment(\.dismiss) private var dismiss
+    /// The layout when the sheet opened, so closing it registers one Undo for every change.
+    @State private var before: (order: [OverviewSection], hidden: Set<OverviewSection>)?
 
     var body: some View {
         VStack(alignment: .leading, spacing: Space.lg) {
@@ -137,7 +139,7 @@ struct OverviewCustomizeSheet: View {
             List {
                 OverviewSectionRows()
             }
-            .frame(minHeight: 340)
+            .fitsContent(max: 520)
             HStack {
                 Button("Reset to Default") { model.prefs.resetOverview() }
                 Spacer()
@@ -148,6 +150,14 @@ struct OverviewCustomizeSheet: View {
         .padding(Space.xxl)
         .frame(width: 520)
         .noInitialFocus()
+        .onExitCommand { dismiss() }
+        .onAppear { before = (model.prefs.overviewOrder, model.prefs.overviewHidden) }
+        .onDisappear(perform: registerUndo)
+    }
+
+    private func registerUndo() {
+        guard let before, before.order != model.prefs.overviewOrder || before.hidden != model.prefs.overviewHidden else { return }
+        model.registerOverviewUndo(order: before.order, hidden: before.hidden)
     }
 }
 
@@ -188,7 +198,7 @@ private struct OverviewHero: View {
                     .help("Update every addon that has an update (Command-U)")
                 } else {
                     Image(systemName: "checkmark.seal.fill")
-                        .font(.system(size: 48))
+                        .font(.system(size: 48)) // hig: ok decorative symbol
                         .symbolRenderingMode(.hierarchical)
                         .accessibilityLabel("Up to date")
                 }
@@ -199,7 +209,7 @@ private struct OverviewHero: View {
         .frame(maxWidth: .infinity, minHeight: 168, alignment: .leading)
         .background(alignment: .trailing) {
             Image(systemName: "puzzlepiece.extension.fill")
-                .font(.system(size: 220))
+                .font(.system(size: 220)) // hig: ok decorative symbol
                 .foregroundStyle(Palette.onAccent.opacity(0.08))
                 .rotationEffect(.degrees(-12))
                 .accessibilityHidden(true)
@@ -209,15 +219,17 @@ private struct OverviewHero: View {
     }
 
     private func headline(_ updates: Int) -> String {
-        if model.installed.isEmpty { return "No addons yet" }
-        if updates == 0 { return "Everything's up to date" }
-        return "\(updates) update\(updates == 1 ? "" : "s") ready"
+        if model.installed.isEmpty { return String(localized: "No addons yet") }
+        if updates == 0 { return String(localized: "Everything's up to date") }
+        if updates == 1 { return String(localized: "1 update ready") }
+        return String(localized: "\(updates) updates ready")
     }
 
     private var detail: String {
-        var parts = ["\(model.installed.count + model.unmatched.count) addons in \(model.addonsFolder.deletingLastPathComponent().lastPathComponent)/\(model.addonsFolder.lastPathComponent)"]
+        let folder = "\(model.addonsFolder.deletingLastPathComponent().lastPathComponent)/\(model.addonsFolder.lastPathComponent)"
+        var parts = [String(localized: "\(model.addonCount) addons in \(folder)")]
         if let date = model.catalogDate {
-            parts.append("checked \(date.formatted(.relative(presentation: .named)))")
+            parts.append(String(localized: "checked \(date.formatted(.relative(presentation: .named)))"))
         }
         return parts.joined(separator: " · ")
     }
@@ -258,7 +270,7 @@ private struct StatTiles: View {
 
 private struct StatTile: View {
     let value: String
-    let label: String
+    let label: LocalizedStringKey
     let symbol: String
     var highlighted = false
     let action: () -> Void
@@ -301,7 +313,7 @@ private struct StatTile: View {
 // MARK: - Cards
 
 private struct OverviewCard<Content: View, Accessory: View>: View {
-    let title: String
+    let title: LocalizedStringKey
     let symbol: String
     @ViewBuilder var accessory: Accessory
     @ViewBuilder var content: Content
@@ -324,7 +336,7 @@ private struct OverviewCard<Content: View, Accessory: View>: View {
 }
 
 extension OverviewCard where Accessory == EmptyView {
-    init(title: String, symbol: String, @ViewBuilder content: () -> Content) {
+    init(title: LocalizedStringKey, symbol: String, @ViewBuilder content: () -> Content) {
         self.init(title: title, symbol: symbol, accessory: { EmptyView() }, content: content)
     }
 }
@@ -350,10 +362,10 @@ private struct ActivityChartCard: View {
                 .foregroundStyle(.secondary)
         } content: {
             if total == 0 {
-                CardEmpty(text: "Installs and updates show here as they happen.")
+                CardEmpty(text: String(localized: "Installs and updates show here as they happen."))
             } else {
                 Chart(weeks) { week in
-                    BarMark(x: .value("Week", week.start, unit: .weekOfYear), y: .value("Updates", week.count))
+                    BarMark(x: .value(String(localized: "Week"), week.start, unit: .weekOfYear), y: .value("Updates", week.count))
                         .foregroundStyle(Palette.accent.gradient)
                         .cornerRadius(Radius.bar)
                 }
@@ -377,7 +389,7 @@ private struct CategoryCard: View {
         let rows = categories
         OverviewCard(title: "By Category", symbol: "square.stack.3d.up") {
             if rows.isEmpty {
-                CardEmpty(text: "Categories show once the catalog loads.")
+                CardEmpty(text: String(localized: "Categories show once the catalog loads."))
             } else {
                 Chart(rows) { row in
                     BarMark(x: .value("Addons", row.count), y: .value("Category", row.name))
@@ -396,13 +408,13 @@ private struct CategoryCard: View {
     private var categories: [Usage.NameCount] {
         var counts: [String: Int] = [:]
         for addon in model.installed {
-            let title = model.categories.first { $0.id == addon.catalog.categoryID }?.title ?? "Other"
+            let title = model.categories.first { $0.id == addon.catalog.categoryID }?.title ?? String(localized: "Other")
             counts[title, default: 0] += 1
         }
         let sorted = counts.map { Usage.NameCount(name: $0.key, count: $0.value) }.sorted { $0.count > $1.count }
         guard sorted.count > 5 else { return sorted }
         let rest = sorted.dropFirst(4).reduce(0) { $0 + $1.count }
-        return Array(sorted.prefix(4)) + [Usage.NameCount(name: "Everything Else", count: rest)]
+        return Array(sorted.prefix(4)) + [Usage.NameCount(name: String(localized: "Everything Else"), count: rest)]
     }
 }
 
@@ -413,7 +425,7 @@ private struct RecentActivityCard: View {
         let events = Array(model.history.prefix(7))
         OverviewCard(title: "Recent Activity", symbol: "clock.arrow.circlepath") {
             if events.isEmpty {
-                CardEmpty(text: "Nothing installed or updated yet.")
+                CardEmpty(text: String(localized: "Nothing installed or updated yet."))
             } else {
                 VStack(spacing: 0) {
                     ForEach(events) { event in
@@ -451,10 +463,14 @@ private struct EventRow: View {
         }
         .padding(.vertical, Space.sm)
         .contentShape(.rect)
-        .onTapGesture {
-            if let id = event.addonID ?? model.catalog.first(where: { $0.name == event.name })?.id {
-                model.open(model.installed(id) == nil ? .findMore : .installed, selecting: id)
-            }
+        .onTapGesture(perform: openEvent)
+        .accessibilityAddTraits(.isButton)
+        .accessibilityAction { openEvent() }
+    }
+
+    private func openEvent() {
+        if let id = event.addonID ?? model.catalog.first(where: { $0.name == event.name })?.id {
+            model.open(model.installed(id) == nil ? .findMore : .installed, selecting: id)
         }
     }
 
@@ -468,9 +484,9 @@ private struct EventRow: View {
 
     private var versions: String {
         let kind = switch event.kind {
-        case .install: "Installed"
-        case .update: "Updated"
-        case .remove: "Removed"
+        case .install: String(localized: "Installed")
+        case .update: String(localized: "Updated")
+        case .remove: String(localized: "Removed")
         }
         var text = kind
         if let from = event.previousVersion, let to = event.version, event.kind == .update {
@@ -478,7 +494,7 @@ private struct EventRow: View {
         } else if let to = event.version {
             text += " \(to)"
         }
-        if event.fromMinion { text += " · by Minion" }
+        if event.fromMinion { text += String(localized: " · by Minion") }
         return text
     }
 }
@@ -491,7 +507,7 @@ private struct MostUpdatedCard: View {
         let top = max(rows.first?.count ?? 1, 1)
         OverviewCard(title: "Updated Most Often", symbol: "flame") {
             if rows.isEmpty {
-                CardEmpty(text: "The addons that change the most show here.")
+                CardEmpty(text: String(localized: "The addons that change the most show here."))
             } else {
                 VStack(spacing: Space.sm) {
                     ForEach(rows) { row in
@@ -547,8 +563,9 @@ private struct LibrariesCard: View {
 
     /// "Missing: 1 required, 3 optional".
     private func summary(_ count: Int, _ required: Int) -> String {
-        let parts = [required > 0 ? "\(required) required" : nil, count > required ? "\(count - required) optional" : nil]
-        return "Missing: " + parts.compactMap { $0 }.joined(separator: ", ")
+        let parts = [required > 0 ? String(localized: "\(required) required") : nil,
+                     count > required ? String(localized: "\(count - required) optional") : nil]
+        return String(localized: "Missing: \(parts.compactMap { $0 }.joined(separator: ", "))")
     }
 }
 
@@ -585,13 +602,16 @@ private struct LibraryRow: View {
         }
         .contentShape(.rect)
         .onTapGesture { model.open(.findMore, selecting: library.addon.id) }
-        .help(library.required ? "\(library.wantedBy.joined(separator: ", ")) won't load without it, so it shows even with a thumbs down"
-              : "Optional: \(library.wantedBy.joined(separator: ", ")) can use it for extra features. A thumbs down hides it.")
+        .accessibilityAddTraits(.isButton)
+        .accessibilityAction { model.open(.findMore, selecting: library.addon.id) }
+        .help(library.required ? String(localized: "\(library.wantedBy.joined(separator: ", ")) won't load without it, so it shows even with a thumbs down")
+              : String(localized: "Optional: \(library.wantedBy.joined(separator: ", ")) can use it for extra features. A thumbs down hides it."))
     }
 
     private var wantedBy: String {
-        let names = library.wantedBy.prefix(3).joined(separator: ", ") + (library.wantedBy.count > 3 ? " and \(library.wantedBy.count - 3) more" : "")
-        return library.required ? "Required by \(names)" : "Optional for \(names)"
+        let names = library.wantedBy.prefix(3).joined(separator: ", ")
+            + (library.wantedBy.count > 3 ? " " + String(localized: "and \(library.wantedBy.count - 3) more") : "")
+        return library.required ? String(localized: "Required by \(names)") : String(localized: "Optional for \(names)")
     }
 }
 
@@ -610,7 +630,7 @@ private struct PopularCard: View {
                 .foregroundStyle(Palette.accentText)
         } content: {
             if picks.isEmpty {
-                CardEmpty(text: "You have every popular addon already.")
+                CardEmpty(text: String(localized: "You have every popular addon already."))
             } else {
                 LazyVGrid(columns: [GridItem(.adaptive(minimum: 300), spacing: Space.lg)], spacing: Space.md) {
                     ForEach(Array(picks)) { addon in
@@ -636,7 +656,7 @@ private struct SuggestionsCard: View {
                     Text("\(model.aiSource) · \(date.formatted(.relative(presentation: .named)))")
                         .font(.caption).foregroundStyle(.secondary)
                 }
-                Button(picks.isEmpty ? "Suggest Addons" : "Suggest Again") { Task { await model.suggestAddons() } }
+                Button(picks.isEmpty ? String(localized: "Suggest Addons") : String(localized: "Suggest Again")) { Task { await model.suggestAddons() } }
                     .buttonStyle(.plain)
                     .foregroundStyle(Palette.accentText)
                     .disabled(model.isSuggesting || model.prefs.aiConfig.problem != nil)
@@ -645,15 +665,16 @@ private struct SuggestionsCard: View {
         } content: {
             if let problem = model.prefs.aiConfig.problem {
                 CardEmpty(text: problem)
-            } else if let error = model.suggestError, picks.isEmpty {
+            } else if let error = model.suggestError, picks.isEmpty, !model.needsCompanion {
                 Label(error, systemImage: "exclamationmark.triangle.fill")
                     .foregroundStyle(Palette.negative)
                     .frame(maxWidth: .infinity, minHeight: 80)
-            } else if picks.isEmpty {
-                CardEmpty(text: model.isSuggesting ? "Reading your \(model.installed.count) addons…"
-                          : "Suggestions based on the addons you have show here.")
+            } else if picks.isEmpty && !model.needsCompanion {
+                CardEmpty(text: model.isSuggesting ? String(localized: "Reading your \(model.installed.count) addons…")
+                          : String(localized: "Suggestions based on the addons you have show here."))
             } else {
                 LazyVGrid(columns: [GridItem(.adaptive(minimum: 340), spacing: Space.lg, alignment: .top)], spacing: Space.md) {
+                    if model.needsCompanion { CompanionPickRow() }
                     ForEach(picks, id: \.addon.id) { pick in
                         AddonPickRow(addon: pick.addon, reason: pick.reason)
                     }
@@ -669,6 +690,40 @@ private struct SuggestionsCard: View {
     }
 }
 
+private struct CompanionPickRow: View {
+    @Environment(AppModel.self) private var model
+
+    var body: some View {
+        HStack(alignment: .top, spacing: Space.md) {
+            Image(systemName: "puzzlepiece.extension.fill")
+                .font(.title2)
+                .foregroundStyle(Palette.accentText)
+                .frame(width: 44, height: 44)
+            VStack(alignment: .leading, spacing: Space.xs / 2) {
+                Text(CompanionData.displayName).font(.body.weight(.semibold)).lineLimit(1)
+                Text(CompanionData.recommendReason)
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(3)
+                    .fixedSize(horizontal: false, vertical: true)
+                if let error = model.companionError {
+                    Text(error).font(.caption).foregroundStyle(Palette.negative).lineLimit(2)
+                }
+            }
+            Spacer(minLength: Space.sm)
+            if model.companionBusy {
+                ProgressView().controlSize(.small)
+            } else {
+                Button("Install") { Task { await model.installCompanion() } }
+                    .controlSize(.small)
+                    .disabled(model.companionSourceURL() == nil || model.gameIsRunning)
+                    .help(model.gameIsRunning ? "Quit Elder Scrolls Online first"
+                          : String(localized: "Copy ESO Mac Minion into AddOns, then log in once"))
+            }
+        }
+    }
+}
+
 private struct PopularRow: View {
     @Environment(AppModel.self) private var model
     let addon: CatalogAddon
@@ -678,10 +733,14 @@ private struct PopularRow: View {
             Thumbnail(url: addon.thumbnails.first, size: 44)
             VStack(alignment: .leading, spacing: Space.xs / 2) {
                 Text(addon.name).lineLimit(1)
-                Text("\(addon.author) · \(addon.downloadsMonthly.formatted(.number.notation(.compactName))) this month")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
+                HStack(spacing: 0) {
+                    AuthorLink(author: addon.author)
+                    Text(verbatim: " · ")
+                    Text("\(addon.downloadsMonthly.formatted(.number.notation(.compactName))) this month")
+                }
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
             }
             Spacer(minLength: Space.sm)
             if model.busy.contains(addon.id) {
@@ -694,6 +753,8 @@ private struct PopularRow: View {
         }
         .contentShape(.rect)
         .onTapGesture { model.open(.findMore, selecting: addon.id) }
+        .accessibilityAddTraits(.isButton)
+        .accessibilityAction { model.open(.findMore, selecting: addon.id) }
     }
 }
 
@@ -705,5 +766,17 @@ private struct CardEmpty: View {
             .font(.callout)
             .foregroundStyle(.secondary)
             .frame(maxWidth: .infinity, minHeight: 120)
+    }
+}
+
+extension AppModel {
+    /// Puts the Overview's sections back as they were, and registers Redo.
+    func registerOverviewUndo(order: [OverviewSection], hidden: Set<OverviewSection>) {
+        registerUndo(String(localized: "Customize Overview")) { model in
+            let now = (model.prefs.overviewOrder, model.prefs.overviewHidden)
+            model.prefs.overviewOrder = order
+            model.prefs.overviewHidden = hidden
+            model.registerOverviewUndo(order: now.0, hidden: now.1)
+        }
     }
 }

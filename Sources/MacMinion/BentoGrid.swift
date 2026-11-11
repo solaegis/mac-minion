@@ -24,15 +24,19 @@ nonisolated struct BentoLayout: Layout {
     }
 
     private func cellWidth(_ width: CGFloat, _ columns: Int) -> CGFloat {
-        (width - spacing * CGFloat(columns - 1)) / CGFloat(columns)
+        // Never shrink a cell under the card size the person chose in Settings.
+        max(minCellWidth, (width - spacing * CGFloat(columns - 1)) / CGFloat(columns))
     }
 
     func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
         // SwiftUI also asks with nil and infinite widths while it measures; answer for four columns then.
         let proposed = proposal.width ?? .infinity
         let width = proposed.isFinite ? proposed : minCellWidth * 4 + spacing * 3
-        let (_, rows) = BentoPacker.place(subviews.map { $0[SpanKey.self] }, columns: columns(for: width))
-        return CGSize(width: width, height: rows == 0 ? 0 : CGFloat(rows) * (cellHeight + spacing) - spacing)
+        let cols = columns(for: width)
+        let cw = cellWidth(width, cols)
+        let laidOut = CGFloat(cols) * cw + CGFloat(max(0, cols - 1)) * spacing
+        let (_, rows) = BentoPacker.place(subviews.map { $0[SpanKey.self] }, columns: cols)
+        return CGSize(width: max(width, laidOut), height: rows == 0 ? 0 : CGFloat(rows) * (cellHeight + spacing) - spacing)
     }
 
     func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
@@ -64,6 +68,7 @@ struct BentoSection<Content: View>: View {
                     .font(.callout.monospacedDigit())
                     .foregroundStyle(.secondary)
             }
+            .gridProbe("section-title", area: "grid")
             BentoLayout(minCellWidth: model.prefs.cardSize.minWidth, cellHeight: model.prefs.cardSize.cellHeight) {
                 content
             }
@@ -80,11 +85,19 @@ struct AddonCard: View {
     let addon: CatalogAddon
     let installed: InstalledAddon?
     let span: BentoSpan
+    /// Its files and problems, on Installed (S-059).
+    var links: AddonLinks?
     @State private var hovering = false
+    /// Laid-out width: a "wide" span can still be one cell when the grid has only one column.
+    /// Starts at 0 so the first paint is compact until the real width arrives.
+    @State private var cardWidth: CGFloat = 0
 
     private var selected: Bool { model.selection == .addon(addon.id) }
     private var isLarge: Bool { span.height > 1 }
     private var isWide: Bool { span.width > 1 }
+    /// Narrow tile: keep the primary action readable; extras wait for hover or the inspector.
+    private var isCompact: Bool { cardWidth < model.prefs.cardSize.minWidth * 1.5 }
+    private var showExtras: Bool { !isCompact || hovering }
 
     var body: some View {
         VStack(alignment: .leading, spacing: Space.sm) {
@@ -95,13 +108,13 @@ struct AddonCard: View {
             }
             HStack(alignment: .top, spacing: Space.md) {
                 if model.prefs.showThumbnails && !isLarge {
-                    Thumbnail(url: addon.thumbnails.first, size: isWide ? 56 : 36)
+                    Thumbnail(url: addon.thumbnails.first, size: isCompact || !isWide ? 36 : 56)
                 }
                 VStack(alignment: .leading, spacing: Space.xs / 2) {
                     Text(addon.name)
-                        .font(isWide ? .headline : .body.weight(.semibold))
-                        .lineLimit(isWide || isLarge ? 1 : 2)
-                    Text(addon.author)
+                        .font(isWide && !isCompact ? .headline : .body.weight(.semibold))
+                        .lineLimit(isCompact || !(isWide || isLarge) ? 2 : 1)
+                    AuthorLink(author: addon.author)
                         .font(.caption)
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
@@ -113,12 +126,15 @@ struct AddonCard: View {
         }
         .padding(Space.md)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { cardWidth = $0 }
         .cardSurface(isWide || isLarge ? Radius.card : Radius.tile, selected: selected)
         .scaleEffect(Motion.hoverScale(hovering, reduceMotion: reduceMotion))
         .animation(Motion.hover, value: hovering)
         .contentShape(.rect(cornerRadius: Radius.card))
         .onHover { hovering = $0 }
         .onTapGesture { model.selection = .addon(addon.id) }
+        .accessibilityAddTraits(.isButton)
+        .accessibilityAction { model.selection = .addon(addon.id) }
         .contextMenu { if let installed { InstalledMenu(addon: installed) } else { FindMoreMenu(addon: addon) } }
         // A container, not one combined button: combining made pressing the card press its first
         // inner button (thumbs up). Its buttons stay separate; the card itself shows details.
@@ -143,14 +159,19 @@ struct AddonCard: View {
                     .font(.caption.monospacedDigit())
                     .foregroundStyle(.secondary)
                     .help("\(addon.downloadsMonthly.formatted()) downloads this month")
-                if isWide || isLarge {
+                if showExtras && (isWide || isLarge) {
                     Label(addon.favorites.formatted(.number.notation(.compactName)), systemImage: "heart")
                         .font(.caption.monospacedDigit())
                         .foregroundStyle(.secondary)
                 }
             }
             Spacer(minLength: 0)
-            RatingButtons(id: addon.id)
+            if showExtras, let links, let installed {
+                AddonLinkButtons(model: model, name: addon.name, dirs: installed.record.dirs, links: links)
+            }
+            if showExtras {
+                RatingButtons(id: addon.id)
+            }
             if let installed, !model.busy.contains(addon.id) {
                 RemoveButton(name: addon.name) { model.pendingRemoval = installed }
             }
@@ -159,7 +180,7 @@ struct AddonCard: View {
     }
 
     private func versionText(_ installed: InstalledAddon) -> String {
-        if installed.status == .updateAvailable, isWide, let v = installed.installedVersion {
+        if installed.status == .updateAvailable, isWide, !isCompact, let v = installed.installedVersion {
             return "\(v) → \(addon.version)"
         }
         return installed.installedVersion ?? addon.version
@@ -173,7 +194,7 @@ struct AddonCard: View {
             Button("Update") { Task { await model.install(addon.id) } }
                 .buttonStyle(.borderedProminent)
                 .controlSize(.small)
-        } else if installed == nil, isWide || isLarge {
+        } else if installed == nil {
             Button("Install") { Task { await model.install(addon.id) } }
                 .controlSize(.small)
                 .disabled(model.offline && model.details[addon.id] == nil)
@@ -181,10 +202,44 @@ struct AddonCard: View {
     }
 }
 
-/// A folder no catalog entry lists, as a small card.
+/// MacMinion's in-game companion, when it is installed but not on ESOUI.
+struct CompanionCard: View {
+    @Environment(AppModel.self) private var model
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: Space.xs / 2) {
+            Label(CompanionData.displayName, systemImage: "puzzlepiece.extension")
+                .font(.body.weight(.semibold))
+                .lineLimit(2)
+            Text(model.companionManifest?.author ?? "solaegis")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+            Spacer(minLength: 0)
+            HStack {
+                if let version = model.companionManifest?.version {
+                    Text(version).font(.caption.monospacedDigit()).foregroundStyle(.secondary)
+                } else if model.companionSnapshot?.written != nil {
+                    Text("Installed").font(.caption).foregroundStyle(.secondary)
+                }
+                Spacer(minLength: 0)
+            }
+        }
+        .padding(Space.md)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .cardSurface(Radius.tile, selected: model.selection == .folder(CompanionData.folderName))
+        .contentShape(.rect(cornerRadius: Radius.tile))
+        .onTapGesture { model.selection = .folder(CompanionData.folderName) }
+        .accessibilityAddTraits(.isButton)
+        .accessibilityAction { model.selection = .folder(CompanionData.folderName) }
+        .help("MacMinion's in-game companion")
+    }
+}
+
 struct FolderCard: View {
     @Environment(AppModel.self) private var model
     let folder: UnmatchedFolder
+    var links: AddonLinks?
 
     var body: some View {
         VStack(alignment: .leading, spacing: Space.xs / 2) {
@@ -201,6 +256,9 @@ struct FolderCard: View {
                     Text(version).font(.caption.monospacedDigit()).foregroundStyle(.secondary)
                 }
                 Spacer(minLength: 0)
+                if let links {
+                    AddonLinkButtons(model: model, name: folder.title, dirs: [folder.folder], links: links)
+                }
                 RemoveButton(name: folder.title) { model.pendingFolderRemoval = folder }
             }
         }
@@ -209,6 +267,8 @@ struct FolderCard: View {
         .cardSurface(Radius.tile, selected: model.selection == .folder(folder.folder))
         .contentShape(.rect(cornerRadius: Radius.tile))
         .onTapGesture { model.selection = .folder(folder.folder) }
+        .accessibilityAddTraits(.isButton)
+        .accessibilityAction { model.selection = .folder(folder.folder) }
         .contextMenu {
             Button("Show in Finder") { model.showInFinder(folder.folder) }
             Divider()
@@ -294,8 +354,9 @@ struct FindMoreMenu: View {
     let addon: CatalogAddon
 
     var body: some View {
-        Button("Install") { Task { await model.install(addon.id) } }
-            .disabled(model.busy.contains(addon.id))
+        if !model.busy.contains(addon.id) {
+            Button("Install") { Task { await model.install(addon.id) } }
+        }
         if let url = addon.infoURL {
             Link("Open on ESOUI", destination: url)
         }
@@ -316,26 +377,32 @@ struct InstalledGrid: View {
         let rest = shown.filter { !updates.contains($0) }
         let libraries = prefs.groupLibraries ? rest.filter { $0.catalog.categoryID == AddonCategory.librariesID } : []
         let addons = rest.filter { !libraries.contains($0) }
+        let links = model.gameFolder.addonLinkIndex()
         ScrollView {
             VStack(alignment: .leading, spacing: Space.section) {
                 if !updates.isEmpty {
-                    BentoSection(title: "Updates Ready", count: updates.count) {
-                        ForEach(updates) { card($0, span: .wide) }
+                    BentoSection(title: String(localized: "Updates Ready"), count: updates.count) {
+                        ForEach(updates) { card($0, span: .wide, links: links) }
+                    }
+                }
+                if model.showCompanion {
+                    BentoSection(title: String(localized: "MacMinion Companion"), count: 1) {
+                        CompanionCard().bentoSpan(.small)
                     }
                 }
                 if !addons.isEmpty {
-                    BentoSection(title: prefs.groupLibraries ? "Addons" : "Installed", count: addons.count) {
-                        ForEach(addons) { card($0, span: .small) }
+                    BentoSection(title: prefs.groupLibraries ? String(localized: "Addons") : String(localized: "Installed"), count: addons.count) {
+                        ForEach(addons) { card($0, span: .small, links: links) }
                     }
                 }
                 if !libraries.isEmpty {
-                    BentoSection(title: "Libraries", count: libraries.count) {
-                        ForEach(libraries) { card($0, span: .small) }
+                    BentoSection(title: String(localized: "Libraries"), count: libraries.count) {
+                        ForEach(libraries) { card($0, span: .small, links: links) }
                     }
                 }
                 if !model.filteredUnmatched.isEmpty {
-                    BentoSection(title: "Not on ESOUI", count: model.filteredUnmatched.count) {
-                        ForEach(model.filteredUnmatched) { FolderCard(folder: $0) }
+                    BentoSection(title: String(localized: "Not on ESOUI"), count: model.filteredUnmatched.count) {
+                        ForEach(model.filteredUnmatched) { FolderCard(folder: $0, links: links.links(for: [$0.folder])) }
                     }
                 }
             }
@@ -345,20 +412,21 @@ struct InstalledGrid: View {
         .overlay {
             if model.installedFiltered && shown.isEmpty && model.filteredUnmatched.isEmpty {
                 NoMatches(scope: .installed)
-            } else if model.installed.isEmpty && model.unmatched.isEmpty {
+            } else if model.installed.isEmpty && model.unmatched.isEmpty && !model.companionInstalled {
                 ContentUnavailableView {
                     Label("No Addons Found", systemImage: "puzzlepiece.extension")
                 } description: {
-                    Text(model.catalog.isEmpty ? "The ESOUI catalog hasn't loaded yet." : "Nothing is installed in \(model.addonsFolder.path).")
+                    Text(model.catalog.isEmpty ? String(localized: "The ESOUI catalog hasn't loaded yet.") : String(localized: "Nothing is installed in \(model.addonsFolder.path)."))
                 } actions: {
                     SettingsLink { Text("Choose Folder…") }
                 }
             }
         }
+        .task { await model.gameFolder.readGameFolderForLinks() }
     }
 
-    private func card(_ addon: InstalledAddon, span: BentoSpan) -> some View {
-        AddonCard(addon: addon.catalog, installed: addon, span: span).bentoSpan(span)
+    private func card(_ addon: InstalledAddon, span: BentoSpan, links: AddonLinkIndex) -> some View {
+        AddonCard(addon: addon.catalog, installed: addon, span: span, links: links.links(for: addon.record.dirs)).bentoSpan(span)
     }
 }
 
@@ -374,7 +442,11 @@ struct FindMoreGrid: View {
         let results = model.findMoreResults
         let featuring = model.prefs.featurePopular && model.search.isEmpty && model.sort != .name && !model.findMoreFilter.isActive
         let featured = featuring ? Array(results.prefix(Self.featuredCount)) : []
-        let rest = Array(results.dropFirst(featured.count))
+        // More Addons, under the featured cards, reads A–Z whatever the sort: the featured cards already show the
+        // sort's top. Without featured cards (searching, filtering, or sorted by name) the results keep the sort.
+        let afterFeatured = Array(results.dropFirst(featured.count))
+        let rest = featured.isEmpty ? afterFeatured
+            : afterFeatured.sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
         let shown = Array(rest.prefix(limit))
         ScrollView {
             VStack(alignment: .leading, spacing: Space.section) {
@@ -384,7 +456,7 @@ struct FindMoreGrid: View {
                     }
                 }
                 // Every card in the main grid is the same size.
-                BentoSection(title: featured.isEmpty ? "Results" : "More Addons", count: rest.count) {
+                BentoSection(title: featured.isEmpty ? String(localized: "Results") : String(localized: "More Addons"), count: rest.count) {
                     ForEach(shown) { card($0, span: .small) }
                 }
                 if rest.count > shown.count {
@@ -403,8 +475,8 @@ struct FindMoreGrid: View {
                     NoMatches(scope: .findMore)
                 } else if !model.catalogResults(includeInstalled: true).isEmpty {
                     ContentUnavailableView("Already Installed", systemImage: "checkmark.circle",
-                                           description: Text(model.search.isEmpty ? "You have every addon here. See Installed."
-                                                             : "Everything matching “\(model.search)” is installed. See Installed."))
+                                           description: Text(model.search.isEmpty ? String(localized: "You have every addon here. See Installed.")
+                                                             : String(localized: "Everything matching “\(model.search)” is installed. See Installed.")))
                 } else if model.search.isEmpty {
                     ContentUnavailableView("No Addons", systemImage: "magnifyingglass")
                 } else {

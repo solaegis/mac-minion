@@ -16,8 +16,8 @@ struct FilterMenu: ToolbarContent {
             } label: {
                 Label("Filter", systemImage: active ? "line.3.horizontal.decrease.circle.fill" : "line.3.horizontal.decrease")
             }
-            .help(scope == .installed ? "Filter installed addons by category, status, or rating, and sort them"
-                  : "Filter the catalog by category, age, game version, or rating, and sort it")
+            .help(scope == .installed ? String(localized: "Filter installed addons by category, status, or rating, and sort them")
+                  : String(localized: "Filter the catalog by category, age, game version, or rating, and sort it"))
         }
     }
 
@@ -60,7 +60,7 @@ struct FilterMenuItems: View {
         Picker("Rating", selection: filter.rating) {
             ForEach(RatingFilter.allCases) { Text($0.title).tag($0) }
         }
-        Toggle(model.currentGame.map { "Works with \($0.name) (\($0.version))" } ?? "Works with the Current Game Version",
+        Toggle(model.currentGame.map { String(localized: "Works with \($0.name) (\($0.version))") } ?? String(localized: "Works with the Current Game Version"),
                isOn: filter.compatibleOnly)
         Toggle("Hide Libraries", isOn: filter.hideLibraries)
         Divider()
@@ -136,10 +136,11 @@ struct FilterChips: View {
             out.append(Chip(title: c.title, clear: set { $0.category = nil }))
         }
         if let s = f.status { out.append(Chip(title: s.label, clear: set { $0.status = nil })) }
-        if f.recency != .any { out.append(Chip(title: "Updated \(f.recency.title.lowercased())", clear: set { $0.recency = .any })) }
+        if f.recency != .any { out.append(Chip(title: String(localized: "Updated \(f.recency.title.localizedLowercase)"), clear: set { $0.recency = .any })) }
         if f.rating != .any { out.append(Chip(title: f.rating.title, clear: set { $0.rating = .any })) }
-        if f.compatibleOnly { out.append(Chip(title: "Current game version", clear: set { $0.compatibleOnly = false })) }
-        if f.hideLibraries { out.append(Chip(title: "No libraries", clear: set { $0.hideLibraries = false })) }
+        if f.compatibleOnly { out.append(Chip(title: String(localized: "Current game version"), clear: set { $0.compatibleOnly = false })) }
+        if f.hideLibraries { out.append(Chip(title: String(localized: "No libraries"), clear: set { $0.hideLibraries = false })) }
+        if let author = f.author { out.append(Chip(title: String(localized: "By \(author)"), clear: set { $0.author = nil })) }
         return out
     }
 }
@@ -157,5 +158,44 @@ struct NoMatches: View {
         } actions: {
             Button("Clear Filters") { scope == .installed ? model.clearInstalledFilters() : model.clearFindMoreFilters() }
         }
+    }
+}
+
+extension AppModel {
+    /// Shows only addons by this creator (S-065): on Find More (and from the Overview) every one they publish on
+    /// ESOUI, elsewhere the installed ones. A chip clears it.
+    func showAddons(by author: String) {
+        if sidebar == .findMore || sidebar == .overview {
+            if sidebar != .findMore { open(.findMore) }
+            findMoreFilter.author = author
+        } else {
+            if sidebar != .installed { open(.installed) }
+            installedFilter.author = author
+        }
+    }
+
+    /// The selected addon's creator, for Addons › Show Addons by Creator.
+    var selectedAuthor: String? {
+        guard case .addon(let id)? = selection else { return nil }
+        return catalog.first { $0.id == id }?.author
+    }
+}
+
+/// A creator's name that filters the page to their addons. Styled by the caller, like the text it replaces.
+struct AuthorLink: View {
+    @Environment(AppModel.self) private var model
+    let author: String
+    /// "by sirinsidiator" in the detail panel; the name alone elsewhere.
+    var prefixed = false
+    @State private var hovering = false
+
+    var body: some View {
+        Button { model.showAddons(by: author) } label: {
+            Text(prefixed ? String(localized: "by \(author)") : author)
+                .underline(hovering)
+        }
+        .buttonStyle(.plain)
+        .onHover { hovering = $0 }
+        .help(String(localized: "Show every addon by \(author) (Option-Command-A)"))
     }
 }

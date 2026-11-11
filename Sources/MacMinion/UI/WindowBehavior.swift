@@ -10,6 +10,13 @@ extension View {
         background(WindowHook())
     }
 
+    /// Keeps a list row's content within a readable width, at the leading edge. In a wide window the row's
+    /// trailing button then stays near its title instead of at the far edge. The row itself, with its selection
+    /// and separator, still spans the list.
+    func readableRow() -> some View {
+        frame(maxWidth: 880, alignment: .leading).frame(maxWidth: .infinity, alignment: .leading)
+    }
+
     /// Sizes a Form, List, or ScrollView to its content, up to `max` points.
     /// A Settings page or sheet then grows to fit, and scrolls only when its
     /// content is taller than `max`.

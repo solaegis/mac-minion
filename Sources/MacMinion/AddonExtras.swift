@@ -14,14 +14,14 @@ struct RatingButtons: View {
                 Image(systemName: rating == .up ? "hand.thumbsup.fill" : "hand.thumbsup")
             }
             .foregroundStyle(rating == .up ? AnyShapeStyle(Palette.accentText) : AnyShapeStyle(.secondary))
-            .help(rating == .up ? "Remove thumbs up" : "Thumbs up: suggest more addons like this")
+            .help(rating == .up ? String(localized: "Remove thumbs up") : String(localized: "Thumbs up: suggest more addons like this"))
             .accessibilityLabel("Thumbs up")
             .accessibilityAddTraits(rating == .up ? .isSelected : [])
             Button { model.setRating(id, rating == .down ? nil : .down) } label: {
                 Image(systemName: rating == .down ? "hand.thumbsdown.fill" : "hand.thumbsdown")
             }
             .foregroundStyle(rating == .down ? AnyShapeStyle(Palette.negative) : AnyShapeStyle(.secondary))
-            .help(rating == .down ? "Remove thumbs down" : "Thumbs down: never suggest this, and fewer like it")
+            .help(rating == .down ? String(localized: "Remove thumbs down") : String(localized: "Thumbs down: never suggest this, and fewer like it"))
             .accessibilityLabel("Thumbs down")
             .accessibilityAddTraits(rating == .down ? .isSelected : [])
         }
@@ -53,7 +53,7 @@ struct VersionMenu: View {
         let installedVersion = model.installed(addon.id)?.installedVersion
         Menu {
             if versions.isEmpty {
-                Text(failed ? "ESOUI's version list isn't available" : "Loading versions…")
+                Text(failed ? String(localized: "ESOUI's version list isn't available") : String(localized: "Loading versions…"))
             }
             ForEach(versions) { v in
                 Button {
@@ -186,6 +186,8 @@ struct AddonPickRow: View {
         }
         .contentShape(.rect)
         .onTapGesture { model.open(.findMore, selecting: addon.id) }
+        .accessibilityAddTraits(.isButton)
+        .accessibilityAction { model.open(.findMore, selecting: addon.id) }
         .contextMenu { RatingMenuItems(id: addon.id) }
     }
 }
