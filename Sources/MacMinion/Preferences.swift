@@ -1,7 +1,6 @@
 import Foundation
 import CoreGraphics
 import MacMinionKit
-import Security
 import UserNotifications
 
 /// How often MacMinion checks ESOUI on its own.
@@ -12,12 +11,12 @@ enum CheckInterval: Int, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
-        case .halfHour: "Every 30 Minutes"
-        case .hour: "Every Hour"
-        case .threeHours: "Every 3 Hours"
-        case .sixHours: "Every 6 Hours"
-        case .twelveHours: "Every 12 Hours"
-        case .day: "Once a Day"
+        case .halfHour: String(localized: "Every 30 Minutes")
+        case .hour: String(localized: "Every Hour")
+        case .threeHours: String(localized: "Every 3 Hours")
+        case .sixHours: String(localized: "Every 6 Hours")
+        case .twelveHours: String(localized: "Every 12 Hours")
+        case .day: String(localized: "Once a Day")
         }
     }
 }
@@ -27,7 +26,7 @@ enum BrowseLayout: String, CaseIterable, Identifiable {
     case grid, list
 
     var id: String { rawValue }
-    var title: String { self == .grid ? "Grid" : "List" }
+    var title: String { self == .grid ? String(localized: "Grid") : String(localized: "List") }
     var symbol: String { self == .grid ? "square.grid.2x2" : "list.bullet" }
 }
 
@@ -36,7 +35,13 @@ enum CardSize: String, CaseIterable, Identifiable {
     case compact, regular, large
 
     var id: String { rawValue }
-    var title: String { rawValue.capitalized }
+    var title: String {
+        switch self {
+        case .compact: String(localized: "Compact")
+        case .regular: String(localized: "Regular")
+        case .large: String(localized: "Large")
+        }
+    }
 
     /// The narrowest a one-cell card gets; the grid fits as many columns as it can.
     var minWidth: CGFloat {
@@ -63,9 +68,9 @@ enum BackupSchedule: String, CaseIterable, Identifiable {
     var id: String { rawValue }
     var title: String {
         switch self {
-        case .off: "Never"
-        case .daily: "Every Day"
-        case .weekly: "Every Week"
+        case .off: String(localized: "Never")
+        case .daily: String(localized: "Every Day")
+        case .weekly: String(localized: "Every Week")
         }
     }
 
@@ -86,14 +91,14 @@ enum OverviewSection: String, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
-        case .banner: "Status Banner"
-        case .libraries: "Libraries for Installed Addons"
-        case .stats: "At a Glance"
-        case .recommended: "Recommended for You"
-        case .search: "AI Search"
-        case .history: "Updates Installed & By Category"
-        case .activity: "Recent Activity & Updated Most Often"
-        case .popular: "Popular This Month"
+        case .banner: String(localized: "Status Banner")
+        case .libraries: String(localized: "Libraries for Installed Addons")
+        case .stats: String(localized: "At a Glance")
+        case .recommended: String(localized: "Recommended for You")
+        case .search: String(localized: "AI Search")
+        case .history: String(localized: "Updates Installed & By Category")
+        case .activity: String(localized: "Recent Activity & Updated Most Often")
+        case .popular: String(localized: "Popular This Month")
         }
     }
 
@@ -113,14 +118,15 @@ enum OverviewSection: String, CaseIterable, Identifiable {
     /// When a visible section still stays out of sight.
     var note: String? {
         switch self {
-        case .libraries: "Only while a library is missing"
-        case .recommended, .search: "Only while an AI provider is set"
+        case .libraries: String(localized: "Only while a library is missing")
+        case .recommended: String(localized: "While an AI provider is set, or when ESO Mac Minion is not installed")
+        case .search: String(localized: "Only while an AI provider is set")
         default: nil
         }
     }
 }
 
-/// Settings people change in the Settings window. Saved to UserDefaults (the Claude key to the
+/// Settings people change in the Settings window. Saved to UserDefaults (API keys to the
 /// Keychain), except in test and snapshot runs, which keep everything in memory.
 @Observable
 final class Preferences {
@@ -141,6 +147,10 @@ final class Preferences {
 
     // General
     var showMenuBarItem: Bool { didSet { Self.save(showMenuBarItem, "app.menuBar") } }
+    /// The app Game Folder files open in. Empty opens each file in its default app.
+    var editorPath: String { didSet { Self.save(editorPath, "files.editor") } }
+
+    var editorURL: URL? { editorPath.isEmpty ? nil : URL(fileURLWithPath: editorPath) }
 
     // Backups
     /// The folder Minion keeps backups in (holds minion-backups/ and initial-backup/).
@@ -197,8 +207,15 @@ final class Preferences {
     var aiProvider: AIProvider { didSet { Self.save(aiProvider.rawValue, "ai.provider") } }
     var ollamaURL: String { didSet { Self.save(ollamaURL, "ai.ollama.url") } }
     var ollamaModel: String { didSet { Self.save(ollamaModel, "ai.ollama.model") } }
-    var claudeModel: ClaudeModel { didSet { Self.save(claudeModel.rawValue, "ai.claude.model") } }
-    var claudeKey: String { didSet { if Self.persists { Keychain.set(claudeKey, account: Keychain.claudeAccount) } } }
+    var claudeModel: String { didSet { Self.save(claudeModel, "ai.claude.model") } }
+    var openAIModel: String { didSet { Self.save(openAIModel, "ai.openai.model") } }
+    /// Saved keys, read from the Keychain at launch. Change them with `saveKey` and `removeKey`.
+    private(set) var claudeKey: String
+    private(set) var openAIKey: String
+    /// Last model lists fetched from each provider, for offline use. Model IDs only, never keys.
+    var cachedModels: [AIProvider: [String]] {
+        didSet { Self.save(Dictionary(uniqueKeysWithValues: cachedModels.map { ($0.key.rawValue, $0.value) }), "ai.models") }
+    }
     var summarizeOnOpen: Bool { didSet { Self.save(summarizeOnOpen, "ai.summarizeOnOpen") } }
     /// Measured Ollama speeds on this Mac, by model, from Settings > AI > Benchmark.
     var modelSpeeds: [String: ModelSpeed] {
@@ -213,6 +230,7 @@ final class Preferences {
         concurrentUpdates = min(max(d.object(forKey: "updates.concurrent") as? Int ?? 2, 1), 4)
         notifyUpdates = d.bool(forKey: "updates.notify")
         showMenuBarItem = d.object(forKey: "app.menuBar") as? Bool ?? true
+        editorPath = d.string(forKey: "files.editor") ?? ""
         // Backups default to where Minion keeps its own, so both apps share them.
         let minion = Self.persists ? MinionImport.read() : nil
         backupDir = d.string(forKey: "backup.dir")
@@ -239,8 +257,12 @@ final class Preferences {
         aiProvider = AIProvider(rawValue: d.string(forKey: "ai.provider") ?? "") ?? .off
         ollamaURL = d.string(forKey: "ai.ollama.url") ?? AIConfig.defaultOllamaURL.absoluteString
         ollamaModel = d.string(forKey: "ai.ollama.model") ?? ""
-        claudeModel = ClaudeModel(rawValue: d.string(forKey: "ai.claude.model") ?? "") ?? .opus
-        claudeKey = Self.persists ? (Keychain.get(account: Keychain.claudeAccount) ?? "") : ""
+        claudeModel = d.string(forKey: "ai.claude.model") ?? AnthropicProvider.defaultModelID
+        openAIModel = d.string(forKey: "ai.openai.model") ?? OpenAIProvider.defaultModelID
+        claudeKey = Self.persists ? (Self.keychain.key(for: .claude) ?? "") : ""
+        openAIKey = Self.persists ? (Self.keychain.key(for: .openai) ?? "") : ""
+        let models = d.dictionary(forKey: "ai.models") as? [String: [String]] ?? [:]
+        cachedModels = Dictionary(uniqueKeysWithValues: models.compactMap { k, v in AIProvider(rawValue: k).map { ($0, v) } })
         summarizeOnOpen = d.bool(forKey: "ai.summarizeOnOpen")
         modelSpeeds = d.data(forKey: "ai.ollama.speeds").flatMap { try? JSONDecoder().decode([String: ModelSpeed].self, from: $0) } ?? [:]
     }
@@ -248,38 +270,48 @@ final class Preferences {
     var aiConfig: AIConfig {
         AIConfig(provider: aiProvider,
                  ollamaURL: URL(string: ollamaURL.trimmingCharacters(in: .whitespaces)) ?? AIConfig.defaultOllamaURL,
-                 ollamaModel: ollamaModel, claudeModel: claudeModel,
-                 claudeKey: claudeKey.trimmingCharacters(in: .whitespacesAndNewlines))
+                 ollamaModel: ollamaModel,
+                 claudeModel: claudeModel.trimmingCharacters(in: .whitespaces), claudeKey: claudeKey,
+                 openAIModel: openAIModel.trimmingCharacters(in: .whitespaces), openAIKey: openAIKey)
+    }
+
+    private static let keychain = KeychainStore()
+
+    func apiKey(for provider: AIProvider) -> String {
+        switch provider {
+        case .claude: claudeKey
+        case .openai: openAIKey
+        case .off, .ollama: ""
+        }
+    }
+
+    /// Stores the key in the Keychain (in memory only in test runs). False when the Keychain refused it.
+    @discardableResult
+    func saveKey(_ key: String, for provider: AIProvider) -> Bool {
+        let key = key.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard provider.needsKey, !key.isEmpty else { return false }
+        if Self.persists, !Self.keychain.save(key, for: provider) { return false }
+        setKey(key, for: provider)
+        return true
+    }
+
+    func removeKey(for provider: AIProvider) {
+        if Self.persists { Self.keychain.remove(for: provider) }
+        setKey("", for: provider)
+    }
+
+    private func setKey(_ key: String, for provider: AIProvider) {
+        switch provider {
+        case .claude: claudeKey = key
+        case .openai: openAIKey = key
+        case .off, .ollama: break
+        }
     }
 
     var aiEnabled: Bool { aiProvider != .off }
 
     private static func save(_ value: Any, _ key: String) {
         if persists { defaults.set(value, forKey: key) }
-    }
-}
-
-/// The Claude API key lives in the login Keychain, never in UserDefaults or state.json.
-enum Keychain {
-    static let service = "com.solaegis.macminion"
-    static let claudeAccount = "claude-api-key"
-
-    static func get(account: String) -> String? {
-        let query: [String: Any] = [kSecClass as String: kSecClassGenericPassword, kSecAttrService as String: service,
-                                    kSecAttrAccount as String: account, kSecReturnData as String: true]
-        var out: AnyObject?
-        guard SecItemCopyMatching(query as CFDictionary, &out) == errSecSuccess, let data = out as? Data else { return nil }
-        return String(decoding: data, as: UTF8.self)
-    }
-
-    static func set(_ value: String, account: String) {
-        let query: [String: Any] = [kSecClass as String: kSecClassGenericPassword, kSecAttrService as String: service,
-                                    kSecAttrAccount as String: account]
-        SecItemDelete(query as CFDictionary)
-        guard !value.isEmpty else { return }
-        var add = query
-        add[kSecValueData as String] = Data(value.utf8)
-        SecItemAdd(add as CFDictionary, nil)
     }
 }
 
@@ -293,8 +325,8 @@ enum Notifier {
     static func updatesReady(_ names: [String]) {
         guard !Store.isOverridden, !names.isEmpty else { return }
         let content = UNMutableNotificationContent()
-        content.title = names.count == 1 ? "1 addon update is ready" : "\(names.count) addon updates are ready"
-        content.body = names.prefix(4).joined(separator: ", ") + (names.count > 4 ? ", and more" : "")
+        content.title = String(localized: "\(names.count) addon updates are ready")
+        content.body = names.prefix(4).joined(separator: ", ") + (names.count > 4 ? ", " + String(localized: "and more") : "")
         let request = UNNotificationRequest(identifier: "updates", content: content, trigger: nil)
         UNUserNotificationCenter.current().add(request)
     }

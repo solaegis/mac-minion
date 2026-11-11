@@ -96,6 +96,7 @@ enum Docs {
         case .installed, .findMore: page("browsing.html")
         case .updates: page("updates.html")
         case .backups: page("backups.html")
+        case .gameFolder: page("game-folder.html")
         }
     }
 
@@ -119,6 +120,7 @@ struct HelpCommands: Commands {
             Button("MacMinion Help") { Docs.open(Docs.home) }
                 .keyboardShortcut("?", modifiers: .command)
             Button("Help for This Page") { Docs.open(Docs.page(for: model.sidebar)) }
+                .keyboardShortcut("?", modifiers: [.command, .option])
             Button("Command-Line Reference") { Docs.open(Docs.cli) }
             Divider()
             Button("Release Notes") { Docs.open(Docs.releases) }
