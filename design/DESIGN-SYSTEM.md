@@ -1,5 +1,8 @@
 # MacMinion design system
 
+Tokens only. Window structure, menus, keyboard, sheets, settings, and the other macOS platform rules are in
+`design/MACOS-UI-ARCHITECTURE.md`.
+
 Apple's controls and layout, one accent: **Minion Blue `#007AFF`**, the same blue as the Dock icon
 (`Icon/AppIcon.icon` fill, srgb 0 0.478 1) and the Mac's own blue. Use the tokens below; never raw colors, radii, or durations.
 
@@ -9,8 +12,18 @@ Apple's controls and layout, one accent: **Minion Blue `#007AFF`**, the same blu
 - `Palette.accentText`: accent-colored text and symbols (deep shade in light mode, light shade in dark).
 - `Palette.onAccent`: text and symbols on an accent fill. Never a fixed white.
 - `Palette.accentWash` / `Palette.accentEdge`: the soft fill and border of accent cards (AI summary, icon wells, thumbnail placeholders).
+- `Palette.counterpart` / `Palette.counterpartWash`: the second of two things side by side, beside the accent (Compare's right-hand character). Orange, or teal when the accent is warm.
+  Also "set differently from the usual" in the Characters explorer: outlined cells, odd-one-out spokes and dots,
+  and the bars of every value after the most common one (which is the accent).
+- `Palette.series2` / `Palette.series3`: the second and third kinds in a graph whose first is the accent
+  (Connections: files, then items and places). Teal and purple, swapped when the accent is close to them.
+- `Palette.accentFill` / `Palette.counterpartFill`: solid chart bars (the most common value, the others).
+- `Palette.negativeWash` / `Palette.negativeEdge`: the fill and border of a card that flags a problem.
+- An opacity on a token is fine once, for decoration (the banner watermark) or to encode data (the
+  explorer's heat map); a value used twice becomes a token here.
 - `Palette.positive` (green): up to date, a passing test. `Palette.negative` (red): errors, timeouts, failed downloads.
-  Both have Increase Contrast values.
+  Both have Increase Contrast values. `Palette.caution` (system orange): Problems that are not failures yet
+  (data at risk, warnings).
 - Neutral states (ignored, version unknown) use `.secondary`.
 - Update available always uses the accent (`StatusChip`), so "needs attention" has one color app-wide.
 
@@ -20,7 +33,7 @@ Apple's controls and layout, one accent: **Minion Blue `#007AFF`**, the same blu
 - `.accentSurface()`: cards that belong to the accent (the What's New summary).
 
 ## Radius.swift
-- `bar 2` chart bars · `chip 8` thumbnails and icon wells · `tile 12` stat tiles, small bento cards, AI card
+- `bar 2` chart bars · `cell 4` grid cells and swatches · `small 6` value cells in Compare · `chip 8` thumbnails and icon wells · `tile 12` stat tiles, small bento cards, AI card
   · `card 16` Overview cards, wide and large bento cards · `hero 20` the Overview banner.
 - Inner corners are concentric: inner radius = outer radius - inset (the large card image uses `card - Space.md`).
 

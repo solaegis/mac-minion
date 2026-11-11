@@ -1,0 +1,41 @@
+{
+  "sourceLanguage" : "en",
+  "strings" : {
+    "NSDocumentsFolderUsageDescription" : {
+      "comment" : "TCC prompt for Documents access",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "MacMinion reads and writes your Elder Scrolls Online AddOns folder in Documents so it can install, update, and remove addons."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "MacMinion liest und schreibt deinen Elder Scrolls Online-AddOns-Ordner in Dokumente, um Addons zu installieren, zu aktualisieren und zu entfernen."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "MacMinion lee y escribe tu carpeta de AddOns de Elder Scrolls Online en Documentos para instalar, actualizar y eliminar addons."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "MacMinion lit et écrit ton dossier AddOns d’Elder Scrolls Online dans Documents pour installer, mettre à jour et supprimer des addons."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "MacMinion читает и записывает папку AddOns Elder Scrolls Online в «Документы», чтобы устанавливать, обновлять и удалять аддоны."
+          }
+        }
+      }
+    }
+  },
+  "version" : "1.0"
+}

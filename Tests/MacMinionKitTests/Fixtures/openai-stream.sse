@@ -1,0 +1,11 @@
+data: {"id":"chatcmpl-1","object":"chat.completion.chunk","created":1793000000,"model":"gpt-6-astra","choices":[{"index":0,"delta":{"role":"assistant","content":"","refusal":null},"logprobs":null,"finish_reason":null}],"usage":null}
+
+data: {"id":"chatcmpl-1","object":"chat.completion.chunk","created":1793000000,"model":"gpt-6-astra","choices":[{"index":0,"delta":{"content":"• Fixes a crash"},"logprobs":null,"finish_reason":null}],"usage":null}
+
+data: {"id":"chatcmpl-1","object":"chat.completion.chunk","created":1793000000,"model":"gpt-6-astra","choices":[{"index":0,"delta":{"content":" on login"},"logprobs":null,"finish_reason":null}],"usage":null}
+
+data: {"id":"chatcmpl-1","object":"chat.completion.chunk","created":1793000000,"model":"gpt-6-astra","choices":[{"index":0,"delta":{},"logprobs":null,"finish_reason":"stop"}],"usage":null}
+
+data: {"id":"chatcmpl-1","object":"chat.completion.chunk","created":1793000000,"model":"gpt-6-astra","choices":[],"usage":{"prompt_tokens":405,"completion_tokens":9,"total_tokens":414}}
+
+data: [DONE]

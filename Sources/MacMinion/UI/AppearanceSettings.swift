@@ -1,11 +1,20 @@
 import SwiftUI
 
-/// Settings > Appearance: the accent color. Light and dark mode follow the Mac.
+/// Settings > Appearance: light, dark, or the Mac's mode, accent color, and language.
 struct AppearanceSettings: View {
     @Bindable private var store = ThemeStore.shared
+    @AppStorage(AppearanceController.key) private var preference = AppearancePreference.system
+    @AppStorage(LanguageController.key) private var language = LanguagePreference.system
+    @State private var askRelaunch = false
 
     var body: some View {
         Section {
+            Picker("Appearance", selection: AppearanceController.binding($preference)) {
+                ForEach(AppearancePreference.allCases) { mode in
+                    Label(mode.title, systemImage: mode.symbolName).tag(mode)
+                }
+            }
+            .pickerStyle(.segmented)
             AccentPreview()
                 .padding(.vertical, Space.xs)
             LabeledContent("Accent color") {
@@ -22,7 +31,33 @@ struct AppearanceSettings: View {
                         .foregroundStyle(.secondary)
                 }
             }
+            Picker("Language", selection: languageBinding) {
+                ForEach(LanguagePreference.allCases) { mode in
+                    Text(mode.displayName).tag(mode)
+                }
+            }
         }
+        // Again here, in case the launch-time apply ran before the app was ready.
+        .onAppear { AppearanceController.applySaved() }
+        .confirmationDialog("Relaunch MacMinion to apply the new language?", isPresented: $askRelaunch) {
+            Button("Relaunch") { LanguageController.relaunch() }
+            Button("Later", role: .cancel) {}
+        } message: {
+            Text("Menus and windows use the language chosen at launch.")
+        }
+    }
+
+    /// Writes the preference immediately; asks to relaunch when it actually changed.
+    private var languageBinding: Binding<LanguagePreference> {
+        Binding(
+            get: { language },
+            set: { newValue in
+                guard newValue != language else { return }
+                language = newValue
+                LanguageController.apply(newValue)
+                askRelaunch = true
+            }
+        )
     }
 }
 
@@ -56,9 +91,9 @@ private struct AccentPreview: View {
             }
             .padding(.leading, Space.xs)
             .padding(.bottom, Space.sm)
-            sidebarRow("Inbox", symbol: "tray", selected: true)
-            sidebarRow("Today", symbol: "star", selected: false)
-            sidebarRow("Done", symbol: "checkmark.circle", selected: false)
+            sidebarRow(String(localized: "Inbox"), symbol: "tray", selected: true)
+            sidebarRow(String(localized: "Today"), symbol: "star", selected: false)
+            sidebarRow(String(localized: "Done"), symbol: "checkmark.circle", selected: false)
             Spacer(minLength: 0)
         }
         .padding(Space.sm)
@@ -83,8 +118,8 @@ private struct AccentPreview: View {
                 Spacer()
                 Text("1 left").font(.caption).foregroundStyle(Palette.accentText)
             }
-            task("Pick a color", done: true)
-            task("Ship the first build", done: false, tag: "Today")
+            task(String(localized: "Pick a color"), done: true)
+            task(String(localized: "Ship the first build"), done: false, tag: String(localized: "Today"))
             Spacer(minLength: 0)
             // Drawn, not real controls: the preview is a picture, and real
             // controls turn gray when the window is not in front.
@@ -101,7 +136,7 @@ private struct AccentPreview: View {
                     .fill(Palette.accent)
                     .frame(width: 28, height: 16)
                     .overlay(alignment: .trailing) {
-                        Circle().fill(.white).padding(2).shadow(color: .black.opacity(0.2), radius: 1, y: 1)
+                        Circle().fill(.white).padding(2).shadow(color: .black.opacity(0.2), radius: 1, y: 1) // hig: ok the knob of a color swatch, as in the system picker
                     }
             }
         }
@@ -122,7 +157,7 @@ private struct AccentPreview: View {
                     .foregroundStyle(Palette.accentText)
                     .padding(.horizontal, Space.sm)
                     .padding(.vertical, 2)
-                    .background(Palette.accent.opacity(0.15), in: Capsule())
+                    .background(Palette.accentWash, in: Capsule())
             }
         }
         .font(.callout)
@@ -158,7 +193,7 @@ private struct AccentSwatch: View {
         if let tint = theme.tint {
             AnyShapeStyle(tint)
         } else {
-            AnyShapeStyle(AngularGradient(colors: [.red, .orange, .yellow, .green, .blue, .purple, .pink, .red],
+            AnyShapeStyle(AngularGradient(colors: [.red, .orange, .yellow, .green, .blue, .purple, .pink, .red], // hig: ok the multicolor swatch, as in System Settings
                                           center: .center))
         }
     }

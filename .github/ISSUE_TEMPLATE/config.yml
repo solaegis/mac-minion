@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: MacMinion documentation
+    url: https://solaegis.github.io/mac-minion/
+    about: Install, first open, backups, AI setup, and troubleshooting.
+  - name: A problem inside one addon
+    url: https://www.esoui.com
+    about: Report it to the addon's author on ESOUI.

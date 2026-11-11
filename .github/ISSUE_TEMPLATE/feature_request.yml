@@ -1,0 +1,15 @@
+name: Feature request
+description: Something MacMinion should do for your ESO addons.
+labels: [enhancement]
+body:
+  - type: textarea
+    id: need
+    attributes:
+      label: What you want to do
+      description: The task, in your own words. Mention it if Minion did this and MacMinion does not.
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: How it could work

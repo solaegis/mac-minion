@@ -1,11 +1,12 @@
 ---
 name: macminion
-description: Drive the MacMinion app on this Mac from the shell with the `macminion` command: list installed Elder Scrolls Online addons and pending updates, search the ESOUI catalog, install, update, ignore, or remove addons, and summarize changelogs with the configured AI. Use when the user asks about their ESO addons, ESOUI, Minion, or MacMinion.
+description: "Drive the MacMinion app on this Mac from the shell with the `macminion` command: list installed Elder Scrolls Online addons and pending updates, search the ESOUI catalog, install, update, ignore, or remove addons, and summarize changelogs with the configured AI. Use when the user asks about their ESO addons, ESOUI, Minion, or MacMinion."
 ---
 
 # MacMinion
 
-`macminion` runs commands in the MacMinion app (a native replacement for Minion). Changes show in its
+`macminion` runs commands in the MacMinion app, an unofficial native Mac replacement for
+[Minion](https://minion.mmoui.com), the addon manager made by MMOUI for ESOUI. Changes show in its
 window at once. If the app is closed, the command opens it in the background. Addons are named by their
 ESOUI id: the number in `esoui.com/downloads/info<id>`.
 
@@ -19,7 +20,7 @@ ESOUI id: the number in `esoui.com/downloads/info<id>`.
 - Installs and updates write to the live AddOns folder. Ask before `addons install` or `updates install`
   unless the user asked for that change.
 - `addons summarize` and `updates summarize` send changelog text to the AI provider in Settings
-  (Ollama on this Mac, or Claude). They can take a minute on a local model.
+  (Ollama on this Mac, Claude, or OpenAI). They can take a minute on a local model.
 - To try something without real data, put `APP_STORE=/tmp/macminion-test` in front of the command.
 
 ## Main commands
@@ -40,6 +41,11 @@ ESOUI id: the number in `esoui.com/downloads/info<id>`.
 | `macminion ai benchmark --json` | Measure the top three models' speed here, then recommend again |
 | `macminion backups list --json` / `backups create` | Minion-format backups of SavedVariables, settings, and the addon list |
 | `macminion backups restore <name> [--remove-others] --yes --json` | Restore one; reports first without `--yes`; saves the current state first |
-| `macminion open <page> [--addon <id>]` | Show overview, installed, updates, or findMore |
+| `macminion sv files --json` | SavedVariables files, the addon each belongs to, size, problems |
+| `macminion sv tree <file> [--path 'Var["key"][1]'] --json` | One table's entries with values, names for IDs, levels, sizes |
+| `macminion sv find <name or id> --json` / `sv id <id>` | Every place a character, account, item, guild, set, zone, or quest appears |
+| `macminion sv problems --json` | What's wrong, one finding per cause, worst first: `tier`, `title`, `impact`, `summary`, `affected`, `action` + `targets` (`installLibraries` → `libraries install`, `update` → `addons install`, `findCharacter` → `sv find <id>` for data kept for a character no file names; clean up and restore happen in the app: `open gameFolder`), and the raw `problems` under it. `main: false` means nothing to do. `--raw` for the raw checks alone |
+| `macminion sv biggest [--by characters\|accounts\|servers\|files] --json` | What takes space, largest first |
+| `macminion open <page> [--addon <id>]` | Show overview, installed, updates, findMore, backups, or gameFolder |
 
 Everything else: `macminion help`, and `macminion help <command>` for its options.
