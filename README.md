@@ -25,8 +25,9 @@ MacMinion runs on this Mac only. There is no account and no server of its own. I
 - Install any older release ESOUI still has (Version menu in an addon's details); older versions are pinned
 - Backups of SavedVariables, settings files, and the addon list, in Minion's own format and folder, so either app restores the other's (Backups in the sidebar, ⌘B)
 - Live or PTS AddOns folder (or any folder you choose)
-- Menu bar extra with the update count and Update All
+- Menu bar extra with the Dock minion glyph, the update count, and Update All; closing the window can leave MacMinion in the menu bar (out of the Dock), and Open at login can start it there with the window closed
 - Checks ESOUI for updates once a day by default (Settings → Updates)
+- **Game Folder** for SavedVariables and the game's settings files: Characters (compare and clone settings), Inspector, Problems with Clean Up, and Game Settings forms with hover help on curated keys
 - UI in English, German, French, Spanish, or Russian (follows the Mac by default; override in Settings → Appearance)
 - Optional AI, via Ollama on this Mac, Claude, or OpenAI:
   - changelog summaries for one addon or every pending update
@@ -80,10 +81,11 @@ That installs `~/Applications/MacMinion.app` and a `macminion` link in `~/.local
 
 ## Use
 
-- **Overview**, **Installed**, **Updates**, and **Find More** in the sidebar
+- **Overview**, **Installed**, **Updates**, **Find More**, **Backups**, and **Game Folder** in the sidebar
 - **Update All** with ⌘U; **Check for Updates** with ⌘R
 - Switch Installed and Find More between grid and list from the toolbar, or Option-⌘-1 / Option-⌘-2
-- Menu bar item: update count, Update All, Open MacMinion
+- Menu bar item: update count, Update All, Open MacMinion; with the menu bar on, quit from there or ⌘Q
+- **Game Folder**: Characters, Inspector, Problems, and Game Settings (⌃⌘1–4); Compare Characters… is ⌃⌘C; Clean Up… is ⇧⌘T
 - Settings (⌘,): General, Updates, Layout, Backups, AI, Appearance (accent, light/dark, and language)
 
 ## Coming from Minion
@@ -120,7 +122,7 @@ Pick one in Settings → AI. Each keeps its own model and key, so switching back
 
 ## Help
 
-The [documentation](https://solaegis.github.io/mac-minion/) covers install, first open, backups, AI setup, and [troubleshooting](https://solaegis.github.io/mac-minion/troubleshooting.html). For anything else, [open an issue](https://github.com/solaegis/mac-minion/issues/new/choose). Report security problems privately, as [SECURITY.md](SECURITY.md) explains.
+The [documentation](https://solaegis.github.io/mac-minion/) covers install, first open, backups, Game Folder, AI setup, and [troubleshooting](https://solaegis.github.io/mac-minion/troubleshooting.html). For anything else, [open an issue](https://github.com/solaegis/mac-minion/issues/new/choose). Report security problems privately, as [SECURITY.md](SECURITY.md) explains.
 
 ## Support
 
@@ -128,7 +130,7 @@ MacMinion is free for personal use. If it saves you time, you can [buy solaegis 
 
 ## Contributing
 
-Bug reports and ideas are welcome. Read [CONTRIBUTING.md](CONTRIBUTING.md) for how to build, test, and send a change.
+Bug reports and ideas are welcome. Read [CONTRIBUTING.md](CONTRIBUTING.md) for how to build, test, and send a change. Maintainers cut a release with [RELEASE.md](RELEASE.md).
 
 If you are a native speaker of German, French, Spanish, or Russian, help with the UI wording is especially welcome. The first translations are a starting point; open an [issue](https://github.com/solaegis/mac-minion/issues/new/choose) or a pull request with clearer phrasing, and say which language you are correcting.
 

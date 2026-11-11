@@ -50,15 +50,15 @@ Uploaded `site/images/social-preview.png` (1280×640, 620 KB). It shows the real
 - Settings → Code security → **Private vulnerability reporting**: already on (SECURITY.md points to it).
 - Optional: pin the repo on your profile (profile → Customize your pins).
 
-## 5. v0.5 release notes (Releases → MacMinion 0.5 → Edit, replace the body)
+## 5. Cutting a release
 
-The `0.5` section of CHANGELOG.md, followed by:
+Follow [RELEASE.md](../RELEASE.md): verify locally, promote `CHANGELOG.md` to `## X.Y.Z`, push `main` when allowed, confirm CI, then push tag `vX.Y.Z`. The Release workflow builds the zip, creates the GitHub Release from that CHANGELOG section, updates `site/appcast.xml`, and redeploys the docs site.
+
+For the historical `v0.5` release only: if the GitHub Release body still needs a hand edit, use the `0.5` section of CHANGELOG.md, then:
 
 ```
 **Install:** download `MacMinion-0.5-macos-arm64.zip`, unzip, drag MacMinion to Applications, and open it the first time with right-click → Open. Needs macOS 26 on Apple Silicon. [Install guide](https://solaegis.github.io/mac-minion/install.html)
 ```
-
-From the next tag on, the release workflow uses that version's CHANGELOG section as the notes.
 
 ## 6. Off-GitHub drafts
 

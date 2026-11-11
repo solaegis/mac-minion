@@ -25,8 +25,12 @@ tools/selftest.sh
 ```
 
 - `./build.sh` builds, signs, and installs `~/Applications/MacMinion.app`. Fix any warnings it shows.
-- `tools/selftest.sh` runs the app's real functions against a store in `/tmp`. Never test against your real database in `~/Library/Application Support/MacMinion/`.
+- `tools/selftest.sh` runs the app's real functions against a store in `/tmp`. Never test against your real Application Support JSON store in `~/Library/Application Support/MacMinion/`.
 - For a UI change, run `tools/snap.sh` and look at the light and dark snapshots in `/tmp/MacMinion-shots/`.
 - Design rules are in [design/DESIGN-SYSTEM.md](design/DESIGN-SYSTEM.md): system controls, design tokens, no hard-coded colors.
 
 Write commit messages that say what someone can now do, for example "Install older releases from ESOUI's archive".
+
+## Cutting a release
+
+Maintainers: follow [RELEASE.md](RELEASE.md) to verify, tag, and publish. Do not push to `main` or create a release tag unless the project owner asked for that.

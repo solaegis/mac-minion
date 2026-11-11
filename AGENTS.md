@@ -1,6 +1,6 @@
 ## Learned User Preferences
 
-- When building from a plan: create a feature branch, commit after verified success, merge into local `main`, then delete the feature branch and stay on `main` (no push unless asked).
+- When building from a plan: create a feature branch, commit after verified success, merge into local `main`, then delete the feature branch and stay on `main`. Commit/merge to local `main` is fine; never push to remote `main` without express permission.
 - Write GitHub README and user docs for people installing and using the app; keep agent/build internals (snapshots, grid lint, MCP, CI badges) out of the main path. README shields stay at latest-release, macOS, and license only — no CI, vanity, or AI badges.
 - Do not propose Developer ID, notarization, App Store, sandbox, or SwiftLint unless Lewis changes those product goals.
 - Treat MacMinion as source-available under PolyForm Noncommercial, not open source — do not suggest MIT/Apache or lists that require an OSI license.
@@ -11,7 +11,7 @@
 
 - Public repo is `solaegis/mac-minion`; docs and Sparkle feed live at `https://solaegis.github.io/mac-minion/`.
 - In-game companion addon is **EsoMacMinion** (`solaegis/eso-mac-minion`, `~/git/solaegis/eso-mac-minion`); reads SV global `EsoMacMinion_Data` (game file often `SavedVariables/EsoMacMinion.lua`). Do not use legacy `MacMinionCompanion` / `eso-macminion-companion` names.
-- Game Folder is an experimental sidebar for ESO SavedVariables, characters, problems, and space; when extending it, surface companion state from `CompanionData` and keep Problems actionable.
+- Game Folder is an experimental sidebar for ESO SavedVariables, characters, problems, and space; when extending it, surface companion state from `CompanionData` and keep Problems actionable. Parsed SavedVariables trees are shared via `SVDocumentCache` (stamped LRU) across Find, Connections, character places, and the Inspector.
 - License is PolyForm Noncommercial 1.0.0 (copyright Lewis Vavasour); GitHub classifies it as Other.
 - Shipping is GitHub Releases plus Sparkle 2 (EdDSA). CI signs with the MacMinion Release certificate so TCC survives updates; not Apple Developer ID and not notarized.
 - GitHub About (Releases on; Packages/Deployments off) and the social-preview image have no API and are already set — do not re-upload or treat them as leftover launch work.
@@ -19,3 +19,4 @@
 - App store persistence is file-backed JSON under Application Support (or `APP_STORE`): `state.json`, `catalog.json`, `categories.json`, and related caches — not SwiftData or SQLite (CLAUDE.md’s “SwiftData database” line is stale). Game Folder data stays a derived in-memory view of on-disk ESO files, not a SQL/graph primary store.
 - Optional support is Buy Me a Coffee via `.github/FUNDING.yml` (`buy_me_a_coffee: lewisvavasw`); the public page display name is solaegis. Do not add a BMC shield.
 - r/elderscrollsonline bans anything that uses AI in any form ([wiki/rules](https://www.reddit.com/r/elderscrollsonline/wiki/rules/)). Posts, comments, screenshots, and linked copy for that sub must not mention AI, Ollama, Claude, OpenAI, or related features.
+- Snapshot runs need MacMinion excluded from BetterStage so the window keeps the requested size (including `-min` shots).
