@@ -39,7 +39,7 @@ public struct CatalogAddon: Decodable, Sendable, Identifiable, Hashable {
         categoryID = (try? c.flexibleInt(.categoryID)) ?? 0
         version = (try? c.flexibleString(.version)) ?? ""
         date = Date(timeIntervalSince1970: Double((try? c.flexibleInt(.date)) ?? 0) / 1000)
-        name = (try? c.flexibleString(.name)) ?? "Untitled"
+        name = (try? c.flexibleString(.name)) ?? String(localized: "Untitled", bundle: .module)
         author = (try? c.flexibleString(.author)) ?? ""
         infoURL = (try? c.flexibleString(.infoURL)).flatMap(URL.init(string:))
         downloads = (try? c.flexibleInt(.downloads)) ?? 0

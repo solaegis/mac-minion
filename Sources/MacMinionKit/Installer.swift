@@ -99,14 +99,15 @@ public struct Installer: Sendable {
 }
 
 public enum InstallError: LocalizedError, Equatable {
-    case download(Int), checksum, unzip, empty
+    case download(Int), checksum, unzip, empty, companionMissing
 
     public var errorDescription: String? {
         switch self {
-        case .download(let code): "The download failed (\(code))."
-        case .checksum: "The download didn't match its checksum."
-        case .unzip: "The zip couldn't be unpacked."
-        case .empty: "The zip has no addon folders."
+        case .download(let code): String(localized: "The download failed (\(code)).", bundle: .module)
+        case .checksum: String(localized: "The download didn't match its checksum.", bundle: .module)
+        case .unzip: String(localized: "The zip couldn't be unpacked.", bundle: .module)
+        case .empty: String(localized: "The zip has no addon folders.", bundle: .module)
+        case .companionMissing: String(localized: "This MacMinion doesn't include a copy of ESO Mac Minion to install.", bundle: .module)
         }
     }
 }

@@ -11,6 +11,13 @@ public struct MissingLibrary: Sendable, Hashable, Identifiable {
     public let wantedBy: [String]
     /// True when at least one addon lists it in DependsOn: that addon won't load without it.
     public let required: Bool
+
+    public init(folder: String, addon: CatalogAddon, wantedBy: [String], required: Bool) {
+        self.folder = folder
+        self.addon = addon
+        self.wantedBy = wantedBy
+        self.required = required
+    }
 }
 
 /// Reads `## DependsOn:` and `## OptionalDependsOn:` from every folder in AddOns and finds the ESOUI

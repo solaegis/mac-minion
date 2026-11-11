@@ -3,6 +3,7 @@ import PackageDescription
 
 let package = Package(
     name: "MacMinion",
+    defaultLocalization: "en",
     platforms: [.macOS(.v26)],
     dependencies: [
         // App updates. Pinned: bump on purpose, after reading Sparkle's changelog.
@@ -10,15 +11,20 @@ let package = Package(
     ],
     targets: [
         // Rules and data logic with no SwiftUI, so tests run without the app.
-        .target(name: "MacMinionKit"),
+        .target(
+            name: "MacMinionKit",
+            resources: [.process("Resources")]
+        ),
         .executableTarget(
             name: "MacMinion",
             dependencies: ["MacMinionKit", .product(name: "Sparkle", package: "Sparkle")],
+            resources: [.process("Resources")],
             // App code runs on the main thread unless you say otherwise.
             swiftSettings: [.defaultIsolation(MainActor.self)],
             // build.sh copies Sparkle.framework into Contents/Frameworks; find it there.
             linkerSettings: [.unsafeFlags(["-Xlinker", "-rpath", "-Xlinker", "@executable_path/../Frameworks"])]
         ),
-        .testTarget(name: "MacMinionKitTests", dependencies: ["MacMinionKit"]),
+        // Fixtures: recorded NDJSON and SSE streams, so no test touches the network.
+        .testTarget(name: "MacMinionKitTests", dependencies: ["MacMinionKit"], resources: [.copy("Fixtures")]),
     ]
 )

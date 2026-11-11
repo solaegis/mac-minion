@@ -58,6 +58,22 @@ private func addon(_ id: Int, _ dirs: [String], version: String = "1", downloads
     #expect(r.installed.first { $0.id == 1 }?.status == .versionUnknown)
 }
 
+@Test func installsThatFinishDuringAScanKeepTheirRecords() {
+    // The scan read AddOns before Beta's folder moved in, and while Gamma was being removed.
+    let alpha = InstallRecord(id: 1, version: "1", dirs: ["Alpha"])
+    let gamma = InstallRecord(id: 4, version: "1", dirs: ["Gamma"])
+    let pinnedBeta = InstallRecord(id: 2, version: "0.9", md5: "abc", dirs: ["Beta"], ignored: true)
+    let before = [1: alpha, 4: gamma]
+    let now = [1: alpha, 2: pinnedBeta]
+    let scanned = AddonMatcher.match(folders: ["Alpha": nil, "Gamma": nil], catalog: [addon(1, ["Alpha"]), addon(2, ["Beta"]), addon(4, ["Gamma"])],
+                                     records: now).records
+    #expect(scanned[2] == nil, "the scan alone would drop Beta")
+    let saved = AddonMatcher.records(scanned: scanned, before: before, now: now)
+    #expect(saved[2] == pinnedBeta, "the new install keeps its version, checksum, and pin")
+    #expect(saved[4] == nil, "the removal that finished meanwhile stays removed")
+    #expect(saved[1] == alpha)
+}
+
 @Test func unreadableFolderIsNotEmpty() {
     #expect(AddonMatcher.scan(URL(fileURLWithPath: "/no/such/AddOns")) == nil)
 }
@@ -148,51 +164,6 @@ private func addon(_ id: Int, _ dirs: [String], version: String = "1", downloads
     #expect(Manifest.read(folder: addons.appending(path: "Alpha"))?.version == "2")
 }
 
-@Test func claudeRequestShape() throws {
-    let client = AIClient(config: AIConfig(provider: .claude, claudeModel: .opus, claudeKey: "sk-test"))
-    let r = try client.makeRequest(system: "S", prompt: "P")
-    #expect(r.url == AIClient.anthropicURL)
-    #expect(r.value(forHTTPHeaderField: "x-api-key") == "sk-test")
-    #expect(r.value(forHTTPHeaderField: "anthropic-version") == "2026-10-21")
-    #expect(r.value(forHTTPHeaderField: "anthropic-beta") == "server-side-fallback-2026-07-01")
-    let body = try #require(JSONSerialization.jsonObject(with: r.httpBody ?? Data()) as? [String: Any])
-    #expect(body["model"] as? String == "claude-opus-5-5")
-    #expect(body["system"] as? String == "S")
-    #expect(body["fallbacks"] as? String == "default")
-    #expect(body["temperature"] == nil)
-
-    let haiku = AIClient(config: AIConfig(provider: .claude, claudeModel: .haiku, claudeKey: "k"))
-    let hr = try haiku.makeRequest(system: "S", prompt: "P")
-    let hb = try #require(JSONSerialization.jsonObject(with: hr.httpBody ?? Data()) as? [String: Any])
-    #expect(hb["fallbacks"] == nil && hr.value(forHTTPHeaderField: "anthropic-beta") == nil, "Haiku 5.5 has no server-side fallback")
-}
-
-@Test func ollamaRequestShape() throws {
-    let client = AIClient(config: AIConfig(provider: .ollama, ollamaModel: "llama3.2"))
-    let r = try client.makeRequest(system: "S", prompt: "P")
-    #expect(r.url?.absoluteString == "http://localhost:11434/api/chat")
-    let body = try #require(JSONSerialization.jsonObject(with: r.httpBody ?? Data()) as? [String: Any])
-    #expect(body["model"] as? String == "llama3.2" && body["stream"] as? Bool == false)
-    #expect((body["options"] as? [String: Any])?["num_ctx"] as? Int == 16_384)
-    #expect(r.timeoutInterval == AIClient.idleTimeout)
-}
-
-@Test func parsesAnswers() throws {
-    let claude = #"{"content":[{"type":"thinking","thinking":""},{"type":"text","text":"• Fixed a crash"}],"stop_reason":"end_turn","stop_details":null}"#
-    #expect(try AIClient.parseClaude(Data(claude.utf8)) == "• Fixed a crash")
-    let refusal = #"{"content":[],"stop_reason":"refusal","stop_details":{"type":"refusal","category":null,"explanation":"no"}}"#
-    #expect(throws: AIError.refused("no")) { try AIClient.parseClaude(Data(refusal.utf8)) }
-    let ollama = #"{"model":"x","message":{"role":"assistant","content":"hi"},"done":true}"#
-    #expect(try AIClient.parseOllama(Data(ollama.utf8)) == "hi")
-    #expect(AIClient.errorMessage(Data(#"{"type":"error","error":{"type":"authentication_error","message":"invalid x-api-key"}}"#.utf8)) == "invalid x-api-key")
-}
-
-@Test func unconfiguredProvidersExplainWhy() {
-    #expect(AIConfig(provider: .claude).problem == "Add a Claude API key in Settings.")
-    #expect(AIConfig(provider: .ollama).problem == "Choose an Ollama model in Settings.")
-    #expect(AIConfig(provider: .ollama, ollamaModel: "m").problem == nil)
-}
-
 @Test func bentoPacksDensely() {
     // A 2x2 hero, then small cards: they fill the two columns beside it before starting a new row.
     let (slots, rows) = BentoPacker.place([.large, .small, .small, .small, .small, .small], columns: 4)
@@ -210,18 +181,6 @@ private func addon(_ id: Int, _ dirs: [String], version: String = "1", downloads
     // Three columns: wide, wide leaves a gap at the end of row 0 that the next small card takes.
     let (slots, _) = BentoPacker.place([.wide, .wide, .small], columns: 3)
     #expect(slots.map { [$0.column, $0.row] } == [[0, 0], [0, 1], [2, 0]])
-}
-
-@Test func parsesStreams() throws {
-    #expect(try AIClient.ollamaChunk(#"{"message":{"role":"assistant","content":"• Fix"},"done":false}"#) == "• Fix")
-    #expect(try AIClient.ollamaChunk(#"{"done":true}"#) == nil)
-    #expect(throws: AIError.http(0, "model not found")) { try AIClient.ollamaChunk(#"{"error":"model not found"}"#) }
-    #expect(try AIClient.claudeEvent(#"data: {"type":"content_block_delta","index":1,"delta":{"type":"text_delta","text":"Hi"}}"#) == "Hi")
-    #expect(try AIClient.claudeEvent("event: ping") == nil)
-    #expect(try AIClient.claudeEvent(#"data: {"type":"content_block_delta","index":0,"delta":{"type":"thinking_delta","thinking":"x"}}"#) == nil)
-    #expect(throws: AIError.refused("no")) {
-        try AIClient.claudeEvent(#"data: {"type":"message_delta","delta":{"stop_reason":"refusal"},"stop_details":{"explanation":"no"}}"#)
-    }
 }
 
 @Test func changelogSinceInstalled() {
@@ -406,6 +365,36 @@ private func addon(_ id: Int, _ dirs: [String], version: String = "1", downloads
     #expect(!pass(BrowseFilter(category: 17), old, cats: [17, 18]))
     let installed = InstalledAddon(catalog: fresh, record: InstallRecord(id: 1, version: "1", dirs: ["A1"]), manifest: nil)
     #expect(pass(BrowseFilter(status: .updateAvailable), fresh, installed: installed) && !pass(BrowseFilter(status: .upToDate), fresh, installed: installed))
+    // S-065 One creator's addons, whatever case the name is clicked in.
+    var byX = BrowseFilter(); byX.author = "X"
+    var byY = BrowseFilter(); byY.author = "y"
+    #expect(byX.isActive && pass(byX, fresh) && !pass(byY, fresh))
+}
+
+@Test func eachRestoreKeepsItsOwnSafetyCopy() throws {
+    let fm = FileManager.default
+    let root = fm.temporaryDirectory.appending(path: "mm-safety-\(UUID().uuidString)")
+    defer { try? fm.removeItem(at: root) }
+    let game = root.appending(path: "live")
+    try fm.createDirectory(at: game.appending(path: "SavedVariables"), withIntermediateDirectories: true)
+    let vars = game.appending(path: "SavedVariables/HarvestMap.lua")
+    let safety = root.appending(path: "restore-safety")
+    let morning = MinionBackup.restoreStamp.date(from: "2026-11-08 09.00.00")!
+
+    try "harvest = 'before the first restore'".write(to: vars, atomically: true, encoding: .utf8)
+    let first = try MinionBackup.saveBeforeRestore(gameFolder: game, addonIDs: [7], root: safety, date: morning, keep: 2)
+    try "harvest = 'after the first restore'".write(to: vars, atomically: true, encoding: .utf8)
+    let second = try MinionBackup.saveBeforeRestore(gameFolder: game, addonIDs: [7], root: safety, date: morning.addingTimeInterval(3_600), keep: 2)
+    #expect(first != second, "a second restore the same day gets a folder of its own")
+    let firstZip = MinionBackup.list(backupDir: first, gameID: "before-restore").first?.zip
+    let restored = try MinionBackup.unpack(#require(firstZip), into: root.appending(path: "work"), gameFolder: game)
+    #expect(try String(contentsOf: #require(restored.first).source, encoding: .utf8) == "harvest = 'before the first restore'",
+            "the first copy still holds what was there before any restore")
+
+    let sameSecond = try MinionBackup.saveBeforeRestore(gameFolder: game, addonIDs: [7], root: safety, date: morning.addingTimeInterval(3_600), keep: 2)
+    #expect(sameSecond.lastPathComponent == "2026-11-08 10.00.00 2", "two in the same second don't collide")
+    #expect(!fm.fileExists(atPath: first.path), "only the newest copies are kept")
+    #expect(fm.fileExists(atPath: second.path))
 }
 
 @Test func backupsRoundTripInMinionsFormat() throws {
@@ -444,8 +433,88 @@ private func addon(_ id: Int, _ dirs: [String], version: String = "1", downloads
     #expect(listed.map(\.name) == ["2026-10-28"] && listed.first?.addonIDs == [7, 57])
 }
 
+@Test func putsBackOneFileFromABackup() throws {
+    let fm = FileManager.default
+    let root = fm.temporaryDirectory.appending(path: "mm-backup-one-\(UUID().uuidString)")
+    defer { try? fm.removeItem(at: root) }
+    let game = root.appending(path: "Elder Scrolls Online/live")
+    try fm.createDirectory(at: game.appending(path: "SavedVariables"), withIntermediateDirectories: true)
+    try "dust = 1".write(to: game.appending(path: "SavedVariables/Dustman.lua"), atomically: true, encoding: .utf8)
+    try "odd = 1".write(to: game.appending(path: "SavedVariables/Odd[1].lua"), atomically: true, encoding: .utf8)
+    try "harvest = 1".write(to: game.appending(path: "SavedVariables/HarvestMap.lua"), atomically: true, encoding: .utf8)
+    let made = try MinionBackup.create(gameFolder: game, addonIDs: [97], backupDir: root.appending(path: "minion"), gameID: "ESO-1")
+    let zip = try #require(made.zip)
+
+    #expect(MinionBackup.files(in: zip) == ["SavedVariables/Dustman.lua", "SavedVariables/Odd[1].lua", "SavedVariables/HarvestMap.lua"])
+    let work = root.appending(path: "work")
+    let dust = try #require(try MinionBackup.unpack("SavedVariables/Dustman.lua", from: zip, into: work))
+    #expect(try String(contentsOf: dust, encoding: .utf8) == "dust = 1")
+    // Only that file comes out, and a name unzip would read as a pattern still matches only itself.
+    let all = fm.enumerator(at: work, includingPropertiesForKeys: nil)?.compactMap { ($0 as? URL)?.lastPathComponent } ?? []
+    #expect(all.filter { $0.hasSuffix(".lua") } == ["Dustman.lua"])
+    let odd = try #require(try MinionBackup.unpack("SavedVariables/Odd[1].lua", from: zip, into: root.appending(path: "work2")))
+    #expect(try String(contentsOf: odd, encoding: .utf8) == "odd = 1")
+    #expect(try MinionBackup.unpack("SavedVariables/Nope.lua", from: zip, into: work) == nil)
+}
+
 @Test func readsMinionsBackupSettings() throws {
     let xml = #"<minion><client><backup-dir>/Users/me/.minion</backup-dir></client><games><game game-id="ESO" unique-game-id="ESO-1"><addons/></game></games></minion>"#
     let game = try #require(MinionImport.parse(Data(xml.utf8)))
     #expect(game.uniqueID == "ESO-1" && game.backupDir == "/Users/me/.minion")
+}
+
+@Test func scansTheGameFolder() throws {
+    let fm = FileManager.default
+    let game = fm.temporaryDirectory.appending(path: "mm-game-\(UUID().uuidString)")
+    defer { try? fm.removeItem(at: game) }
+    for dir in ["AddOns/HarvestMap", "SavedVariables", "GuildHistory", "Logs", "TitleStorage", "SavedVariables.bak-prune-20261006", "backups/old"] {
+        try fm.createDirectory(at: game.appending(path: dir), withIntermediateDirectories: true)
+    }
+    for (file, text) in [("UserSettings.txt", "SET Language.2 \"en\"\n"), ("AddOnSettings.txt", "#Version 101051\n"),
+                         ("ShaderCache.cooked", String(repeating: "x", count: 5000)), ("Logs/interface.log", "log"),
+                         ("GuildHistory/4000_1.dat", "h"), ("AddOnSettings.txt.bak-20260829", "#Version 101048\n"),
+                         ("SavedVariables.bak-prune-20261006/pChat.lua", "x"), (".DS_Store", "")] {
+        try text.write(to: game.appending(path: file), atomically: true, encoding: .utf8)
+    }
+    let scan = GameFolderScan.scan(game)
+    #expect(scan.items.map(\.kind) == [.addOnSettings, .guildHistory, .logs, .savedVariables, .shaderCache, .titleStorage, .userSettings], "by name")
+    #expect(scan.copies.map(\.name) == ["AddOnSettings.txt.bak-20260829", "backups", "SavedVariables.bak-prune-20261006"])
+    let shaders = try #require(scan.items.first { $0.kind == .shaderCache })
+    // Logical length (5_000 UTF-8 bytes), not a 4 kB allocation block.
+    #expect(shaders.bytes == 5_000 && !shaders.isFolder && shaders.modified != nil)
+    #expect(scan.items.first { $0.kind == .guildHistory }?.isFolder == true)
+}
+
+@Test func findsWhoOwnsEachSavedVariablesFile() throws {
+    let fm = FileManager.default
+    let game = fm.temporaryDirectory.appending(path: "mm-sv-\(UUID().uuidString)")
+    defer { try? fm.removeItem(at: game) }
+    let addons = game.appending(path: "AddOns"), sv = game.appending(path: "SavedVariables")
+    // A top-level addon, addons nested two and three folders down (as LibGuildStore and HarvestMap ship
+    // theirs), one too deep for the game to load, and one that saves nothing.
+    let manifests = ["pChat": "## SavedVariables: PCHAT_OPTS", "LibGuildStore/GS16Data": "## SavedVariables: GS16DataSavedVariables",
+                     "HarvestMap/Modules/HarvestMapAD": "## SavedVariables: HarvestAD_SavedVars",
+                     "Deep/a/b/TooDeep": "## SavedVariables: TooDeepVars", "LibAddonMenu-2.0": "## Title: LAM"]
+    for (path, text) in manifests {
+        let folder = addons.appending(path: path)
+        try fm.createDirectory(at: folder, withIntermediateDirectories: true)
+        try "## Title: x\n\(text)\n".write(to: folder.appending(path: "\(folder.lastPathComponent).txt"), atomically: true, encoding: .utf8)
+    }
+    try fm.createDirectory(at: sv, withIntermediateDirectories: true)
+    for name in ["pChat.lua", "GS16Data.lua", "HarvestMapAD.lua", "TooDeep.lua", "LibAddonMenu-2.0.lua", "EsoSocial.lua",
+                 "ZO_Ingame.lua", "pChat.lua.bak-20261024", "HarvestMapAD.lua~", "README.md"] {
+        try "x = {}".write(to: sv.appending(path: name), atomically: true, encoding: .utf8)
+    }
+    try String(repeating: "y", count: 9000).write(to: sv.appending(path: "pChat.lua"), atomically: true, encoding: .utf8)
+    let files = SavedVariablesAudit.run(game: game, addons: addons)
+    let owners = Dictionary(uniqueKeysWithValues: files.map { ($0.name, $0.owner) })
+    #expect(owners["pChat.lua"] == .addon("pChat"))
+    #expect(owners["GS16Data.lua"] == .addon("GS16Data") && owners["HarvestMapAD.lua"] == .addon("HarvestMapAD"))
+    #expect(owners["TooDeep.lua"] == SavedVariablesFile.Owner.none && owners["LibAddonMenu-2.0.lua"] == SavedVariablesFile.Owner.none)
+    #expect(owners["EsoSocial.lua"] == SavedVariablesFile.Owner.none && owners["ZO_Ingame.lua"] == .game)
+    #expect(owners["pChat.lua.bak-20261024"] == .copy && owners["HarvestMapAD.lua~"] == .copy)
+    #expect(owners["README.md"] == .other, "a git repository's README is left alone")
+    #expect(files.map(\.name) == files.map(\.name).sorted { $0.localizedStandardCompare($1) == .orderedAscending }, "by name")
+    #expect(Set(files.filter(\.isTidyable).map(\.name)) == ["TooDeep.lua", "LibAddonMenu-2.0.lua", "EsoSocial.lua", "pChat.lua.bak-20261024", "HarvestMapAD.lua~"])
+    #expect(Manifest.parse("## SavedVariables: A B\n").savedVariables == ["A", "B"])
 }

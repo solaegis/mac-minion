@@ -13,6 +13,8 @@ enum AgentCommands {
              "catalog": model.catalog.count, "catalogUpdated": model.catalogDate.map(JSON.date) ?? NSNull(),
              "installed": model.installed.count, "updates": model.updates.count,
              "ignored": model.installed.filter(\.record.ignored).count, "notOnESOUI": model.unmatched.count,
+             "companionInstalled": model.companionInstalled,
+             "companionWritten": model.companionSnapshot?.written.map(JSON.date) ?? NSNull(),
              "updating": model.batch != nil, "ai": model.prefs.aiProvider.rawValue,
              "autoUpdate": model.prefs.autoUpdate, "ready": model.isReady,
              "problem": (model.scanError ?? model.refreshError).map { $0 as Any } ?? NSNull()]
@@ -328,12 +330,17 @@ enum AgentCommands {
                 await model.suggestAddons()
                 if let error = model.suggestError { throw AgentError.invalid(error) }
             }
-            let rows: [JSONObject] = model.suggestions.map { s in
+            var rows: [JSONObject] = model.suggestions.map { s in
                 var row = json(s.addon)
                 row["reason"] = s.reason
                 return row
             }
-            return ["suggestions": rows, "made": model.suggestionsDate.map(JSON.date) ?? NSNull(), "by": model.aiSource]
+            if model.needsCompanion {
+                rows.insert(["name": CompanionData.displayName, "folder": CompanionData.folderName,
+                             "reason": CompanionData.recommendReason, "companion": true], at: 0)
+            }
+            return ["suggestions": rows, "made": model.suggestionsDate.map(JSON.date) ?? NSNull(), "by": model.aiSource,
+                    "companionRecommended": model.needsCompanion]
         },
         AgentCommand(name: "open", summary: "Show a page in the window, optionally with an addon selected.",
                      params: [.init(name: "page", required: true, positional: true,
@@ -348,7 +355,7 @@ enum AgentCommands {
             model.open(page, selecting: id)
             return ["page": page.rawValue, "addon": id.map { $0 as Any } ?? NSNull()] as JSONObject
         },
-    ]
+    ] + savedVariables
 
     static func ratingFilter(_ raw: String) throws -> RatingFilter {
         switch raw {

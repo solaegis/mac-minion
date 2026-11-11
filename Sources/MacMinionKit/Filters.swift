@@ -8,11 +8,11 @@ public enum Recency: String, CaseIterable, Sendable, Identifiable {
 
     public var title: String {
         switch self {
-        case .any: "Any Time"
-        case .week: "Past Week"
-        case .month: "Past Month"
-        case .quarter: "Past 3 Months"
-        case .year: "Past Year"
+        case .any: String(localized: "Any Time", bundle: .module)
+        case .week: String(localized: "Past Week", bundle: .module)
+        case .month: String(localized: "Past Month", bundle: .module)
+        case .quarter: String(localized: "Past 3 Months", bundle: .module)
+        case .year: String(localized: "Past Year", bundle: .module)
         }
     }
 
@@ -34,11 +34,11 @@ public enum RatingFilter: String, CaseIterable, Sendable, Identifiable {
 
     public var title: String {
         switch self {
-        case .any: "Any Rating"
-        case .liked: "Thumbs Up"
-        case .unrated: "Not Rated"
-        case .hideDisliked: "Hide Thumbs Down"
-        case .disliked: "Thumbs Down"
+        case .any: String(localized: "Any Rating", bundle: .module)
+        case .liked: String(localized: "Thumbs Up", bundle: .module)
+        case .unrated: String(localized: "Not Rated", bundle: .module)
+        case .hideDisliked: String(localized: "Hide Thumbs Down", bundle: .module)
+        case .disliked: String(localized: "Thumbs Down", bundle: .module)
         }
     }
 
@@ -62,6 +62,8 @@ public struct BrowseFilter: Sendable, Equatable {
     /// Only addons whose compatibility lists the current game version.
     public var compatibleOnly = false
     public var hideLibraries = false
+    /// Only addons by this creator, as ESOUI names them (S-065).
+    public var author: String?
 
     public init(category: Int? = nil, status: AddonStatus? = nil, rating: RatingFilter = .any, recency: Recency = .any,
                 compatibleOnly: Bool = false, hideLibraries: Bool = false) {
@@ -80,6 +82,7 @@ public struct BrowseFilter: Sendable, Equatable {
         if let days = recency.days, now.timeIntervalSince(addon.date) > days * 86_400 { return false }
         if compatibleOnly, let currentGame, !addon.compatibility.contains(where: { VersionText.same($0.version, currentGame) }) { return false }
         if hideLibraries, addon.categoryID == AddonCategory.librariesID { return false }
+        if let author, addon.author.caseInsensitiveCompare(author) != .orderedSame { return false }
         return true
     }
 }

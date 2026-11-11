@@ -1,0 +1,98 @@
+<!-- title: Game Folder -->
+<!-- description: See what lives beside AddOns, and move SavedVariables no installed addon uses to the Trash. -->
+<h1>Game Folder</h1>
+<p class="lead">Everything beside AddOns in <code>~/Documents/Elder Scrolls Online/live</code>: what each item is, how big it is,
+and the SavedVariables files no installed addon uses any more.</p>
+
+<!-- shot: gameFolder | The game folder, with copies kept beside AddOns. -->
+
+<h2 id="characters">Characters and Addons</h2>
+<p>Game Folder opens on <strong>Characters</strong>: a grid of the addons that keep settings for each of your characters.
+Darker squares hold more settings; an outlined square, with a number, means some are set differently from your other
+characters. Click to dig down: a character shows their addons around them and what's set differently for them; a square
+shows that character's settings in that addon, odd ones highlighted beside the usual value; a setting shows every value it
+has across your characters, as bars, with who has each. The path bar or <kbd>⌘</kbd><kbd>[</kbd> climbs back out.
+<strong>Compare With…</strong> on a character, or <strong>Compare Characters…</strong> (<kbd>⌃</kbd><kbd>⌘</kbd><kbd>3</kbd>),
+puts two characters side by side: every setting where they differ, then what only one of them has.
+<strong>Addons</strong> starts from each addon instead: what every character shares, what's the same on all of them, and
+what's set differently. Only the settings addons save are read, never their code.</p>
+
+<h2>Files</h2>
+<p><strong>Files</strong> holds the folder itself, the SavedVariables list, and Space.</p>
+
+<h2>Folder</h2>
+<p>Each item the game makes, with its size and when it last changed: SavedVariables, AddOnSettings.txt, UserSettings.txt,
+the graphics caches, GuildHistory, Logs, Errors, and Screenshots.</p>
+<p><strong>Your Own Copies</strong> lists the files and folders the game doesn't make, like
+<code>AddOnSettings.txt.bak-20260829</code> or a <code>SavedVariables.bak</code> folder saved before an edit.
+Move one or all of them to the Trash.</p>
+
+<h2 id="savedvariables">SavedVariables</h2>
+<p>Every file in SavedVariables, largest first, with the addon it belongs to:</p>
+<ul>
+  <li><strong>An addon's name</strong>: an installed addon saves here. Addons inside other addons count too, up to three
+  folders deep, as the game loads them (LibGuildStore's GS00Data to GS17Data, HarvestMap's HarvestMapAD).</li>
+  <li><strong>The game</strong>: <code>ZO_*.lua</code>, the game's own interface settings. Never cleaned up.</li>
+  <li><strong>No installed addon</strong>: left behind by an addon you removed.</li>
+  <li><strong>Your copy</strong>: a copy of a <code>.lua</code> file, like <code>pChat.lua.bak</code> or <code>HarvestMap.lua~</code>, or a folder.</li>
+  <li><strong>Not saved by the game</strong>: anything else, like the README of a git repository you keep here. Left alone.</li>
+</ul>
+<p>Choose <strong>Clean Up…</strong> (<kbd>⇧</kbd><kbd>⌘</kbd><kbd>T</kbd>) to move every file with no installed addon,
+and every copy, to the Trash. Select files and Control-click to move only those.</p>
+<div class="note">
+  <p>Before anything goes to the Trash, MacMinion makes a <a href="backups.html">backup</a> of SavedVariables and the settings files.</p>
+  <p>Quit the game first: it rewrites these files when it quits. MacMinion won't change anything while it runs.</p>
+</div>
+<h2 id="inspector">Inspector</h2>
+<p>Pick a SavedVariables file (or double-click one in SavedVariables) to see what it stores, as a tree with Key,
+Value, and Size. The server, account, and character levels are labeled, and IDs get names:</p>
+<ul>
+  <li><strong>Characters</strong> from the game's own <code>ZO_Ingame.lua</code> and from addons; an ID no file names reads <em>Unknown character</em>.</li>
+  <li><strong>Accounts</strong>, marked <em>yours</em> when your own data sits under them.</li>
+  <li><strong>Items</strong> from item links (level, style, bound, crafted), with the set from LibSets.</li>
+  <li><strong>Sets, zones, and quests</strong> from LibSets, LibZone, and LibQuestData, read from their data files without running them.</li>
+  <li><strong>LibGuildStore sales</strong>: the numbers in each sale become the item, the buyer or seller, and the guild.</li>
+</ul>
+<p>The Inspector opens on <strong>Settings</strong>: the addon's saved settings as you'd read them, a section for every
+character and one for settings all your characters share. On and off are switches, colors are swatches, item links are
+item tags with their set, times are dates, money is gold, and IDs are names. <strong>Tree</strong>
+(<kbd>⌥</kbd><kbd>⌘</kbd><kbd>V</kbd>) shows every key and value as stored. Right-click a setting to see it in the tree.</p>
+<p>Double-click a table (or <kbd>⌘</kbd><kbd>↓</kbd>) to show only its entries; the path bar or <kbd>⌘</kbd><kbd>↑</kbd> goes back up.
+The <strong>Inspector</strong> menu also has Copy Path (<kbd>⌥</kbd><kbd>⌘</kbd><kbd>C</kbd>), Copy Value (<kbd>⇧</kbd><kbd>⌘</kbd><kbd>C</kbd>),
+Show Raw (<kbd>⌥</kbd><kbd>⌘</kbd><kbd>R</kbd>), and Look Up on UESP (<kbd>⌥</kbd><kbd>⌘</kbd><kbd>L</kbd>), which opens the page in your browser.
+A file that ends early or has a mistake shows where, with everything before it still browsable.</p>
+<p><strong>Find</strong> (<kbd>⌘</kbd><kbd>F</kbd>) takes a name or an ID, like <em>Masisi</em>, <em>@Paltop</em>,
+<em>Glenumbra</em>, or <em>96175</em>, and lists every place it appears in all your SavedVariables, grouped by file.
+<strong>Find Everywhere</strong> (<kbd>⇧</kbd><kbd>⌘</kbd><kbd>F</kbd>) does the same for the selected row. Double-click a
+place to open it in the tree; <strong>Done</strong> or Escape goes back.</p>
+
+<h2 id="problems">Problems</h2>
+<p>Every SavedVariables file is checked when the page opens; the tab shows how many problems there are. Errors come first:</p>
+<ul>
+  <li><strong>Ends early</strong> or <strong>Can't be read</strong>: the game stopped writing the file, or it has a mistake. The addon may lose its settings; a <a href="backups.html">backup</a> can bring them back.</li>
+  <li><strong>Variable not declared</strong>: left by an older version of the addon. The game never loads it.</li>
+  <li><strong>Variable not saved</strong>: the file has none of the variables its addon declares.</li>
+  <li><strong>Mixed types</strong>: a setting that is a number for most characters and a string for one, which can make an addon fail.</li>
+  <li><strong>Long list</strong>: 5,000 entries or more, like a log or history that grows every session.</li>
+  <li><strong>Large file</strong>: over 5 MB. The game reads every file at each login and reload.</li>
+</ul>
+<p>Double-click a problem to see it in the Inspector. <strong>Show Problems</strong> is <kbd>⌥</kbd><kbd>⌘</kbd><kbd>P</kbd>.</p>
+
+<h2 id="space">Space</h2>
+<p>What takes space in your SavedVariables. <strong>Map</strong> comes first: a tile per addon, sized by how much it saves
+and colored by what it holds (prices and sales, map data, logs that grow, the game's own, and settings). Click a tile to
+zoom in, to an addon's files, then the tables inside; a tile you can't zoom into opens in the Inspector. The path bar or
+<kbd>⌘</kbd><kbd>-</kbd> zooms out. The other groups list the same space, largest first, each with a bar for its share:</p>
+<ul>
+  <li><strong>Biggest Tables</strong> across all files. A table whose space is mostly one child shows the child instead.</li>
+  <li><strong>Characters</strong>, as cards: name, server, and how much addons keep about each. With MacMinion Companion
+  installed, cards also show class, level, and champion points. Click a card to see its data by addon and open any of it in
+  the Inspector. Characters no file names show apart: deleted or renamed.</li>
+  <li><strong>Accounts</strong>: yours, then other players your addons keep data about, like guild members and traders.</li>
+  <li><strong>Servers</strong>: NA, EU, and Default, which holds data saved before the split and settings both share.</li>
+  <li><strong>Files</strong>.</li>
+</ul>
+<p>Double-click a table or file to open it in the Inspector, or a character or account to find everywhere it appears.
+<strong>Show Space</strong> is <kbd>⌥</kbd><kbd>⌘</kbd><kbd>S</kbd>. Nothing here changes your files.</p>
+
+<p><strong>Show Game Folder in Finder</strong> is <kbd>⌥</kbd><kbd>⌘</kbd><kbd>G</kbd>.</p>

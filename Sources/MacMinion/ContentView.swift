@@ -15,21 +15,23 @@ struct ContentView: View {
                 } detail: {
                     widePage
                         .inspector(isPresented: inspectorShown) {
-                            DetailColumn().inspectorColumnWidth(min: 340, ideal: 400, max: 560)
+                            DetailColumn().inspectorColumnWidth(min: 280, ideal: 320, max: 520)
                         }
                 }
             } else {
                 browser
             }
         }
-        .navigationSubtitle(model.statusLine)
+        .navigationSubtitle(model.sidebar == .gameFolder ? model.gameFolderStatusLine : model.statusLine)
         .toolbar {
-            ToolbarItem(placement: .primaryAction) {
-                HelpLink { Docs.open(Docs.page(for: model.sidebar)) }
-                    .help("Open the documentation for this page")
+            // Game Folder declares Help with its own page actions.
+            if model.sidebar != .gameFolder {
+                ToolbarItem { PageHelpButton() }
             }
         }
         .onChange(of: model.sidebar) { model.selection = model.pendingSelection; model.pendingSelection = nil }
+        // Choosing an addon or folder shows its details, even after Hide Inspector.
+        .onChange(of: model.selection) { _, new in if new != nil { model.inspectorHidden = false } }
         .alert(removalTitle, isPresented: removalShown, presenting: model.pendingRemoval) { addon in
             Button("Move to Trash", role: .destructive) { Task { await model.remove(addon) } }
             Button("Cancel", role: .cancel) {}
@@ -45,10 +47,7 @@ struct ContentView: View {
             Text("The folder \(folder.folder) goes to the Trash. It isn't on ESOUI, so MacMinion can't reinstall it. Saved settings stay.")
         }
         .task {
-            AgentRouter.model = model
-            AgentSocket.listen { await AgentRouter.handle($0) }
-            await SeedData.insertIfRequested(into: model)
-            await model.start()
+            await Launch.run(model)
             SelfTest.runIfRequested(model: model)
             Snapshot.runIfRequested(model: model, openSettings: openSettings)
         }
@@ -56,7 +55,7 @@ struct ContentView: View {
 
     private var isWide: Bool {
         switch model.sidebar ?? .overview {
-        case .overview, .backups: true
+        case .overview, .backups, .gameFolder: true
         case .installed: model.prefs.installedLayout == .grid
         case .findMore: model.prefs.findMoreLayout == .grid
         case .updates: false
@@ -66,17 +65,21 @@ struct ContentView: View {
     @ViewBuilder
     private var widePage: some View {
         switch model.sidebar ?? .overview {
-        case .installed: InstalledPage()
-        case .findMore: FindMorePage()
+        case .installed, .findMore: BrowsePage(scope: browseScope)
         case .updates: UpdatesList()
         case .overview: OverviewView()
         case .backups: BackupsPage()
+        case .gameFolder: GameFolderPage()
         }
     }
 
+    private var browseScope: FilterScope { model.sidebar == .findMore ? .findMore : .installed }
+
     private var inspectorShown: Binding<Bool> {
-        Binding(get: { model.selection != nil && model.sidebar != .overview && model.sidebar != .backups },
-                set: { if !$0 { model.selection = nil } })
+        // SwiftUI writes false here whenever the inspector closes, including when it closes on its own
+        // because nothing is selected or the page has none; only a close the person made hides it.
+        Binding(get: { model.inspectorAvailable && !model.inspectorHidden },
+                set: { if model.inspectorAvailable { model.inspectorHidden = !$0 } })
     }
 
     private var browser: some View {
@@ -85,10 +88,10 @@ struct ContentView: View {
         } content: {
             Group {
                 switch model.sidebar ?? .installed {
-                case .installed, .overview: InstalledPage()
+                case .installed, .findMore, .overview: BrowsePage(scope: browseScope)
                 case .updates: UpdatesList()
-                case .findMore: FindMorePage()
                 case .backups: BackupsPage()
+                case .gameFolder: GameFolderPage()
                 }
             }
             .navigationSplitViewColumnWidth(min: 300, ideal: 380)
@@ -108,74 +111,69 @@ struct ContentView: View {
     private var sidebar: some View {
         @Bindable var model = model
         return List(SidebarItem.allCases, selection: $model.sidebar) { page in
-            Label(page.title, systemImage: page.symbol)
-                .badge(badge(for: page))
-                .tag(page)
-        }
-        // A gear at the foot of the sidebar opens Settings, like Command-Comma.
-        .safeAreaInset(edge: .bottom, spacing: 0) {
-            HStack {
-                SettingsLink {
-                    Label("Settings", systemImage: "gearshape")
+            let row = Label {
+                HStack(spacing: Space.xs) {
+                    Text(page.title)
+                    if page.isExperimental {
+                        Image(systemName: "flask")
+                            .foregroundStyle(.secondary)
+                            .accessibilityLabel("Experimental, work in progress")
+                    }
                 }
-                .buttonStyle(.borderless)
-                .help("Open Settings (Command-Comma)")
-                Spacer()
+            } icon: {
+                Image(systemName: page.symbol)
             }
-            .padding(.horizontal, Space.lg)
-            .padding(.vertical, Space.md)
+            .badge(badge(for: page))
+            .tag(page)
+            if page.isExperimental {
+                row.help("Game Folder is still a work in progress")
+            } else {
+                row
+            }
         }
         .navigationSplitViewColumnWidth(min: 180, ideal: 212)
     }
 
     private func badge(for page: SidebarItem) -> Int {
         switch page {
-        case .installed: model.installed.count + model.unmatched.count
+        case .installed: model.addonCount
         case .updates: model.updates.count
-        case .findMore, .overview, .backups: 0
+        case .findMore, .overview, .backups, .gameFolder: 0
         }
     }
 }
 
 // MARK: - Pages
 
-/// Installed as a bento grid or a list, per Settings > Layout.
-struct InstalledPage: View {
+/// Installed and Find More, each a bento grid or a list per Settings > Layout.
+/// One view for both pages, so switching between them keeps the toolbar's one
+/// search field and only changes its text. Two `.searchable` pages swapping in
+/// place put a second search field in the toolbar for a moment, and NSToolbar
+/// throws on the duplicate (com.apple.SwiftUI.search) and the app quits.
+struct BrowsePage: View {
     @Environment(AppModel.self) private var model
-
-    var body: some View {
-        @Bindable var prefs = model.prefs
-        @Bindable var model = model
-        Group {
-            if prefs.installedLayout == .grid { InstalledGrid() } else { InstalledList() }
-        }
-        .safeAreaInset(edge: .top, spacing: 0) { FilterChips(scope: .installed) }
-        .searchable(text: $model.installedSearch, placement: .toolbar, prompt: "Filter installed addons")
-        .navigationTitle("Installed")
-        .toolbar {
-            RefreshButton()
-            FilterMenu(scope: .installed)
-            LayoutSwitch(layout: $prefs.installedLayout)
-        }
-    }
-}
-
-/// Find More as a bento grid or a list, with search and the filter menu.
-struct FindMorePage: View {
-    @Environment(AppModel.self) private var model
+    let scope: FilterScope
 
     var body: some View {
         @Bindable var model = model
         @Bindable var prefs = model.prefs
+        let installed = scope == .installed
         Group {
-            if prefs.findMoreLayout == .grid { FindMoreGrid() } else { FindMoreList() }
+            switch (scope, installed ? prefs.installedLayout : prefs.findMoreLayout) {
+            case (.installed, .grid): InstalledGrid()
+            case (.installed, .list): InstalledList()
+            case (.findMore, .grid): FindMoreGrid()
+            case (.findMore, .list): FindMoreList()
+            }
         }
-        .safeAreaInset(edge: .top, spacing: 0) { FilterChips(scope: .findMore) }
-        .searchable(text: $model.search, placement: .toolbar, prompt: "Search addons or authors")
-        .navigationTitle("Find More")
+        .safeAreaInset(edge: .top, spacing: 0) { FilterChips(scope: scope) }
+        .searchable(text: installed ? $model.installedSearch : $model.search, placement: .toolbar,
+                    prompt: installed ? String(localized: "Filter installed addons") : String(localized: "Search addons or authors"))
+        .navigationTitle(installed ? "Installed" : "Find More")
         .toolbar {
-            FilterMenu(scope: .findMore)
-            LayoutSwitch(layout: $prefs.findMoreLayout)
+            if installed { RefreshButton() }
+            FilterMenu(scope: scope)
+            LayoutSwitch(layout: installed ? $prefs.installedLayout : $prefs.findMoreLayout)
         }
     }
 }
@@ -202,10 +200,17 @@ struct InstalledList: View {
 
     var body: some View {
         @Bindable var model = model
+        let links = model.gameFolder.addonLinkIndex()
         List(selection: $model.selection) {
+            if model.showCompanion {
+                Section("MacMinion Companion") {
+                    CompanionRow()
+                        .tag(Selection.folder(CompanionData.folderName))
+                }
+            }
             Section("From ESOUI") {
                 ForEach(model.filteredInstalled) { addon in
-                    AddonRow(addon: addon.catalog, installed: addon)
+                    AddonRow(addon: addon.catalog, installed: addon, links: links.links(for: addon.record.dirs))
                         .tag(Selection.addon(addon.id))
                         .contextMenu { InstalledMenu(addon: addon) }
                 }
@@ -213,9 +218,16 @@ struct InstalledList: View {
             if !model.filteredUnmatched.isEmpty {
                 Section("Not on ESOUI") {
                     ForEach(model.filteredUnmatched) { folder in
-                        FolderRow(folder: folder)
+                        FolderRow(folder: folder, links: links.links(for: [folder.folder]))
                             .tag(Selection.folder(folder.folder))
                             .contextMenu {
+                                let folderLinks = links.links(for: [folder.folder])
+                                if !folderLinks.files.isEmpty {
+                                    Button("Show Files in Inspector") { model.gameFolder.showFiles(of: folder.title, dirs: [folder.folder]) }
+                                }
+                                if !folderLinks.findings.isEmpty {
+                                    Button("Show Problems") { model.gameFolder.showProblems(of: folder.title, dirs: [folder.folder]) }
+                                }
                                 Button("Show in Finder") { model.showInFinder(folder.folder) }
                             }
                     }
@@ -225,16 +237,17 @@ struct InstalledList: View {
         .overlay {
             if model.installedFiltered && model.filteredInstalled.isEmpty && model.filteredUnmatched.isEmpty {
                 NoMatches(scope: .installed)
-            } else if model.installed.isEmpty && model.unmatched.isEmpty {
+            } else if model.installed.isEmpty && model.unmatched.isEmpty && !model.companionInstalled {
                 ContentUnavailableView {
                     Label("No Addons Found", systemImage: "puzzlepiece.extension")
                 } description: {
-                    Text(model.catalog.isEmpty ? "The ESOUI catalog hasn't loaded yet." : "Nothing is installed in \(model.addonsFolder.path).")
+                    Text(model.catalog.isEmpty ? String(localized: "The ESOUI catalog hasn't loaded yet.") : String(localized: "Nothing is installed in \(model.addonsFolder.path)."))
                 } actions: {
                     SettingsLink { Text("Choose Folder…") }
                 }
             }
         }
+        .task { await model.gameFolder.readGameFolderForLinks() }
     }
 }
 
@@ -243,8 +256,9 @@ struct UpdatesList: View {
 
     var body: some View {
         @Bindable var model = model
+        let links = model.gameFolder.addonLinkIndex()
         List(model.updates, selection: $model.selection) { addon in
-            AddonRow(addon: addon.catalog, installed: addon)
+            AddonRow(addon: addon.catalog, installed: addon, links: links.links(for: addon.record.dirs))
                 .tag(Selection.addon(addon.id))
                 .contextMenu { InstalledMenu(addon: addon) }
         }
@@ -271,6 +285,7 @@ struct UpdatesList: View {
                     .help("Update every addon that has an update (Command-U)")
             }
         }
+        .task { await model.gameFolder.readGameFolderForLinks() }
     }
 }
 
@@ -291,8 +306,8 @@ struct FindMoreList: View {
                     NoMatches(scope: .findMore)
                 } else if !model.catalogResults(includeInstalled: true).isEmpty {
                     ContentUnavailableView("Already Installed", systemImage: "checkmark.circle",
-                                           description: Text(model.search.isEmpty ? "You have every addon here. See Installed."
-                                                             : "Everything matching “\(model.search)” is installed. See Installed."))
+                                           description: Text(model.search.isEmpty ? String(localized: "You have every addon here. See Installed.")
+                                                             : String(localized: "Everything matching “\(model.search)” is installed. See Installed.")))
                 } else if model.search.isEmpty {
                     ContentUnavailableView("No Addons", systemImage: "magnifyingglass")
                 } else {
@@ -320,11 +335,19 @@ struct InstalledMenu: View {
     let addon: InstalledAddon
 
     var body: some View {
-        Button(addon.status == .updateAvailable ? "Update" : "Reinstall") { Task { await model.install(addon.id) } }
-            .disabled(model.busy.contains(addon.id))
+        if !model.busy.contains(addon.id) {
+            Button(addon.status == .updateAvailable ? String(localized: "Update") : String(localized: "Reinstall")) { Task { await model.install(addon.id) } }
+        }
         Toggle("Ignore Updates", isOn: Binding(get: { addon.record.ignored }, set: { model.setIgnored(addon.id, $0) }))
         RatingMenuItems(id: addon.id)
         Divider()
+        let links = model.gameFolder.addonLinkIndex().links(for: addon.record.dirs)
+        if !links.files.isEmpty {
+            Button("Show Files in Inspector") { model.gameFolder.showFiles(of: addon.catalog.name, dirs: addon.record.dirs) }
+        }
+        if !links.findings.isEmpty {
+            Button("Show Problems") { model.gameFolder.showProblems(of: addon.catalog.name, dirs: addon.record.dirs) }
+        }
         Button("Show in Finder") { model.showInFinder(addon.record.dirs.first) }
         if let url = addon.catalog.infoURL {
             Link("Open on ESOUI", destination: url)
@@ -340,12 +363,17 @@ struct AddonRow: View {
     @Environment(AppModel.self) private var model
     let addon: CatalogAddon
     let installed: InstalledAddon?
+    /// Its files and problems, on Installed and Updates (S-059).
+    var links: AddonLinks?
 
     var body: some View {
         HStack(spacing: Space.md) {
             VStack(alignment: .leading, spacing: Space.xs / 2) {
                 Text(addon.name).lineLimit(1)
-                Text(subtitle)
+                HStack(spacing: 0) {
+                    AuthorLink(author: addon.author)
+                    Text(verbatim: " · " + subtitle)
+                }
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
@@ -357,16 +385,30 @@ struct AddonRow: View {
                 }
             }
             Spacer(minLength: Space.sm)
+            if let links, let installed {
+                AddonLinkButtons(model: model, name: addon.name, dirs: installed.record.dirs, links: links)
+            }
             trailing
         }
         .padding(.vertical, Space.xs / 2)
     }
 
+    /// What follows the creator's name: version, then any Lua errors.
     private var subtitle: String {
+        var parts: [String] = []
         if let installed, let v = installed.installedVersion, !VersionText.same(v, addon.version) {
-            return "\(addon.author) · \(v) → \(addon.version)"
+            parts.append("\(v) → \(addon.version)")
+        } else {
+            parts.append(addon.version)
         }
-        return "\(addon.author) · \(addon.version)"
+        if let installed {
+            let errors = model.companionErrorCount(for: installed)
+            if errors > 0 { parts.append(String(localized: "\(errors) Lua errors")) }
+            else if let state = model.companionState(for: installed), state.failedToLoad {
+                parts.append(String(localized: "didn't load"))
+            }
+        }
+        return parts.joined(separator: " · ")
     }
 
     @ViewBuilder
@@ -403,17 +445,51 @@ struct AddonRow: View {
 }
 
 struct FolderRow: View {
+    @Environment(AppModel.self) private var model
     let folder: UnmatchedFolder
+    var links: AddonLinks?
+
+    var body: some View {
+        HStack(spacing: Space.md) {
+            VStack(alignment: .leading, spacing: Space.xs / 2) {
+                Text(folder.title).lineLimit(1)
+                Text([folder.manifest?.author, folder.manifest?.version, folder.folder].compactMap { $0 }.joined(separator: " · "))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
+            Spacer(minLength: Space.sm)
+            if let links {
+                AddonLinkButtons(model: model, name: folder.title, dirs: [folder.folder], links: links)
+            }
+        }
+        .padding(.vertical, Space.xs / 2)
+    }
+}
+
+struct CompanionRow: View {
+    @Environment(AppModel.self) private var model
 
     var body: some View {
         VStack(alignment: .leading, spacing: Space.xs / 2) {
-            Text(folder.title).lineLimit(1)
-            Text([folder.manifest?.author, folder.manifest?.version, folder.folder].compactMap { $0 }.joined(separator: " · "))
+            Text(CompanionData.displayName).lineLimit(1)
+            Text(subtitle)
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
         }
         .padding(.vertical, Space.xs / 2)
+    }
+
+    private var subtitle: String {
+        var parts = ["solaegis"]
+        if let version = model.companionManifest?.version { parts.append(version) }
+        if let written = model.companionSnapshot?.written {
+            parts.append(String(localized: "as of \(written.formatted(.relative(presentation: .named)))"))
+        } else {
+            parts.append(String(localized: "log in once to write a snapshot"))
+        }
+        return parts.joined(separator: " · ")
     }
 }
 
@@ -431,7 +507,9 @@ struct DetailColumn: View {
                 none
             }
         case .folder(let name):
-            if let folder = model.unmatched.first(where: { $0.folder == name }) {
+            if CompanionData.isCompanionFolder(name), model.companionInstalled {
+                CompanionDetail()
+            } else if let folder = model.unmatched.first(where: { $0.folder == name }) {
                 FolderDetail(folder: folder)
             } else {
                 none
@@ -468,8 +546,8 @@ struct AddonDetail: View {
                     Label(error, systemImage: "exclamationmark.triangle").foregroundStyle(Palette.negative)
                 }
                 if let info {
-                    text("Description", BBCode.plainText(info.description))
-                    text("Changes", BBCode.plainText(info.changelog))
+                    text(String(localized: "Description"), BBCode.plainText(info.description))
+                    text(String(localized: "Changes"), BBCode.plainText(info.changelog))
                 } else if let loadError {
                     Label(loadError, systemImage: "wifi.exclamationmark").foregroundStyle(.secondary)
                 } else {
@@ -482,7 +560,7 @@ struct AddonDetail: View {
             .gridArea("detail")
         }
         .task {
-            do { info = try await model.loadDetails(addon.id) } catch { loadError = "Details aren't available offline." }
+            do { info = try await model.loadDetails(addon.id) } catch { loadError = String(localized: "Details aren't available offline.") }
             if model.prefs.summarizeOnOpen, model.prefs.aiConfig.problem == nil, installed?.status == .updateAvailable,
                model.summaries[addon.id] == nil, info != nil {
                 await model.summarize(addon.id)
@@ -496,7 +574,7 @@ struct AddonDetail: View {
                 Thumbnail(url: addon.thumbnails.first, size: 96)
                 VStack(alignment: .leading, spacing: Space.xs) {
                     Text(addon.name).font(.title2.bold()).textSelection(.enabled)
-                    Text("by \(addon.author)").foregroundStyle(.secondary)
+                    AuthorLink(author: addon.author, prefixed: true).foregroundStyle(.secondary)
                     RatingButtons(id: addon.id).padding(.top, Space.xs)
                 }
                 .gridProbe("title", area: "detail")
@@ -520,9 +598,9 @@ struct AddonDetail: View {
             ProgressView().controlSize(.small)
         } else {
             let title = switch installed?.status {
-            case nil: "Install"
-            case .updateAvailable: "Update"
-            default: "Reinstall"
+            case nil: String(localized: "Install")
+            case .updateAvailable: String(localized: "Update")
+            default: String(localized: "Reinstall")
             }
             Button(title) { Task { await model.install(addon.id) } }
                 .buttonStyle(.borderedProminent)
@@ -532,21 +610,21 @@ struct AddonDetail: View {
 
     private var facts: some View {
         Grid(alignment: .leading, horizontalSpacing: Space.lg, verticalSpacing: Space.sm) {
-            row("Latest version", addon.version)
+            row(String(localized: "Latest version"), addon.version)
             if let installed {
-                row("Installed", installed.installedVersion ?? "Unknown")
+                row("Installed", installed.installedVersion ?? String(localized: "Unknown"))
                 row("Status", installed.status.label)
             }
             row("Updated", addon.date.formatted(date: .abbreviated, time: .omitted))
-            row("Downloads", "\(addon.downloads.formatted()) (\(addon.downloadsMonthly.formatted()) this month)")
-            row("Favorites", addon.favorites.formatted())
+            row(String(localized: "Downloads"), String(localized: "\(addon.downloads.formatted()) (\(addon.downloadsMonthly.formatted()) this month)"))
+            row(String(localized: "Favorites"), addon.favorites.formatted())
             if let category = model.categories.first(where: { $0.id == addon.categoryID }) {
                 row("Category", category.title)
             }
             if !addon.compatibility.isEmpty {
-                row("Works with", addon.compatibility.map { "\($0.name) (\($0.version))" }.joined(separator: ", "))
+                row(String(localized: "Works with"), addon.compatibility.map { "\($0.name) (\($0.version))" }.joined(separator: ", "))
             }
-            row("Folders", (installed?.record.dirs ?? addon.dirs).joined(separator: ", "))
+            row(String(localized: "Folders"), (installed?.record.dirs ?? addon.dirs).joined(separator: ", "))
         }
     }
 
@@ -568,6 +646,40 @@ struct AddonDetail: View {
     }
 }
 
+struct CompanionDetail: View {
+    @Environment(AppModel.self) private var model
+
+    var body: some View {
+        Form {
+            Section {
+                LabeledContent("Title", value: CompanionData.displayName)
+                LabeledContent("Folder", value: CompanionData.folderName)
+                LabeledContent("Author", value: model.companionManifest?.author ?? "solaegis")
+                if let version = model.companionManifest?.version { LabeledContent("Version", value: version) }
+                if let written = model.companionSnapshot?.written {
+                    LabeledContent("Last snapshot", value: written.formatted(date: .abbreviated, time: .shortened))
+                }
+                if let env = model.companionSnapshot?.env {
+                    if let game = env.gameVersion { LabeledContent("Game version", value: game) }
+                    if let server = env.server { LabeledContent("Server", value: server) }
+                }
+                if let snap = model.companionSnapshot {
+                    LabeledContent("Characters", value: snap.characters.count.formatted())
+                    LabeledContent("Addons recorded", value: snap.addons.count.formatted())
+                    if !snap.errors.isEmpty {
+                        LabeledContent("Lua errors", value: snap.errors.reduce(0) { $0 + $1.count }.formatted())
+                    }
+                }
+            } footer: {
+                Text("MacMinion's in-game companion. After you log in, it writes the roster, which addons loaded, and Lua errors.")
+                    .foregroundStyle(.secondary)
+            }
+            Button("Show in Finder") { model.showInFinder(CompanionData.folderName) }
+        }
+        .formStyle(.grouped)
+    }
+}
+
 struct FolderDetail: View {
     @Environment(AppModel.self) private var model
     let folder: UnmatchedFolder
@@ -579,7 +691,7 @@ struct FolderDetail: View {
                 LabeledContent("Folder", value: folder.folder)
                 if let author = folder.manifest?.author { LabeledContent("Author", value: author) }
                 if let version = folder.manifest?.version { LabeledContent("Version", value: version) }
-                if folder.manifest?.isLibrary == true { LabeledContent("Kind", value: "Library") }
+                if folder.manifest?.isLibrary == true { LabeledContent("Kind", value: String(localized: "Library")) }
             } footer: {
                 Text("No ESOUI entry lists this folder, so MacMinion can't update it. Addons you build or copy by hand land here.")
                     .foregroundStyle(.secondary)
@@ -607,7 +719,7 @@ struct SummaryCard: View {
                 if model.summarizing.contains(addon.id) {
                     ProgressView().controlSize(.small)
                 } else {
-                    Button(model.summaries[addon.id] == nil ? "Summarize Changes" : "Summarize Again") {
+                    Button(model.summaries[addon.id] == nil ? String(localized: "Summarize Changes") : String(localized: "Summarize Again")) {
                         Task { await model.summarize(addon.id) }
                     }
                     .controlSize(.small)
@@ -617,7 +729,7 @@ struct SummaryCard: View {
             if let summary = model.summaries[addon.id] {
                 Text(summary).textSelection(.enabled).fixedSize(horizontal: false, vertical: true)
                 Text(model.summarizing.contains(addon.id) ? "\(model.aiSource) is writing…"
-                     : "Written by \(model.aiSource). Check the changelog before relying on it.")
+                     : String(localized: "Written by \(model.aiSource). Check the changelog before relying on it."))
                     .font(.caption)
                     .foregroundStyle(.secondary)
             } else if let error = model.summaryErrors[addon.id] {
@@ -636,9 +748,9 @@ struct SummaryCard: View {
 
     private var help: String {
         if let installed = model.installed(addon.id)?.installedVersion, !VersionText.same(installed, addon.version) {
-            return "Summarize what changed from \(installed) to \(addon.version)."
+            return String(localized: "Summarize what changed from \(installed) to \(addon.version).")
         }
-        return "Summarize the latest changes in a few bullets."
+        return String(localized: "Summarize the latest changes in a few bullets.")
     }
 }
 
@@ -664,7 +776,7 @@ struct DigestSheet: View {
                     ScrollView {
                         Text(digest).textSelection(.enabled).frame(maxWidth: .infinity, alignment: .leading)
                     }
-                    .frame(minHeight: 160, maxHeight: 420)
+                    .fitsContent(max: 420)
                 }
             }
             HStack {
@@ -682,5 +794,16 @@ struct DigestSheet: View {
         .padding(Space.xxl)
         .frame(width: 520)
         .noInitialFocus()
+    }
+}
+
+/// Help for the current page, as a plain symbol button like its toolbar neighbors. A bezeled `HelpLink` read as
+/// the page's key action.
+struct PageHelpButton: View {
+    @Environment(AppModel.self) private var model
+
+    var body: some View {
+        Button("Help for This Page", systemImage: "questionmark.circle") { Docs.open(Docs.page(for: model.sidebar)) }
+            .help("Open the documentation for this page")
     }
 }

@@ -75,10 +75,11 @@ public enum MinionBackup {
     }
 
     /// Minion's rule for what a snapshot holds, relative to the game folder (`.../live`):
-    /// AddOnSettings.txt*, UserSettings.txt*, and everything under SavedVariables.
+    /// AddOnSettings.txt*, UserSettings.txt*, MachineSettings.txt*, and everything under SavedVariables.
     public static func belongsInSnapshot(_ relative: String) -> Bool {
         relative.hasPrefix("SavedVariables/")
-            || (!relative.contains("/") && (relative.hasPrefix("AddOnSettings.txt") || relative.hasPrefix("UserSettings.txt")))
+            || (!relative.contains("/") && (relative.hasPrefix("AddOnSettings.txt") || relative.hasPrefix("UserSettings.txt")
+                                              || relative.hasPrefix("MachineSettings.txt")))
     }
 
     /// Writes today's snapshot (replacing one from earlier today, as Minion does) and its addon list.
@@ -109,6 +110,35 @@ public enum MinionBackup {
         return Backup(kind: .snapshot, name: day, date: dayFormat.date(from: day), zip: zip, addonList: list, bytes: size(zip))
     }
 
+    /// "2026-11-08 16.53.07": the name of one restore's safety folder.
+    public static let restoreStamp: DateFormatter = {
+        let f = DateFormatter()
+        f.locale = Locale(identifier: "en_US_POSIX")
+        f.dateFormat = "yyyy-MM-dd HH.mm.ss"
+        return f
+    }()
+
+    /// Saves what is there before a restore, in a folder of its own under `root` named for the moment
+    /// it ran, so a second restore the same day can't replace the first one's copy. Moves all but the
+    /// newest `keep` of these folders to the Trash. Returns the new folder.
+    @discardableResult
+    public static func saveBeforeRestore(gameFolder: URL, addonIDs: [Int], root: URL, date: Date = .now, keep: Int = 10) throws -> URL {
+        let fm = FileManager.default
+        let stamp = restoreStamp.string(from: date)
+        var folder = root.appending(path: stamp, directoryHint: .isDirectory)
+        var n = 2
+        while fm.fileExists(atPath: folder.path) {
+            folder = root.appending(path: "\(stamp) \(n)", directoryHint: .isDirectory)
+            n += 1
+        }
+        try create(gameFolder: gameFolder, addonIDs: addonIDs, backupDir: folder, gameID: "before-restore", date: date)
+        let saved = ((try? fm.contentsOfDirectory(atPath: root.path)) ?? [])
+            .filter { restoreStamp.date(from: String($0.prefix(19))) != nil }
+            .sorted(by: >)
+        for old in saved.dropFirst(max(keep, 1)) { try? fm.trashItem(at: root.appending(path: old), resultingItemURL: nil) }
+        return folder
+    }
+
     /// Unpacks a backup zip and maps each file back into `gameFolder`, wherever the backup was made
     /// (another Mac, another user, live or PTS): the path is taken from "AddOns", "SavedVariables",
     /// or a top-level settings file onward. Returns files ready to copy: (unpacked file, destination).
@@ -135,18 +165,58 @@ public enum MinionBackup {
         return out
     }
 
+    /// The entries of a zip, as stored ("Users/me/…/SavedVariables/X.lua"); empty when it can't be read.
+    static func entries(_ zip: URL) -> [String] {
+        let p = Process()
+        p.executableURL = URL(fileURLWithPath: "/usr/bin/unzip")
+        p.arguments = ["-Z1", zip.path]
+        let out = Pipe()
+        p.standardOutput = out
+        p.standardError = FileHandle.nullDevice
+        guard (try? p.run()) != nil else { return [] }
+        let data = out.fileHandleForReading.readDataToEndOfFile()
+        p.waitUntilExit()
+        return String(decoding: data, as: UTF8.self).split(separator: "\n").map(String.init).filter { !$0.hasSuffix("/") }
+    }
+
+    /// The files a backup holds, as paths under the game folder: "SavedVariables/X.lua", "AddOnSettings.txt".
+    public static func files(in zip: URL) -> Set<String> {
+        Set(entries(zip).compactMap { relativeToGame(Substring($0)) })
+    }
+
+    /// Unpacks only `relative` ("SavedVariables/X.lua") from a backup zip into `work`, for putting back one file.
+    /// Returns the unpacked file, or nil when the backup doesn't hold it.
+    public static func unpack(_ relative: String, from zip: URL, into work: URL) throws -> URL? {
+        guard let entry = entries(zip).first(where: { relativeToGame(Substring($0)) == relative }) else { return nil }
+        try FileManager.default.createDirectory(at: work, withIntermediateDirectories: true)
+        let p = Process()
+        p.executableURL = URL(fileURLWithPath: "/usr/bin/unzip")
+        // -o overwrite, -qq quiet; the entry is a pattern to unzip, so its own [ ] * ? are escaped.
+        let pattern = entry.reduce(into: "") { out, c in if "[]*?".contains(c) { out.append("\\") }; out.append(c) }
+        p.arguments = ["-o", "-qq", zip.path, pattern, "-d", work.path]
+        p.standardOutput = FileHandle.nullDevice
+        p.standardError = FileHandle.nullDevice
+        try p.run()
+        p.waitUntilExit()
+        guard p.terminationStatus <= 1 else { throw BackupError.unzip }
+        // unzip strips a leading "/" from absolute entries.
+        let file = work.appending(path: String(entry.drop { $0 == "/" }))
+        return FileManager.default.fileExists(atPath: file.path) ? file : nil
+    }
+
     /// "Users/me/Documents/Elder Scrolls Online/live/SavedVariables/X.lua" -> "SavedVariables/X.lua".
     static func relativeToGame(_ path: Substring) -> String? {
         let parts = path.split(separator: "/").map(String.init)
         if let i = parts.lastIndex(where: { $0 == "SavedVariables" || $0 == "AddOns" }), i < parts.count - 1 {
             return parts[i...].joined(separator: "/")
         }
-        if let last = parts.last, last.hasPrefix("AddOnSettings.txt") || last.hasPrefix("UserSettings.txt") { return last }
+        if let last = parts.last, last.hasPrefix("AddOnSettings.txt") || last.hasPrefix("UserSettings.txt")
+            || last.hasPrefix("MachineSettings.txt") { return last }
         return nil
     }
 }
 
 public enum BackupError: LocalizedError {
     case unzip
-    public var errorDescription: String? { "The backup couldn't be unpacked." }
+    public var errorDescription: String? { String(localized: "The backup couldn't be unpacked.", bundle: .module) }
 }

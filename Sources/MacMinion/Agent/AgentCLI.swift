@@ -170,11 +170,14 @@ enum AgentCLI {
 
     private static func line(_ object: JSONObject) -> String {
         let first = ["id", "title", "name"]
-        return object.keys.sorted { a, b in
+        // Lists inside a row (the places `sv find` shows) go on their own indented lines.
+        let nested = object.filter { $0.value is [JSONObject] }
+        let flat = object.filter { !($0.value is [JSONObject]) }
+        let head = flat.keys.sorted { a, b in
             (first.firstIndex(of: a) ?? 9, a) < (first.firstIndex(of: b) ?? 9, b)
         }
         .map { key in
-            let value = object[key]
+            let value = flat[key]
             // JSON booleans arrive as NSNumber; show them as yes and no.
             if let number = value as? NSNumber, CFGetTypeID(number) == CFBooleanGetTypeID() {
                 return "\(key): \(number.boolValue ? "yes" : "no")"
@@ -182,6 +185,8 @@ enum AgentCLI {
             return "\(key): \(value.map { "\($0)" } ?? "")"
         }
         .joined(separator: "  ")
+        let below = nested.keys.sorted().flatMap { key in (nested[key] as? [JSONObject] ?? []).map { "    " + line($0) } }
+        return ([head] + below).joined(separator: "\n")
     }
 
     private static func fail(_ error: AgentError, json: Bool) {

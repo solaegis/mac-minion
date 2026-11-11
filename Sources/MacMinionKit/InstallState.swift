@@ -59,10 +59,10 @@ public enum AddonStatus: String, Sendable, Hashable {
 
     public var label: String {
         switch self {
-        case .upToDate: "Up to date"
-        case .updateAvailable: "Update available"
-        case .ignored: "Ignored"
-        case .versionUnknown: "Version unknown"
+        case .upToDate: String(localized: "Up to date", bundle: .module)
+        case .updateAvailable: String(localized: "Update available", bundle: .module)
+        case .ignored: String(localized: "Ignored", bundle: .module)
+        case .versionUnknown: String(localized: "Version unknown", bundle: .module)
         }
     }
 }

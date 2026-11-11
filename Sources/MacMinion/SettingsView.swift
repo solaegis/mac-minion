@@ -2,6 +2,7 @@ import AppKit
 import MacMinionKit
 import ServiceManagement
 import SwiftUI
+import UniformTypeIdentifiers
 
 /// The Settings window (Command-Comma). One tab per topic, at most about
 /// six. Each tab is a grouped Form that sizes to its content, so the
@@ -23,19 +24,21 @@ struct SettingsView: View {
 
     @ViewBuilder
     private func page(_ tab: SettingsTab) -> some View {
-        Form {
-            switch tab {
-            case .general: GeneralSettings()
-            case .updates: UpdateSettings()
-            case .layout: LayoutSettings()
-            case .backups: BackupSettings()
-            case .ai: AISettings()
-            case .appearance: AppearanceSettings()
+        VStack(spacing: 0) {
+            Form {
+                switch tab {
+                case .general: GeneralSettings()
+                case .updates: UpdateSettings()
+                case .layout: LayoutSettings()
+                case .backups: BackupSettings()
+                case .ai: AISettings()
+                case .appearance: AppearanceSettings()
+                }
             }
-        }
-        .formStyle(.grouped)
-        // The standard round help button, opening this tab's page in the docs.
-        .safeAreaInset(edge: .bottom, spacing: 0) {
+            .formStyle(.grouped)
+            .fitsContent()
+            // The standard round help button, opening this tab's page in the docs. It sits under the form, not
+            // over it: as a bottom inset it covered the last row of a tab tall enough to scroll.
             HStack {
                 Spacer()
                 HelpLink { Docs.open(Docs.page(for: tab)) }
@@ -43,7 +46,6 @@ struct SettingsView: View {
             .padding(.horizontal, Space.xl)
             .padding(.bottom, Space.md)
         }
-        .fitsContent()
         .frame(width: 560)
     }
 }
@@ -56,12 +58,12 @@ enum SettingsTab: String, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
-        case .general: "General"
-        case .updates: "Updates"
-        case .layout: "Layout"
-        case .backups: "Backups"
-        case .ai: "AI"
-        case .appearance: "Appearance"
+        case .general: String(localized: "General")
+        case .updates: String(localized: "Updates")
+        case .layout: String(localized: "Layout")
+        case .backups: String(localized: "Backups")
+        case .ai: String(localized: "AI")
+        case .appearance: String(localized: "Appearance")
         }
     }
 
@@ -103,13 +105,82 @@ struct GeneralSettings: View {
         } footer: {
             Text("NA and EU share the live folder.").foregroundStyle(.secondary)
         }
-        Section("App") {
+        Section {
+            if model.companionInstalled {
+                LabeledContent("Installed", value: model.companionManifest?.version ?? CompanionData.displayName)
+                if let written = model.companionSnapshot?.written {
+                    LabeledContent("Last snapshot", value: written.formatted(.relative(presentation: .named)))
+                } else {
+                    LabeledContent("Last snapshot", value: String(localized: "Log in once to write one"))
+                }
+                if let game = model.companionSnapshot?.env?.gameVersion {
+                    LabeledContent("Game version", value: game)
+                }
+            } else if model.hasScanned {
+                Text("Not installed. After one login it gives MacMinion the roster, which addons loaded, and Lua errors.")
+                    .foregroundStyle(.secondary)
+            }
+            if let error = model.companionError {
+                Text(error).font(.caption).foregroundStyle(Palette.negative)
+            }
+            HStack {
+                Spacer()
+                if model.companionBusy {
+                    ProgressView().controlSize(.small)
+                } else {
+                    Button(model.companionInstalled ? String(localized: "Reinstall ESO Mac Minion") : String(localized: "Install ESO Mac Minion")) {
+                        Task { await model.installCompanion() }
+                    }
+                    .disabled(model.companionSourceURL() == nil || model.gameIsRunning)
+                    .help(model.gameIsRunning ? "Quit Elder Scrolls Online first"
+                          : String(localized: "Copy the companion addon into AddOns"))
+                }
+            }
+        } header: {
+            Text("MacMinion Companion")
+        } footer: {
+            Text("An in-game addon MacMinion ships. Install it, then log in once.")
+                .foregroundStyle(.secondary)
+        }
+        Section {
+            LabeledContent("Open files with") {
+                Label {
+                    Text(editorName)
+                } icon: {
+                    if let editor = prefs.editorURL {
+                        Image(nsImage: NSWorkspace.shared.icon(forFile: editor.path)).resizable().frame(width: 16, height: 16)
+                    } else {
+                        Image(systemName: "doc.text")
+                    }
+                }
+                .help(prefs.editorPath)
+            }
+            HStack {
+                Button("Use Default App") { prefs.editorPath = "" }
+                    .disabled(prefs.editorPath.isEmpty)
+                Spacer()
+                Button("Choose…", action: chooseEditor)
+            }
+        } header: {
+            Text("Game Folder Files")
+        } footer: {
+            Text(String(localized: "Open in Editor opens SavedVariables, settings, and other game files here. With the default app, a file no app opens goes to TextEdit."))
+                .foregroundStyle(.secondary)
+        }
+        Section {
             Toggle("Show in menu bar", isOn: $prefs.showMenuBarItem)
             Toggle("Open at login", isOn: $openAtLogin)
                 .onChange(of: openAtLogin) { setOpenAtLogin(openAtLogin) }
             if let loginError {
                 Text(loginError).font(.caption).foregroundStyle(Palette.negative)
             }
+        } header: {
+            Text("App")
+        } footer: {
+            Text(prefs.showMenuBarItem
+                 ? String(localized: "Closing the window leaves MacMinion in the menu bar, out of the Dock, still checking for updates. At login it starts there.")
+                 : String(localized: "Closing the window keeps MacMinion in the Dock, still checking for updates."))
+                .foregroundStyle(.secondary)
         }
         Section {
             Button("Import from Minion") { model.importFromMinionIfNeeded(force: true) }
@@ -127,9 +198,23 @@ struct GeneralSettings: View {
             if on { try SMAppService.mainApp.register() } else { try SMAppService.mainApp.unregister() }
             loginError = nil
         } catch {
-            loginError = "Couldn't change it: \(error.localizedDescription)"
+            loginError = String(localized: "Couldn't change it: \(error.localizedDescription)")
             openAtLogin = SMAppService.mainApp.status == .enabled
         }
+    }
+
+    private var editorName: String {
+        guard let editor = model.prefs.editorURL else { return String(localized: "Default App") }
+        return FileManager.default.displayName(atPath: editor.path).replacingOccurrences(of: ".app", with: "")
+    }
+
+    private func chooseEditor() {
+        let panel = NSOpenPanel()
+        panel.canChooseDirectories = false
+        panel.allowedContentTypes = [.applicationBundle]
+        panel.directoryURL = URL(fileURLWithPath: "/Applications")
+        panel.prompt = String(localized: "Use App")
+        if panel.runModal() == .OK, let url = panel.url { model.prefs.editorPath = url.path }
     }
 
     private func choose() {
@@ -137,7 +222,7 @@ struct GeneralSettings: View {
         panel.canChooseDirectories = true
         panel.canChooseFiles = false
         panel.directoryURL = model.addonsFolder
-        panel.prompt = "Use Folder"
+        panel.prompt = String(localized: "Use Folder")
         if panel.runModal() == .OK, let url = panel.url { model.addonsFolder = url }
     }
 }
@@ -303,26 +388,20 @@ struct AISettings: View {
             }
             .task { await loadModels() }
         case .claude:
-            Section {
-                SecureField("API Key", text: $prefs.claudeKey, prompt: Text("sk-ant-…"))
-                Picker("Model", selection: $prefs.claudeModel) {
-                    ForEach(ClaudeModel.allCases) { Text($0.title).tag($0) }
-                }
-                testRow
-            } header: {
-                Text("Claude")
-            } footer: {
-                Text("The key is kept in your login Keychain. Create one at console.anthropic.com.")
-                    .foregroundStyle(.secondary)
-            }
+            KeyedProviderSection(provider: .claude, model: $prefs.claudeModel)
+                .id(AIProvider.claude)
+        case .openai:
+            KeyedProviderSection(provider: .openai, model: $prefs.openAIModel)
+                .id(AIProvider.openai)
         }
     }
 
     private var footer: String {
         switch model.prefs.aiProvider {
-        case .off: "Summaries of addon changelogs. Nothing is sent anywhere while this is off."
-        case .ollama: "Changelogs stay on this Mac. Ollama must be running."
-        case .claude: "Changelog text is sent to Anthropic to write each summary."
+        case .off: String(localized: "Summaries of addon changelogs. Nothing is sent anywhere while this is off.")
+        case .ollama: String(localized: "Changelogs stay on this Mac. Ollama must be running.")
+        case .claude: String(localized: "Addon names and changelog text are sent to Anthropic, and nowhere else.")
+        case .openai: String(localized: "Addon names and changelog text are sent to OpenAI, and nowhere else.")
         }
     }
 
@@ -389,7 +468,7 @@ struct AISettings: View {
             testResult = nil
         } catch {
             ollamaModels = []
-            testResult = "Can't reach Ollama at \(model.prefs.ollamaURL)"
+            testResult = String(localized: "Can't reach Ollama at \(model.prefs.ollamaURL)")
             testFailed = true
         }
     }
@@ -403,6 +482,157 @@ struct AISettings: View {
         } catch {
             testResult = error.localizedDescription
             testFailed = true
+        }
+    }
+}
+
+/// API key, model, and connection status for a hosted provider (Claude, OpenAI).
+struct KeyedProviderSection: View {
+    let provider: AIProvider
+    @Binding var model: String
+    @Environment(AppModel.self) private var app
+    @State private var keyDraft = ""
+    @State private var status = ConnectionStatus.untested
+    @State private var keychainFailed = false
+    @State private var confirmingRemoval = false
+    @State private var fetched: [String] = []
+    @State private var loadingModels = false
+    @State private var listIsCached = false
+
+    private var llm: any LLMProvider {
+        provider == .claude ? AnthropicProvider(key: app.prefs.claudeKey) : OpenAIProvider(key: app.prefs.openAIKey)
+    }
+    private var hasKey: Bool { !app.prefs.apiKey(for: provider).isEmpty }
+
+    var body: some View {
+        Section {
+            LabeledContent("Status") {
+                if status == .testing {
+                    ProgressView().controlSize(.small)
+                } else {
+                    Label(shownStatus.title, systemImage: symbol).foregroundStyle(color).lineLimit(2)
+                }
+            }
+            SecureField("API Key", text: $keyDraft, prompt: Text(hasKey ? String(localized: "Saved in Keychain") : keyPrompt))
+                .onSubmit(save)
+            HStack(spacing: Space.sm) {
+                Spacer()
+                Button("Remove Key…", role: .destructive) { confirmingRemoval = true }
+                    .disabled(!hasKey)
+                    .confirmationDialog("Remove the API key from the Keychain?", isPresented: $confirmingRemoval) {
+                        Button("Remove Key", role: .destructive) {
+                            app.prefs.removeKey(for: provider)
+                            status = .noKey
+                        }
+                    } message: {
+                        Text("AI features stop working until you paste the key again. MacMinion keeps no other copy.")
+                    }
+                Button("Save to Keychain", action: save)
+                    .disabled(keyDraft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            }
+            HStack(spacing: Space.sm) {
+                TextField("Model", text: $model, prompt: Text(llm.defaultModel))
+                Menu("Choose Model", systemImage: "list.bullet") {
+                    ForEach(modelChoices, id: \.self) { id in
+                        Button(title(id)) { model = id }
+                    }
+                }
+                .labelStyle(.iconOnly)
+                .menuIndicator(.hidden)
+                .fixedSize()
+                .help("Pick from the models \(llm.displayName) offers")
+                if loadingModels {
+                    ProgressView().controlSize(.small)
+                } else {
+                    Button("Refresh Models", systemImage: "arrow.clockwise") { Task { await loadModels() } }
+                        .labelStyle(.iconOnly)
+                        .disabled(!hasKey)
+                        .help("Ask \(llm.displayName) which models this key can use")
+                }
+            }
+            Button("Test Connection") { Task { await test() } }
+                .disabled(status == .testing || app.prefs.aiConfig.problem != nil)
+        } header: {
+            Text(llm.displayName)
+        } footer: {
+            Text(footer).foregroundStyle(.secondary)
+        }
+        .onAppear {
+            status = hasKey ? .untested : .noKey
+            fetched = app.prefs.cachedModels[provider] ?? []
+        }
+    }
+
+    private var keyPrompt: String { provider == .claude ? "sk-ant-…" : "sk-…" }
+
+    private var footer: String {
+        let site = provider == .claude ? "console.anthropic.com" : "platform.openai.com"
+        var text = String(localized: "The key is kept in your login Keychain, for this Mac user only, and sent only to \(llm.displayName). Create one at \(site). Model IDs change: choose one from the list or type it.")
+        if keychainFailed { text = String(localized: "The Keychain didn't save the key.") + " " + text }
+        if listIsCached { text += " " + String(localized: "Showing the last model list; \(llm.displayName) couldn't be reached.") }
+        return text
+    }
+
+    private var shownStatus: ConnectionStatus { hasKey ? status : .noKey }
+
+    private var symbol: String {
+        switch shownStatus {
+        case .connected: "checkmark.circle.fill"
+        case .invalidKey, .failed: "xmark.circle.fill"
+        case .rateLimited: "clock.badge.exclamationmark"
+        case .noKey: "key"
+        case .untested, .testing: "circle.dashed"
+        }
+    }
+
+    private var color: Color {
+        switch shownStatus {
+        case .connected: Palette.positive
+        case .invalidKey, .failed, .rateLimited: Palette.negative
+        default: .secondary
+        }
+    }
+
+    /// Fetched or cached models, else the known defaults, with the current model kept in the list.
+    private var modelChoices: [String] {
+        let list = fetched.isEmpty ? llm.availableModels : fetched
+        return model.isEmpty || list.contains(model) ? list : [model] + list
+    }
+
+    private func title(_ id: String) -> String {
+        provider == .claude ? AnthropicProvider.title(for: id) : OpenAIProvider.title(for: id)
+    }
+
+    private func save() {
+        keychainFailed = !app.prefs.saveKey(keyDraft, for: provider)
+        guard !keychainFailed else { return }
+        keyDraft = ""
+        status = .untested
+        Task { await loadModels() }
+    }
+
+    private func loadModels() async {
+        guard hasKey, !Store.isOverridden else { return }
+        loadingModels = true
+        defer { loadingModels = false }
+        do {
+            fetched = try await llm.fetchModels()
+            app.prefs.cachedModels[provider] = fetched
+            listIsCached = false
+        } catch {
+            fetched = app.prefs.cachedModels[provider] ?? []
+            listIsCached = !fetched.isEmpty
+            if case .invalidKey = ConnectionStatus(error) { status = .invalidKey }
+        }
+    }
+
+    private func test() async {
+        status = .testing
+        do {
+            _ = try await app.testAI()
+            status = .connected
+        } catch {
+            status = ConnectionStatus(error)
         }
     }
 }

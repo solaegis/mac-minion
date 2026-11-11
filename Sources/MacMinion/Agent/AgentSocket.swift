@@ -50,10 +50,29 @@ nonisolated enum AgentSocket {
         Thread.detachNewThread {
             while true {
                 let client = accept(server, nil, nil)
-                guard client >= 0 else { continue }
+                guard client >= 0 else {
+                    // Out of file descriptors and the like: wait, rather than spin a core.
+                    if errno != EINTR { Thread.sleep(forTimeInterval: 0.1) }
+                    continue
+                }
+                guard isSameUser(client) else { close(client); continue }
+                prepare(client)
                 Thread.detachNewThread { serve(client, handle: handle) }
             }
         }
+    }
+
+    /// Only this Mac user may talk to the app. The socket file is 0600 too, but only from just after bind.
+    static func isSameUser(_ client: Int32) -> Bool {
+        var uid: uid_t = 0, gid: gid_t = 0
+        return getpeereid(client, &uid, &gid) == 0 && uid == getuid()
+    }
+
+    /// A peer that hangs up early (Ctrl-C in the CLI) makes write fail with EPIPE instead of
+    /// raising SIGPIPE, which would quit the app.
+    static func prepare(_ socket: Int32) {
+        var on: Int32 = 1
+        setsockopt(socket, SOL_SOCKET, SO_NOSIGPIPE, &on, socklen_t(MemoryLayout<Int32>.size))
     }
 
     private static func serve(_ client: Int32, handle: @escaping @MainActor @Sendable (Data) async -> Data) {
@@ -92,6 +111,7 @@ nonisolated enum AgentSocket {
     private static func exchange(_ request: Data) throws -> Data {
         let client = socket(AF_UNIX, SOCK_STREAM, 0)
         guard client >= 0 else { throw AgentError.unavailable("no socket") }
+        prepare(client)
         defer { close(client) }
         var address = try address(path)
         let connected = withUnsafePointer(to: &address) {

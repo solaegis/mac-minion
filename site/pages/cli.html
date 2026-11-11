@@ -43,7 +43,7 @@ macminion updates install --json</code></pre>
 <pre><code>macminion catalog ask &quot;track my crafting writs&quot; --json</code></pre>
 <h3 id="open"><code>macminion open</code> <small>· changes things</small></h3>
 <p>Show a page in the window, optionally with an addon selected.</p>
-<table><tr><th>Option</th><th>Type</th><th>Meaning</th></tr><tr><td><code>--addon</code></td><td>integer</td><td>the ESOUI id to select</td></tr><tr><td><code>--page</code> (required)</td><td>string</td><td>overview, installed, updates, findMore, backups</td></tr></table>
+<table><tr><th>Option</th><th>Type</th><th>Meaning</th></tr><tr><td><code>--addon</code></td><td>integer</td><td>the ESOUI id to select</td></tr><tr><td><code>--page</code> (required)</td><td>string</td><td>overview, installed, updates, findMore, backups, gameFolder</td></tr></table>
 <pre><code>macminion open findMore --addon 7</code></pre>
 <h2>Addons</h2>
 <h3 id="addons-list"><code>macminion addons list</code> <small>· reads only</small></h3>
@@ -124,3 +124,28 @@ macminion updates install --json</code></pre>
 <p>Measure the three best Ollama candidates&#x27; speed on this Mac, then recommend again.</p>
 <table><tr><th>Option</th><th>Type</th><th>Meaning</th></tr><tr><td><code>--models</code></td><td>string</td><td>comma-separated model names instead of the top three</td></tr></table>
 <pre><code>macminion ai benchmark --json</code></pre>
+<h2>Other</h2>
+<h3 id="sv-files"><code>macminion sv files</code> <small>· reads only</small></h3>
+<p>List SavedVariables files with the addon each belongs to, size, and problems found.</p>
+<table><tr><th>Option</th><th>Type</th><th>Meaning</th></tr><tr><td><code>--limit</code></td><td>integer</td><td>at most this many (default 200)</td></tr><tr><td><code>--offset</code></td><td>integer</td><td>skip this many, for the next page</td></tr></table>
+<pre><code>macminion sv files --json</code></pre>
+<h3 id="sv-tree"><code>macminion sv tree</code> <small>· reads only</small></h3>
+<p>Show one table in a SavedVariables file: its entries with values, names for IDs, and sizes.</p>
+<table><tr><th>Option</th><th>Type</th><th>Meaning</th></tr><tr><td><code>--file</code> (required)</td><td>string</td><td>the file, like pChat.lua</td></tr><tr><td><code>--limit</code></td><td>integer</td><td>at most this many entries (default 200)</td></tr><tr><td><code>--offset</code></td><td>integer</td><td>skip this many, for the next page</td></tr><tr><td><code>--path</code></td><td>string</td><td>the table, as Copy Path writes it (Var[&quot;NA Megaserver&quot;][1]) or Var › NA Megaserver › 1; leave out for the variables</td></tr></table>
+<pre><code>macminion sv tree WritWorthy.lua --path &#x27;WritWorthy_SavedVars[&quot;NA Megaserver&quot;]&#x27; --json</code></pre>
+<h3 id="sv-find"><code>macminion sv find</code> <small>· reads only</small></h3>
+<p>Find every place a character, account, item, guild, set, zone, or quest appears, by name or ID, across all SavedVariables.</p>
+<table><tr><th>Option</th><th>Type</th><th>Meaning</th></tr><tr><td><code>--places</code></td><td>integer</td><td>at most this many places per match (default 50)</td></tr><tr><td><code>--query</code> (required)</td><td>string</td><td>a name or ID: Masisi, @Paltop, Glenumbra, 96175</td></tr></table>
+<pre><code>macminion sv find Masisi --json</code></pre>
+<h3 id="sv-id"><code>macminion sv id</code> <small>· reads only</small></h3>
+<p>Name one ID (character, item, guild, zone, quest, set, account) and count where it appears.</p>
+<table><tr><th>Option</th><th>Type</th><th>Meaning</th></tr><tr><td><code>--id</code> (required)</td><td>string</td><td>the ID: 8796093036412335, 96175, @Paltop</td></tr></table>
+<pre><code>macminion sv id 8796093036412335 --json</code></pre>
+<h3 id="sv-problems"><code>macminion sv problems</code> <small>· reads only</small></h3>
+<p>List what looks wrong in SavedVariables, errors first: files that end early, leftover variables, mixed types, long lists, large files.</p>
+<table><tr><th>Option</th><th>Type</th><th>Meaning</th></tr><tr><td><code>--file</code></td><td>string</td><td>only this file</td></tr><tr><td><code>--limit</code></td><td>integer</td><td>at most this many (default 100)</td></tr><tr><td><code>--offset</code></td><td>integer</td><td>skip this many, for the next page</td></tr></table>
+<pre><code>macminion sv problems --json</code></pre>
+<h3 id="sv-biggest"><code>macminion sv biggest</code> <small>· reads only</small></h3>
+<p>What takes space in SavedVariables, largest first: tables, or totals by character, account, server, or file.</p>
+<table><tr><th>Option</th><th>Type</th><th>Meaning</th></tr><tr><td><code>--by</code></td><td>string</td><td>tables, characters, accounts, servers, or files (default tables)</td></tr><tr><td><code>--limit</code></td><td>integer</td><td>at most this many (default 25)</td></tr><tr><td><code>--offset</code></td><td>integer</td><td>skip this many, for the next page</td></tr></table>
+<pre><code>macminion sv biggest --by characters --json</code></pre>

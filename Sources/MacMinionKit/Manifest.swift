@@ -9,6 +9,8 @@ public struct Manifest: Sendable, Hashable {
     public var isLibrary = false
     public var dependsOn: [String] = []
     public var optionalDependsOn: [String] = []
+    /// Lua variables the game saves to `SavedVariables/<manifest name>.lua`.
+    public var savedVariables: [String] = []
 
     public init(title: String? = nil, version: String? = nil, author: String? = nil, isLibrary: Bool = false) {
         self.title = title; self.version = version; self.author = author; self.isLibrary = isLibrary
@@ -29,6 +31,7 @@ public struct Manifest: Sendable, Hashable {
             case "islibrary": m.isLibrary = value.lowercased() == "true"
             case "dependson": m.dependsOn = names(value)
             case "optionaldependson": m.optionalDependsOn = names(value)
+            case "savedvariables": m.savedVariables = names(value)
             default: break
             }
         }

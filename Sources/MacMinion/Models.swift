@@ -4,17 +4,18 @@ import MacMinionKit
 
 /// The sidebar pages. Snapshot mode walks through every case.
 enum SidebarItem: String, CaseIterable, Identifiable {
-    case overview, installed, updates, findMore, backups
+    case overview, installed, updates, findMore, backups, gameFolder
 
     var id: String { rawValue }
 
     var title: String {
         switch self {
-        case .overview: "Overview"
-        case .installed: "Installed"
-        case .updates: "Updates"
-        case .findMore: "Find More"
-        case .backups: "Backups"
+        case .overview: String(localized: "Overview")
+        case .installed: String(localized: "Installed")
+        case .updates: String(localized: "Updates")
+        case .findMore: String(localized: "Find More")
+        case .backups: String(localized: "Backups")
+        case .gameFolder: String(localized: "Game Folder")
         }
     }
 
@@ -25,7 +26,13 @@ enum SidebarItem: String, CaseIterable, Identifiable {
         case .updates: "arrow.down.circle"
         case .findMore: "magnifyingglass"
         case .backups: "clock.arrow.circlepath"
+        case .gameFolder: "folder.badge.gearshape"
         }
+    }
+
+    /// Still evolving; show a flask after the title in the sidebar.
+    var isExperimental: Bool {
+        self == .gameFolder
     }
 }
 
@@ -42,11 +49,11 @@ enum CatalogSort: String, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
-        case .downloads: "Most Downloaded"
-        case .monthly: "Popular This Month"
-        case .favorites: "Most Favorited"
-        case .newest: "Recently Updated"
-        case .name: "Name"
+        case .downloads: String(localized: "Most Downloaded")
+        case .monthly: String(localized: "Popular This Month")
+        case .favorites: String(localized: "Most Favorited")
+        case .newest: String(localized: "Recently Updated")
+        case .name: String(localized: "Name")
         }
     }
 }
@@ -59,10 +66,10 @@ enum InstalledSort: String, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
-        case .name: "Name"
-        case .author: "Author"
-        case .newest: "Recently Updated on ESOUI"
-        case .downloads: "Most Downloaded"
+        case .name: String(localized: "Name")
+        case .author: String(localized: "Author")
+        case .newest: String(localized: "Recently Updated on ESOUI")
+        case .downloads: String(localized: "Most Downloaded")
         }
     }
 }
@@ -70,8 +77,13 @@ enum InstalledSort: String, CaseIterable, Identifiable {
 /// App-wide state that menus, toolbars, and views share.
 @Observable
 final class AppModel {
-    var sidebar: SidebarItem? = .overview
-    var selection: Selection?
+    /// The page and selection come back at the next launch (`WindowState`).
+    var sidebar: SidebarItem? = WindowState.saved.page {
+        didSet { WindowState.save(page: sidebar, to: WindowState.store) }
+    }
+    var selection: Selection? = WindowState.saved.selection {
+        didSet { WindowState.save(selection: selection, to: WindowState.store) }
+    }
     /// Selected after the next page change (the Overview opens an addon on another page).
     var pendingSelection: Selection?
     /// The Customize Overview sheet is open.
@@ -119,6 +131,26 @@ final class AppModel {
     private(set) var installingLibraries = false
     /// True once AddOns was read and matched since launch.
     private(set) var hasScanned = false
+    /// ESO Mac Minion is in AddOns. It is not on ESOUI, so it is kept out of unmatched.
+    private(set) var companionInstalled = false
+    private(set) var companionManifest: Manifest?
+    /// Last snapshot from SavedVariables, when the companion has written one.
+    var companionSnapshot: CompanionSnapshot?
+    private(set) var companionBusy = false
+    var companionError: String?
+    /// The AddOns folder has been read and the companion is not there.
+    var needsCompanion: Bool { hasScanned && !companionInstalled }
+    /// Show the companion on Installed while no status/category filter is on, and the search matches.
+    var showCompanion: Bool {
+        guard companionInstalled, !installedFilter.isActive else { return false }
+        let query = installedSearch.trimmingCharacters(in: .whitespaces)
+        guard !query.isEmpty else { return true }
+        return CompanionData.displayName.localizedStandardContains(query)
+            || CompanionData.folderName.localizedStandardContains(query)
+            || (companionManifest?.author?.localizedStandardContains(query) ?? false)
+    }
+    /// Installed catalog addons, unmatched folders, and the companion when it is present.
+    var addonCount: Int { installed.count + unmatched.count + (companionInstalled ? 1 : 0) }
     /// Launch finished loading: the first scan ran, or there was no catalog to scan against.
     private(set) var startupDone = false
     var isReady: Bool { hasScanned || startupDone }
@@ -164,13 +196,15 @@ final class AppModel {
     init(offline: Bool = Store.isOverridden) {
         self.offline = offline
         if Store.isOverridden {
-            addonsFolder = Store.directory.appending(path: "AddOns", directoryHint: .isDirectory)
+            // A game folder of its own, so the store's files don't show on the Game Folder page.
+            addonsFolder = Store.directory.appending(path: "live/AddOns", directoryHint: .isDirectory)
         } else if let path = UserDefaults.standard.string(forKey: "addons.path") {
             addonsFolder = URL(fileURLWithPath: path, isDirectory: true)
         } else {
             addonsFolder = AddonsLocation.live
         }
         state = Store.loadState()
+        watchGame()
     }
 
     // MARK: Derived lists
@@ -230,8 +264,9 @@ final class AppModel {
 
     func catalogAddon(_ id: Int) -> CatalogAddon? { catalog.first { $0.id == id } }
 
-    /// Find More: catalog addons that aren't installed, filtered and sorted as the toolbar says.
-    var findMoreResults: [CatalogAddon] { catalogResults(includeInstalled: false) }
+    /// Find More: catalog addons that aren't installed, filtered and sorted as the toolbar says. Filtered to one
+    /// creator, it shows all their work, installed ones too (S-065).
+    var findMoreResults: [CatalogAddon] { catalogResults(includeInstalled: findMoreFilter.author != nil) }
 
     func catalogResults(includeInstalled: Bool) -> [CatalogAddon] {
         let have = Set(installed.map(\.id))
@@ -264,12 +299,26 @@ final class AppModel {
     }
 
     var statusLine: String {
-        if let batch { return "Updating \(min(batch.done + 1, batch.total)) of \(batch.total)…" }
-        if isRefreshing { return "Checking ESOUI…" }
-        if scanError != nil { return "Can't read the AddOns folder" }
-        if refreshError != nil { return "Couldn't refresh the catalog" }
-        guard let catalogDate else { return "Catalog not loaded" }
-        return "\(catalog.count.formatted()) addons · updated \(catalogDate.formatted(.relative(presentation: .named)))"
+        if let batch { return String(localized: "Updating \(min(batch.done + 1, batch.total)) of \(batch.total)…") }
+        if isRefreshing { return String(localized: "Checking ESOUI…") }
+        if scanError != nil { return String(localized: "Can't read the AddOns folder") }
+        if refreshError != nil { return String(localized: "Couldn't refresh the catalog") }
+        guard let catalogDate else { return String(localized: "Catalog not loaded") }
+        return String(localized: "\(catalog.count) addons") + " · "
+            + String(localized: "updated \(catalogDate.formatted(.relative(presentation: .named)))")
+    }
+
+    /// Window subtitle on Game Folder: SavedVariables count, total size, and when they were last read.
+    var gameFolderStatusLine: String {
+        if gameFolder.inspectorBusy { return String(localized: "Reading SavedVariables…") }
+        let count = gameFolder.savedVariables.count
+        let total = gameFolder.savedVariables.reduce(Int64(0)) { $0 + $1.bytes }
+        let size = total.formatted(.byteCount(style: .file))
+        let files = String(localized: "\(count) SavedVariables files") + " · " + size
+        if let at = gameFolder.readAt {
+            return files + " · " + String(localized: "read \(at.formatted(.relative(presentation: .named)))")
+        }
+        return files
     }
 
     // MARK: Start and refresh
@@ -329,23 +378,42 @@ final class AppModel {
             try? await Task.sleep(for: .seconds(60))
             let due = last.addingTimeInterval(Double(prefs.checkInterval.rawValue) * 60)
             if prefs.checkAutomatically, Date.now >= due {
+                // Keeps App Nap from stalling downloads while MacMinion runs with no window.
+                let activity = ProcessInfo.processInfo.beginActivity(options: .userInitiatedAllowingIdleSystemSleep,
+                                                                     reason: String(localized: "Checking ESOUI for addon updates"))
                 await refresh()
+                ProcessInfo.processInfo.endActivity(activity)
                 last = .now
             }
             await backUpIfDue()
         }
     }
 
+    /// The rescan running or last run. Each new one waits for it, so scans never overlap.
+    private var rescanTask: Task<Void, Never>?
+
     /// Reads the AddOns folder again and matches it to the catalog.
     func rescan() async {
+        let previous = rescanTask
+        let task = Task {
+            await previous?.value
+            await scanAddOns()
+        }
+        rescanTask = task
+        await task.value
+    }
+
+    private func scanAddOns() async {
         guard !catalog.isEmpty else { return }
         let folder = addonsFolder
+        // Installs and removals can finish while the folder is read; their records are newer than the scan.
+        let recordsBefore = state.records
         let (scanned, nested, size) = await Task.detached {
             (AddonMatcher.scan(folder), AddonMatcher.nested(folder), Usage.size(of: folder))
         }.value
         guard let folders = scanned else {
             // Keep every record: a folder we can't read says nothing about what is installed.
-            scanError = "Can't read the AddOns folder at \(folder.path). Check that it exists and that MacMinion may open Documents."
+            scanError = String(localized: "Can't read the AddOns folder at \(folder.path). Check that it exists and that MacMinion may open Documents.")
             return
         }
         scanError = nil
@@ -353,10 +421,21 @@ final class AppModel {
         let result = AddonMatcher.match(folders: folders, catalog: catalog, records: state.records)
         installed = result.installed
         unmatched = result.unmatched
+        if let found = folders.first(where: { CompanionData.isCompanionFolder($0.key) }) {
+            companionInstalled = true
+            companionManifest = found.value ?? nil
+        } else {
+            companionInstalled = false
+            companionManifest = nil
+        }
         allMissingLibraries = LibraryAdvisor.missing(folders: folders, nested: nested, catalog: catalog)
         // An empty folder with records on file is more likely a wrong folder than a mass uninstall: keep them.
-        if !folders.isEmpty || state.records.isEmpty { state.records = result.records }
+        if !folders.isEmpty || state.records.isEmpty {
+            state.records = AddonMatcher.records(scanned: result.records, before: recordsBefore, now: state.records)
+        }
         hasScanned = true
+        let sv = folder.deletingLastPathComponent().appending(path: "SavedVariables")
+        companionSnapshot = await Task.detached { CompanionData.read(in: sv) }.value
         save()
     }
 
@@ -437,7 +516,9 @@ final class AppModel {
     }
 
     func setIgnored(_ id: Int, _ ignored: Bool) {
+        guard let was = state.records[id]?.ignored, was != ignored else { return }
         state.records[id]?.ignored = ignored
+        registerUndo(ignored ? String(localized: "Ignore Updates") : String(localized: "Stop Ignoring Updates")) { $0.setIgnored(id, was) }
         save()
         Task { await rescan() }
     }
@@ -450,8 +531,54 @@ final class AppModel {
             if selection == .folder(folder.folder) { selection = nil }
             await rescan()
         } catch {
-            scanError = "Couldn't move \(folder.folder) to the Trash: \(error.localizedDescription)"
+            scanError = String(localized: "Couldn't move \(folder.folder) to the Trash: \(error.localizedDescription)")
         }
+    }
+
+    /// The folder to copy into AddOns: a seeded copy in test runs, otherwise the one bundled with the app.
+    func companionSourceURL() -> URL? {
+        let seeded = Store.directory.appending(path: "companion-src/\(CompanionData.folderName)")
+        if FileManager.default.fileExists(atPath: seeded.appending(path: "\(CompanionData.folderName).txt").path) { return seeded }
+        if let bundled = Bundle.main.resourceURL?.appending(path: CompanionData.folderName),
+           FileManager.default.fileExists(atPath: bundled.appending(path: "\(CompanionData.folderName).txt").path) {
+            return bundled
+        }
+        return nil
+    }
+
+    /// Copies the bundled companion into AddOns. The game must be closed.
+    func installCompanion() async {
+        guard !companionBusy else { return }
+        companionBusy = true
+        companionError = nil
+        defer { companionBusy = false }
+        guard !gameIsRunning else {
+            companionError = String(localized: "Quit Elder Scrolls Online first: it rewrites AddOns when it quits.")
+            return
+        }
+        guard let source = companionSourceURL() else {
+            companionError = InstallError.companionMissing.localizedDescription
+            return
+        }
+        do {
+            try CompanionInstaller.install(from: source, into: addonsFolder)
+            await rescan()
+            await gameFolder.scan()
+        } catch {
+            companionError = error.localizedDescription
+        }
+    }
+
+    /// What the companion last recorded for this installed addon, by its folder name.
+    func companionState(for addon: InstalledAddon) -> CompanionAddonState? {
+        addon.record.dirs.lazy.compactMap { self.companionSnapshot?.addons[$0] }.first
+    }
+
+    /// Lua errors last session for this addon's folders.
+    func companionErrorCount(for addon: InstalledAddon) -> Int {
+        companionSnapshot?.errors.filter { error in
+            addon.record.dirs.contains { $0.caseInsensitiveCompare(error.addon ?? "") == .orderedSame }
+        }.reduce(0) { $0 + $1.count } ?? 0
     }
 
     func remove(_ addon: InstalledAddon) async {
@@ -518,14 +645,15 @@ final class AppModel {
     }
 
     /// Changelog characters sent per addon. Local models get less, so the prompt fits their context window.
-    private var changelogLimit: Int { prefs.aiProvider == .claude ? 60_000 : 12_000 }
+    private var changelogLimit: Int { prefs.aiProvider == .ollama ? 12_000 : 60_000 }
 
     /// Who writes the summaries, for the card and the CLI.
     var aiSource: String {
         switch prefs.aiProvider {
-        case .claude: prefs.claudeModel.title
-        case .ollama: "\(prefs.ollamaModel) on Ollama"
-        case .off: "the assistant"
+        case .claude: AnthropicProvider.title(for: prefs.claudeModel)
+        case .openai: String(localized: "\(OpenAIProvider.title(for: prefs.openAIModel)) on OpenAI")
+        case .ollama: String(localized: "\(prefs.ollamaModel) on Ollama")
+        case .off: String(localized: "the assistant")
         }
     }
 
@@ -567,9 +695,29 @@ final class AppModel {
     var backupError: String?
     var backupMessage: String?
     var pendingRestore: Backup?
+    /// The backup selected in Backups, for the Addons menu's Restore and Move to Trash.
+    var selectedBackupID: Backup.ID?
+    var selectedBackup: Backup? { backups.first { $0.id == selectedBackupID } }
+    /// A backup waiting for the person to confirm Move to Trash.
+    var pendingBackupDeletion: Backup?
+    /// View > Hide Inspector: the details column stays closed even with an addon selected.
+    var inspectorHidden = false
+    /// The SavedVariables file Backups is helping put back (from a damaged-file finding, S-052).
+    var backupFocus: String?
+    /// Backups that hold `backupFocus`; nil while they're being looked through.
+    var backupsHoldingFocus: Set<Backup.ID>?
 
     /// The folder AddOns sits in (`.../live`): SavedVariables and the settings files are here.
-    var gameFolder: URL { addonsFolder.deletingLastPathComponent() }
+    var gameFolderURL: URL { addonsFolder.deletingLastPathComponent() }
+
+    // MARK: Game folder (GameFolder/GameFolderModel.swift)
+
+    /// Everything the Game Folder pages show and do.
+    @ObservationIgnored private(set) lazy var gameFolder = GameFolderModel(app: self)
+
+    /// The self-test sets this, in place of whether ESO is really running, to check that changes wait
+    /// for the game to quit. Nil: ask the system.
+    var simulatesRunningGame: Bool?
 
     func loadBackups() {
         backups = MinionBackup.list(backupDir: prefs.backupFolder, gameID: prefs.backupGameID)
@@ -578,16 +726,16 @@ final class AppModel {
     /// Writes today's backup, Minion style, then trims old ones to the number Settings keeps.
     func backUp() async {
         guard backupBusy == nil else { return }
-        backupBusy = "Backing up…"
+        backupBusy = String(localized: "Backing up…")
         backupError = nil
         defer { backupBusy = nil }
-        let game = gameFolder, ids = installed.map(\.id), dir = prefs.backupFolder, gameID = prefs.backupGameID
+        let game = gameFolderURL, ids = installed.map(\.id), dir = prefs.backupFolder, gameID = prefs.backupGameID
         do {
             let made = try await Task.detached { try MinionBackup.create(gameFolder: game, addonIDs: ids, backupDir: dir, gameID: gameID) }.value
-            backupMessage = "Backed up \(ids.count) addons and their settings (\(made.bytes.formatted(.byteCount(style: .file))))."
+            backupMessage = String(localized: "Backed up \(ids.count) addons and their settings (\(made.bytes.formatted(.byteCount(style: .file)))).")
             pruneBackups()
         } catch {
-            backupError = "The backup failed: \(error.localizedDescription)"
+            backupError = String(localized: "The backup failed: \(error.localizedDescription)")
         }
         loadBackups()
     }
@@ -627,55 +775,72 @@ final class AppModel {
     }
 
     /// True while Elder Scrolls Online runs; it rewrites SavedVariables when it quits.
-    var gameIsRunning: Bool {
-        NSWorkspace.shared.runningApplications.contains { app in
+    var gameIsRunning: Bool { simulatesRunningGame ?? gameProcessRunning }
+
+    /// Kept current from app launches and quits, so warnings and disabled buttons follow the game.
+    private(set) var gameProcessRunning = false
+
+    private func watchGame() {
+        let center = NSWorkspace.shared.notificationCenter
+        for name in [NSWorkspace.didLaunchApplicationNotification, NSWorkspace.didTerminateApplicationNotification] {
+            center.addObserver(forName: name, object: nil, queue: .main) { [weak self] _ in
+                MainActor.assumeIsolated { self?.updateGameRunning() }
+            }
+        }
+        updateGameRunning()
+    }
+
+    private func updateGameRunning() {
+        let running = NSWorkspace.shared.runningApplications.contains { app in
             let name = (app.localizedName ?? "").lowercased(), id = (app.bundleIdentifier ?? "").lowercased()
             return name.contains("elder scrolls") || name == "eso" || name.hasPrefix("eso64") || id.contains("zenimax")
         }
+        if running != gameProcessRunning { gameProcessRunning = running }
     }
 
     /// Where a restore first saves what is there now, so a restore can itself be undone.
     var restoreSafetyFolder: URL { Store.directory.appending(path: "restore-safety", directoryHint: .isDirectory) }
 
+    /// Puts backed-up files back into this game folder, saving what's there first.
+    var backupRestore: BackupRestore { BackupRestore(gameFolder: gameFolderURL, safetyRoot: restoreSafetyFolder) }
+
+    /// What a failed restore says: whether anything changed, and where what was there before is saved.
+    static func restoreErrorText(_ failure: BackupRestore.Failure) -> String {
+        switch failure {
+        case .couldNotSaveFirst(let error):
+            String(localized: "Nothing was restored: what you have now couldn't be saved first. \(error.localizedDescription)")
+        case .stopped(let error, let safety):
+            String(localized: "The restore stopped: \(error.localizedDescription). What you had before is saved in \(safety.path).")
+        case .notInBackup:
+            String(localized: "Nothing was restored.")
+        }
+    }
+
     /// Restores a backup: its files (SavedVariables and settings, or AddOns folders for an initial
     /// backup), then the addons on its list. Saves the current state first.
     func restore(_ backup: Backup, options: RestoreOptions) async {
         guard backupBusy == nil else { return }
-        backupBusy = "Saving what you have now…"
+        guard !gameIsRunning else {
+            backupError = "Quit Elder Scrolls Online first: it writes SavedVariables when it quits and would undo the restore."
+            return
+        }
+        backupBusy = String(localized: "Saving what you have now…")
         backupError = nil
         defer { backupBusy = nil }
-        let fm = FileManager.default
-        let game = gameFolder, ids = installed.map(\.id), safety = restoreSafetyFolder, addons = addonsFolder
+        let restoring = String(localized: "Restoring files…")
         do {
-            _ = try await Task.detached { try MinionBackup.create(gameFolder: game, addonIDs: ids, backupDir: safety, gameID: "before-restore") }.value
-            var restoredFiles = 0
-            if options.files, let zip = backup.zip {
-                backupBusy = "Restoring files…"
-                let work = fm.temporaryDirectory.appending(path: "MacMinion-restore-\(UUID().uuidString)", directoryHint: .isDirectory)
-                defer { try? fm.removeItem(at: work) }
-                let files = try await Task.detached { try MinionBackup.unpack(zip, into: work, gameFolder: game) }.value
-                // A full AddOns backup replaces whole addon folders, so files from a newer version don't linger.
-                let addonFolders = Set(files.compactMap { f -> String? in
-                    let rel = f.destination.path.dropFirst(game.path.count + 1).split(separator: "/")
-                    return rel.count > 2 && rel[0] == "AddOns" ? String(rel[1]) : nil
-                })
-                for folder in addonFolders where fm.fileExists(atPath: addons.appending(path: folder).path) {
-                    try fm.trashItem(at: addons.appending(path: folder), resultingItemURL: nil)
-                }
-                for f in files {
-                    try fm.createDirectory(at: f.destination.deletingLastPathComponent(), withIntermediateDirectories: true)
-                    if fm.fileExists(atPath: f.destination.path) { try fm.removeItem(at: f.destination) }
-                    try fm.copyItem(at: f.source, to: f.destination)
-                    restoredFiles += 1
-                }
-            }
+            // Without files to put back, this only saves what's there.
+            let scope: BackupRestore.Scope = if options.files, let zip = backup.zip { .everything(from: zip) } else { .saveOnly }
+            let restoredFiles = try await backupRestore.run(scope, addonIDs: installed.map(\.id)) {
+                await MainActor.run { self.backupBusy = restoring }
+            }.restored
             await rescan()
             let list = Set(backup.addonIDs)
             var installedCount = 0, removed = 0
             if !list.isEmpty, options.reinstallMissing {
                 let missing = list.filter { installed($0) == nil && catalogAddon($0) != nil }.sorted()
                 for (n, id) in missing.enumerated() {
-                    backupBusy = "Installing \(n + 1) of \(missing.count)…"
+                    backupBusy = String(localized: "Installing \(n + 1) of \(missing.count)…")
                     await install(id)
                     if errors[id] == nil { installedCount += 1 }
                 }
@@ -686,14 +851,61 @@ final class AppModel {
                     removed += 1
                 }
             }
-            let parts = [restoredFiles > 0 ? "\(restoredFiles) files restored" : nil,
-                         installedCount > 0 ? "\(installedCount) addons installed" : nil,
-                         removed > 0 ? "\(removed) moved to the Trash" : nil].compactMap { $0 }
-            backupMessage = parts.isEmpty ? "Nothing needed restoring." : parts.joined(separator: ", ") + "."
+            let parts = [restoredFiles > 0 ? String(localized: "\(restoredFiles) files restored") : nil,
+                         installedCount > 0 ? String(localized: "\(installedCount) addons installed") : nil,
+                         removed > 0 ? String(localized: "\(removed) moved to the Trash") : nil].compactMap { $0 }
+            backupMessage = parts.isEmpty ? String(localized: "Nothing needed restoring.") : parts.joined(separator: ", ") + "."
         } catch {
-            backupError = "The restore stopped: \(error.localizedDescription). What you had before is saved in \(safety.path)."
+            backupError = Self.restoreErrorText(error)
         }
         loadBackups()
+    }
+
+    /// Opens Backups on one SavedVariables file: which backups hold it, and a button to put back just that file.
+    func focusBackups(on file: String) {
+        loadBackups()
+        backupFocus = file
+        backupsHoldingFocus = nil
+        open(.backups)
+        let zips = backups.compactMap { backup in backup.zip.map { (backup.id, $0) } }
+        Task {
+            let holding = await Task.detached {
+                Set(zips.filter { MinionBackup.files(in: $0.1).contains("SavedVariables/\(file)") }.map(\.0))
+            }.value
+            if backupFocus == file { backupsHoldingFocus = holding }
+        }
+    }
+
+    /// Puts back one SavedVariables file from a backup, leaving every other file as it is. Saves the current
+    /// state first, like a full restore, and refuses while the game runs.
+    func restoreFile(_ name: String, from backup: Backup) async {
+        guard backupBusy == nil, let zip = backup.zip else { return }
+        guard !gameIsRunning else {
+            backupError = String(localized: "Quit Elder Scrolls Online first: it writes SavedVariables when it quits and would undo the restore.")
+            return
+        }
+        backupBusy = String(localized: "Saving what you have now…")
+        backupError = nil
+        backupMessage = nil
+        defer { backupBusy = nil }
+        let restoring = String(localized: "Restoring \(name)…")
+        do {
+            _ = try await backupRestore.run(.file("SavedVariables/\(name)", from: zip), addonIDs: installed.map(\.id)) {
+                await MainActor.run { self.backupBusy = restoring }
+            }
+            backupMessage = String(localized: "\(name) is back from the backup of \(backup.name). Your other files are as they were.")
+            backupFocus = nil
+            backupsHoldingFocus = nil
+        } catch .notInBackup {
+            backupError = String(localized: "That backup doesn't have \(name). Nothing was changed.")
+            return
+        } catch {
+            backupError = Self.restoreErrorText(error)
+        }
+        loadBackups()
+        // Problems reads the file again, so a damaged-file finding goes once the file is whole.
+        await gameFolder.scan()
+        await gameFolder.load()
     }
 
     // MARK: Ratings
@@ -702,7 +914,10 @@ final class AppModel {
 
     /// Thumbs up, down, or neither. Down also takes the addon out of suggestions and search results.
     func setRating(_ id: Int, _ rating: Rating?) {
+        let was = state.ratings[id]
+        guard was != rating else { return }
         state.ratings[id] = rating
+        registerUndo(String(localized: "Rating")) { $0.setRating(id, was) }
         if rating == .down { searchResults.removeAll { $0.addon.id == id } }
         save()
     }
@@ -760,13 +975,13 @@ final class AppModel {
         defer { searchStage = nil }
         let client = AIClient(config: prefs.aiConfig)
         do {
-            searchStage = "Working out what to look for…"
+            searchStage = String(localized: "Working out what to look for…")
             let plan = AddonSearch.parsePlan(
                 try await client.complete(system: AIPrompts.recommendSystem, prompt: AddonSearch.keywordPrompt(query, categories: categories)),
                 query: query)
             var found = AddonSearch.candidates(catalog: catalog, plan: plan, blurbs: blurbs, excluded: disliked)
             guard !found.isEmpty else { throw AIError.empty }
-            searchStage = "Reading \(found.count) addons…"
+            searchStage = String(localized: "Reading \(found.count) addons…")
             await loadBlurbs(found.map(\.id))
             // With descriptions in hand, score again so description matches count.
             found = AddonSearch.candidates(catalog: catalog, plan: plan, blurbs: blurbs, excluded: disliked)
@@ -775,7 +990,7 @@ final class AppModel {
                 AddonRecommender.Entry(id: c.id, name: c.name, category: titles[c.categoryID] ?? "Other",
                                        blurb: blurbs[c.id] ?? "", monthly: c.downloadsMonthly)
             }
-            searchStage = "Choosing the best matches…"
+            searchStage = String(localized: "Choosing the best matches…")
             let answer = try await client.complete(system: AIPrompts.recommendSystem,
                                                    prompt: AddonSearch.pickPrompt(query, candidates: entries,
                                                                                   installed: Set(installed.map(\.id)), taste: taste))
@@ -783,7 +998,7 @@ final class AppModel {
             guard !picks.isEmpty else { throw AIError.empty }
             searchResults = picks.compactMap { p in catalogAddon(p.id).map { ($0, p.reason) } }
         } catch AIError.empty {
-            searchError = "Nothing in the catalog matched. Try other words."
+            searchError = String(localized: "Nothing in the catalog matched. Try other words.")
         } catch {
             searchError = error.localizedDescription
         }
@@ -829,7 +1044,7 @@ final class AppModel {
         defer { isSuggesting = false }
         await waitUntilReady()
         guard hasScanned, !installed.isEmpty else {
-            suggestError = scanError ?? "No installed addons to base suggestions on yet."
+            suggestError = scanError ?? String(localized: "No installed addons to base suggestions on yet.")
             return
         }
         // Any catalog entry that installs into a folder already on disk is a fork or variant of something installed.
@@ -930,4 +1145,17 @@ enum AddonsLocation {
     static var documents: URL { FileManager.default.homeDirectoryForCurrentUser.appending(path: "Documents/Elder Scrolls Online") }
     static var live: URL { documents.appending(path: "live/AddOns", directoryHint: .isDirectory) }
     static var pts: URL { documents.appending(path: "pts/AddOns", directoryHint: .isDirectory) }
+}
+
+extension AppModel {
+    /// Edit › Undo for a change in the main window (a rating, Ignore Updates, the Overview's layout). The
+    /// handler makes the opposite change through the same function, which registers Redo in turn.
+    func registerUndo(_ name: String, _ undo: @escaping @MainActor (AppModel) -> Void) {
+        guard let undoManager = NSApplication.shared.windows.first(where: { $0.identifier?.rawValue.hasPrefix("main") == true })?.undoManager
+                ?? NSApplication.shared.mainWindow?.undoManager else { return }
+        undoManager.registerUndo(withTarget: self) { model in
+            MainActor.assumeIsolated { undo(model) }
+        }
+        undoManager.setActionName(name)
+    }
 }

@@ -73,10 +73,21 @@ public enum AddonMatcher {
             return InstalledAddon(catalog: c, record: r, manifest: r.dirs.first.flatMap { folders[$0] ?? nil })
         }.sorted { $0.catalog.name.localizedStandardCompare($1.catalog.name) == .orderedAscending }
 
-        let unmatched = folders.filter { !claimed.contains($0.key) }
+        let unmatched = folders.filter { !claimed.contains($0.key) && !CompanionData.isCompanionFolder($0.key) }
             .map { UnmatchedFolder(folder: $0.key, manifest: $0.value) }
             .sorted { $0.title.localizedStandardCompare($1.title) == .orderedAscending }
 
         return Result(installed: installed, unmatched: unmatched, records: kept)
+    }
+
+    /// The records to save after a scan. A record that changed while the scan ran (an install or
+    /// removal that finished meanwhile) is newer than what the scan saw on disk, so it wins.
+    public static func records(scanned: [Int: InstallRecord], before: [Int: InstallRecord],
+                               now: [Int: InstallRecord]) -> [Int: InstallRecord] {
+        var out = scanned
+        for id in Set(before.keys).union(now.keys) where before[id] != now[id] {
+            out[id] = now[id]
+        }
+        return out
     }
 }

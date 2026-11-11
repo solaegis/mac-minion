@@ -70,8 +70,10 @@ public enum FeedError: LocalizedError, Equatable {
 
     public var errorDescription: String? {
         switch self {
-        case .http(let code, let url): "ESOUI answered \(code) for \(url.lastPathComponent)."
-        case .notFound(let id): "ESOUI has no addon with id \(id)."
+        case .http(let code, let url):
+            String(localized: "ESOUI answered \(code) for \(url.lastPathComponent).", bundle: .module)
+        case .notFound(let id):
+            String(localized: "ESOUI has no addon with id \(id).", bundle: .module)
         }
     }
 }
