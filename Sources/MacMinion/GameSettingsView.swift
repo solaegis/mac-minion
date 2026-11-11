@@ -105,10 +105,11 @@ private struct GameSettingRow: View {
     private var tip: String? { GameSettingsFile.help(for: field, kind: kind) }
 
     var body: some View {
+        let rowTip = tip
         LabeledContent {
             HStack(spacing: Space.sm) {
                 editor
-                    .modifier(OptionalHelp(tip))
+                    .modifier(OptionalHelp(rowTip))
                 if edited {
                     Button("Undo Edit", systemImage: "arrow.uturn.backward") { model.gameFolder.setGameSetting(field, in: kind, to: field.value) }
                         .labelStyle(.iconOnly)
@@ -117,11 +118,21 @@ private struct GameSettingRow: View {
                 }
             }
         } label: {
-            HStack(spacing: Space.xs) {
+            let label = HStack(spacing: Space.xs) {
                 if edited { Circle().fill(Palette.accent).frame(width: Space.sm, height: Space.sm).accessibilityLabel("Edited") }
                 Text(field.key).textSelection(.enabled)
+                if rowTip != nil {
+                    Image(systemName: "info.circle")
+                        .foregroundStyle(.secondary)
+                        .imageScale(.small)
+                        .accessibilityLabel(String(localized: "Help available"))
+                }
             }
-            .modifier(OptionalHelp(tip))
+            if let rowTip {
+                label.help(rowTip).accessibilityHint(rowTip)
+            } else {
+                label
+            }
         }
         .contextMenu {
             if edited { Button("Undo Edit") { model.gameFolder.setGameSetting(field, in: kind, to: field.value) } }

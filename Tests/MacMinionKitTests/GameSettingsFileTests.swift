@@ -60,4 +60,25 @@ private let addOns = "#Version 101051\n#AcknowledgedOutOfDateAddonsVersion 10105
     let machine = GameSettingsFile.Field(id: 0, section: nil, key: "RESOLUTION", value: "2560x1440", type: .size)
     #expect(GameSettingsFile.help(for: machine, kind: .machine)?.contains("width") == true
             || GameSettingsFile.help(for: machine, kind: .machine)?.contains("×") == true)
+    // Cached lookups return the same instance for the shared AddOn tip (and stay non-empty for keys).
+    let again = GameSettingsFile.help(for: perCharacter, kind: .addOns)
+    #expect(again == GameSettingsFile.help(for: perCharacter, kind: .addOns))
+    #expect(GameSettingsFile.help(for: realm, kind: .user) == GameSettingsFile.help(for: realm, kind: .user))
+}
+
+/// Rough cost of resolving tips the way Game Settings does for a large AddOnSettings form (label + editor each call).
+@Test func helpLookupCostForManyAddOnRows() {
+    let row = GameSettingsFile.Field(id: 1, section: "Default", key: "pChat", value: "1", type: .toggle)
+    // Warm once so localization catalogs are loaded.
+    _ = GameSettingsFile.help(for: row, kind: .addOns)
+    let n = 20_000
+    let t0 = CFAbsoluteTimeGetCurrent()
+    for _ in 0..<n {
+        // Two lookups per row body (label + editor), as OptionalHelp does.
+        _ = GameSettingsFile.help(for: row, kind: .addOns)
+        _ = GameSettingsFile.help(for: row, kind: .addOns)
+    }
+    let ms = (CFAbsoluteTimeGetCurrent() - t0) * 1000
+    print(String(format: "HELP_BENCH addOnTips=%d lookups in %.1f ms (%.1f µs/lookup)", n * 2, ms, ms * 1000 / Double(n * 2)))
+    #expect(ms < 500) // after cache this should be well under; before cache it was the regression signal
 }
