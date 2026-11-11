@@ -46,7 +46,7 @@ extension SelfTest {
         model.gameFolder.inspectorReadable = true
     }
 
-    /// The Characters grid, Compare, and Copy Settings (S-053 to S-057, S-060, S-064).
+    /// The Characters grid, Compare, and Copy Settings (S-053 to S-057, S-060, S-064, S-066).
     static func characters(_ model: AppModel) async {
         // S-053 to S-056 Characters and addons
         // S-064 Four tabs: Characters, Inspector, Problems, and Game Settings.
@@ -100,12 +100,13 @@ extension SelfTest {
               SVReadable.label(.string(masisiKey), names: model.gameFolder.names) == "Masisi (8796093036412335)"
               && model.gameFolder.characterTitle(masisiKey) == "Masisi (8796093036412335)")
         check("the progress bar is gone once SavedVariables are read", model.gameFolder.progress == nil && model.gameFolder.loading == nil)
-        model.gameFolder.explorerOpen(.compare(masisiKey, alphaKey))
-        check("a comparison is a level you can climb out of", model.gameFolder.explorerPath.last == .compare(masisiKey, alphaKey))
+        model.gameFolder.explorerOpen(.compare(masisiKey, alphaKey, file: nil))
+        check("a comparison is a level you can climb out of", model.gameFolder.explorerPath.last == .compare(masisiKey, alphaKey, file: nil))
         // S-060 Copy settings from one character to the other, one or all, either way.
         model.open(.gameFolder)
         model.gameFolder.tab = .characters
         check("Compare knows which two characters it shows", model.gameFolder.comparedCharacters.map { [$0.0, $0.1] } == [masisiKey, alphaKey])
+        check("all-addons Compare has no file scope", model.gameFolder.comparedFile == nil)
         let svFolder = model.gameFolderURL.appending(path: "SavedVariables")
         var svBefore: [URL: Data] = [:]
         for file in model.gameFolder.savedVariables where file.name.hasSuffix(".lua") { svBefore[file.url] = try? Data(contentsOf: file.url) }
@@ -137,6 +138,35 @@ extension SelfTest {
         await model.gameFolder.scan()
         await model.gameFolder.load()
         check("the sample files are back as they were", writDiff()?.differing.map(\.key) == ["Auto craft", "Writ count"])
+        model.gameFolder.message = nil
+        model.gameFolder.errorMessage = nil
+        // S-066 Compare two characters in one addon, from character-in-addon.
+        model.gameFolder.explorerPath = [.grid, .character(masisiKey), .characterAddon(id: masisiKey, file: "WritWorthy.lua")]
+        model.gameFolder.explorerOpen(.compare(masisiKey, alphaKey, file: "WritWorthy.lua"))
+        check("a scoped comparison is a level you can climb out of",
+              model.gameFolder.explorerPath.last == .compare(masisiKey, alphaKey, file: "WritWorthy.lua"))
+        check("scoped Compare knows its addon file", model.gameFolder.comparedFile == "WritWorthy.lua"
+              && model.gameFolder.comparedCharacters.map { [$0.0, $0.1] } == [masisiKey, alphaKey])
+        let writOnly = model.gameFolder.copyAllRows(from: masisiKey, to: alphaKey, file: "WritWorthy.lua")
+        check("scoped Copy All is only that addon's differences",
+              writOnly.map(\.file).allSatisfy { $0 == "WritWorthy.lua" }
+              && Set(writOnly.map(\.key)) == Set(compared.first { $0.file == "WritWorthy.lua" }?.differing.map(\.key) ?? []),
+              "\(writOnly)")
+        check("scoped Copy All is fewer than every addon",
+              writOnly.count < model.gameFolder.copyAllRows(from: masisiKey, to: alphaKey).count)
+        await model.gameFolder.copySettings(writOnly, from: masisiKey, to: alphaKey)
+        check("scoped clone clears that addon's differences",
+              model.gameFolder.matrix?.compare(masisiKey, alphaKey).first { $0.file == "WritWorthy.lua" }?.differing.isEmpty == true,
+              "\(model.gameFolder.matrix?.compare(masisiKey, alphaKey).first { $0.file == "WritWorthy.lua" }?.differing.map(\.key) ?? [])")
+        check("scoped clone leaves other addons' differences",
+              model.gameFolder.matrix?.compare(masisiKey, alphaKey).first { $0.file == "HarvestMap.lua" }?.differing.map(\.key) == ["Minimap pins"])
+        model.gameFolder.explorerBack()
+        check("Back from scoped Compare returns to character-in-addon",
+              model.gameFolder.explorerPath.last == .characterAddon(id: masisiKey, file: "WritWorthy.lua"))
+        for (url, data) in svBefore { try? data.write(to: url) }
+        await model.gameFolder.scan()
+        await model.gameFolder.load()
+        check("the sample files are back after scoped clone", writDiff()?.differing.map(\.key) == ["Auto craft", "Writ count"])
         model.gameFolder.message = nil
         model.gameFolder.errorMessage = nil
         // Two characters with one name: Compare adds each one's megaserver, and only then.

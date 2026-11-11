@@ -24030,6 +24030,118 @@
           }
         }
       }
+    },
+    "See every setting where this character and another differ in this addon": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Alle Einstellungen sehen, bei denen dieser und ein anderer Charakter in diesem AddOn abweichen"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ver cada configuración donde este y otro personaje difieren en este addon"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Voir chaque paramètre où ce personnage et un autre diffèrent dans cet addon"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Посмотреть каждую настройку, где этот и другой персонаж отличаются в этом аддоне"
+          }
+        }
+      }
+    },
+    "The values of %@ are replaced in %@. MacMinion backs up first; restore the backup to undo.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die Werte von %@ werden in %@ ersetzt. MacMinion erstellt zuerst ein Backup; stelle es wieder her, um die Änderung rückgängig zu machen."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Los valores de %@ se reemplazan en %@. MacMinion hace una copia de seguridad antes; restáurala para deshacerlo."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Les valeurs de %@ sont remplacées dans %@. MacMinion sauvegarde d’abord ; restaurez la sauvegarde pour annuler."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Значения %@ заменяются в %@. MacMinion сначала делает резервную копию; восстановите её, чтобы отменить."
+          }
+        }
+      }
+    },
+    "These two are set up the same in %@.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Diese beiden sind in %@ gleich eingestellt."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Estos dos están configurados igual en %@."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ces deux-là sont réglés de la même façon dans %@."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Эти двое настроены одинаково в %@."
+          }
+        }
+      }
+    },
+    "%@ in %@.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ in %@."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ en %@."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ dans %@."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ в %@."
+          }
+        }
+      }
     }
   },
   "version": "1.0"

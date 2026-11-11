@@ -101,7 +101,9 @@ enum Snapshot {
                         for (name, path) in [("character", [ExplorerLevel.grid, .character(masisi)]),
                                              ("character-addon", [.grid, .character(masisi), .characterAddon(id: masisi, file: "WritWorthy.lua")]),
                                              ("setting", [.grid, .addon("WritWorthy.lua"), .setting(file: "WritWorthy.lua", key: "Auto craft")]),
-                                             ("compare", [.grid, .character(masisi), .compare(masisi, "8798292071293572")]),
+                                             ("compare", [.grid, .character(masisi), .compare(masisi, "8798292071293572", file: nil)]),
+                                             ("compare-addon", [.grid, .character(masisi), .characterAddon(id: masisi, file: "WritWorthy.lua"),
+                                                                .compare(masisi, "8798292071293572", file: "WritWorthy.lua")]),
                                              ("account", [.grid, .account("@SOLAEGIS")]),
                                              ("server", [.grid, .account("@SOLAEGIS"), .server(account: "@SOLAEGIS", server: "NA Megaserver")])] {
                             model.gameFolder.explorerPath = path

@@ -399,12 +399,13 @@ struct InspectorCommands: View {
             .keyboardShortcut("z", modifiers: [.command, .option])
             .disabled(settingsKind.map { model.gameFolder.gameSettingsEdits($0) == 0 } ?? true)
         let compared = model.gameFolder.comparedCharacters
+        let comparedFile = model.gameFolder.comparedFile
         Button("Clone Left Character…") { model.gameFolder.cloneSource = compared?.0 }
             .keyboardShortcut(.leftArrow, modifiers: [.command, .option, .control])
-            .disabled(compared.map { model.gameFolder.copyAllRows(from: $0.0, to: $0.1).isEmpty } ?? true || model.gameIsRunning)
+            .disabled(compared.map { model.gameFolder.copyAllRows(from: $0.0, to: $0.1, file: comparedFile).isEmpty } ?? true || model.gameIsRunning)
         Button("Clone Right Character…") { model.gameFolder.cloneSource = compared?.1 }
             .keyboardShortcut(.rightArrow, modifiers: [.command, .option, .control])
-            .disabled(compared.map { model.gameFolder.copyAllRows(from: $0.1, to: $0.0).isEmpty } ?? true || model.gameIsRunning)
+            .disabled(compared.map { model.gameFolder.copyAllRows(from: $0.1, to: $0.0, file: comparedFile).isEmpty } ?? true || model.gameIsRunning)
         let finding = model.gameFolder.selectedFinding
         Button(finding?.action.map { model.gameFolder.title(for: $0) } ?? String(localized: "Fix Problem")) {
             if let finding, let action = finding.action { model.gameFolder.run(action, in: finding) }

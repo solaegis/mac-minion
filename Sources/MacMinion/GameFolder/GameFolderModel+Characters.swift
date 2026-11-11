@@ -46,8 +46,14 @@ extension GameFolderModel {
 
     /// The two characters Compare shows, in its order.
     var comparedCharacters: (String, String)? {
-        guard app.sidebar == .gameFolder, tab == .characters, case .compare(let a, let b)? = explorerPath.last else { return nil }
+        guard app.sidebar == .gameFolder, tab == .characters, case .compare(let a, let b, _)? = explorerPath.last else { return nil }
         return (a, b)
+    }
+
+    /// The addon file scoped Compare is limited to, or nil for every addon (S-066).
+    var comparedFile: String? {
+        guard app.sidebar == .gameFolder, tab == .characters, case .compare(_, _, let file)? = explorerPath.last else { return nil }
+        return file
     }
 
     /// A character's name in Compare, with their megaserver when the other has the same name: "Masisi (NA)".
@@ -65,9 +71,11 @@ extension GameFolderModel {
     }
 
     /// Every differing setting Copy All copies, from `from` to `to`, that has a place to go.
-    func copyAllRows(from: String, to: String) -> [(file: String, key: String)] {
+    /// When `file` is set, only that addon's differences (S-066).
+    func copyAllRows(from: String, to: String, file: String? = nil) -> [(file: String, key: String)] {
         guard let matrix = matrix else { return [] }
-        return matrix.compare(from, to).flatMap { c in c.differing.map { (c.file, $0.key) } }
+        let comparisons = file.map { f in matrix.compare(from, to).filter { $0.file == f } } ?? matrix.compare(from, to)
+        return comparisons.flatMap { c in c.differing.map { (c.file, $0.key) } }
             .filter { copyTarget(file: $0.file, key: $0.key, from: from, to: to) != nil }
     }
 

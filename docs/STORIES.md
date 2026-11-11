@@ -657,6 +657,14 @@ Acceptance:
 - [snap] Masisi beside Alpha Top.
 Status: done
 
+### S-066 Compare two characters in one addon
+As the user, from a character in one addon (Masisi › WritWorthy), I choose Compare With… another character and see only that addon's differing settings side by side, with the same Clone row and Clone all actions limited to that file. Full Compare With… on a character and Compare Characters… ⌃⌘C still cover every addon.
+Screens: gameFolder-compare-addon
+Depends: S-057, S-060
+Acceptance:
+- [self] From Masisi › WritWorthy, Compare With Alpha Top opens a scoped compare; Back returns to character-in-addon; scoped Copy All is only WritWorthy's differences; cloning clears those and leaves HarvestMap's differences.
+- [snap] Masisi beside Alpha Top in WritWorthy only.
+
 ## Dropped
 - WoW / WoWInterface support: ESO only.
 - Login, account registration, cloud backup, SavedVariables sync: account and premium features.

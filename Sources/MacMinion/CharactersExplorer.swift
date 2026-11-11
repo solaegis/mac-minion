@@ -12,8 +12,8 @@ enum ExplorerLevel: Hashable {
     case characterAddon(id: String, file: String)
     /// One setting's values across characters.
     case setting(file: String, key: String)
-    /// Two characters side by side (S-057).
-    case compare(String, String)
+    /// Two characters side by side (S-057). When `file` is set, only that addon's settings (S-066).
+    case compare(String, String, file: String?)
     /// An account with its megaservers around it (S-061).
     case account(String)
     /// One account's characters on one megaserver.
@@ -58,7 +58,7 @@ struct CharactersExplorer: View {
                     case .addon(let file): AddonAcrossCharacters(model: model, matrix: matrix, file: file)
                     case .characterAddon(let id, let file): CharacterInAddon(model: model, matrix: matrix, id: id, file: file)
                     case .setting(let file, let key): SettingAcrossCharacters(model: model, matrix: matrix, file: file, key: key)
-                    case .compare(let a, let b): CompareCharacters(model: model, matrix: matrix, a: a, b: b)
+                    case .compare(let a, let b, let file): CompareCharacters(model: model, matrix: matrix, a: a, b: b, file: file)
                     case .account(let account): AccountConstellation(model: model, matrix: matrix, account: account)
                     case .server(let account, let server): ServerConstellation(model: model, matrix: matrix, account: account, server: server)
                     }
@@ -100,7 +100,7 @@ struct CharactersExplorer: View {
         case .addon(let file): model.addonName(file)
         case .characterAddon(_, let file): model.addonName(file)
         case .setting(_, let key): key
-        case .compare(let a, let b): "\(model.gameFolder.compareName(a, other: b)) and \(model.gameFolder.compareName(b, other: a))"
+        case .compare(let a, let b, _): "\(model.gameFolder.compareName(a, other: b)) and \(model.gameFolder.compareName(b, other: a))"
         case .account(let account): account
         case .server(_, let server): server
         }
@@ -373,7 +373,7 @@ private struct CharacterConstellation: View {
             Section {
                 Menu("Compare With…") {
                     CharacterMenuItems(matrix: matrix, excluding: id) { other in
-                        Button(model.gameFolder.characterTitle(other)) { model.gameFolder.explorerOpen(.compare(id, other)) }
+                        Button(model.gameFolder.characterTitle(other)) { model.gameFolder.explorerOpen(.compare(id, other, file: nil)) }
                     }
                 }
                 .help("See every setting where this character and another differ")
@@ -554,7 +554,17 @@ private struct CharacterInAddon: View {
                         Text("\(mine.count) settings, \(odd.count) set differently from your other characters. Click one to compare.")
                             .font(.caption).foregroundStyle(.secondary)
                     }
-                } footer: {
+                }
+                Section {
+                    Menu("Compare With…") {
+                        CharacterMenuItems(matrix: matrix, excluding: id, only: Set(addon.characters.keys)) { other in
+                            Button(model.gameFolder.characterTitle(other)) {
+                                model.gameFolder.explorerOpen(.compare(id, other, file: file))
+                            }
+                        }
+                    }
+                    .help("See every setting where this character and another differ in this addon")
+                    .disabled(addon.characters.keys.filter { $0 != id }.isEmpty)
                     Button("Show in Inspector") {
                         Task { await model.gameFolder.reveal(file: file, path: model.gameFolder.characterTablePath(id, in: addon)) }
                     }
@@ -702,13 +712,16 @@ private struct ServerConstellation: View {
 
 // MARK: - Two characters
 
-/// Two characters side by side, each in their own color: every setting, across every addon, where they differ,
-/// then the settings only one of them has. A button with a character's name gives their value to the other.
+/// Two characters side by side, each in their own color: every setting, across every addon (or one addon when
+/// `file` is set), where they differ, then the settings only one of them has. A button with a character's name
+/// gives their value to the other.
 private struct CompareCharacters: View {
     let model: AppModel
     let matrix: SettingsMatrix
     let a: String
     let b: String
+    /// When set, only this addon's SavedVariables file (S-066).
+    var file: String? = nil
     @State private var onlyDifferences = true
     /// The window's, so Edit › Undo puts back what a copy wrote.
     @Environment(\.undoManager) private var undoManager
@@ -717,9 +730,14 @@ private struct CompareCharacters: View {
     private func name(_ id: String) -> String { model.gameFolder.compareName(id, other: other(id)) }
     private func color(_ id: String) -> Color { id == a ? Palette.accentText : Palette.counterpart }
     private func wash(_ id: String) -> Color { id == a ? Palette.accentWash : Palette.counterpartWash }
+    private func copyAll(from: String, to: String) -> [(file: String, key: String)] {
+        model.gameFolder.copyAllRows(from: from, to: to, file: file)
+    }
 
     var body: some View {
-        let comparisons = model.byName(matrix.compare(a, b), file: \.file)
+        let all = matrix.compare(a, b)
+        let scoped = file.map { f in all.filter { $0.file == f } } ?? all
+        let comparisons = model.byName(scoped, file: \.file)
         let differing = comparisons.reduce(0) { $0 + $1.differing.count }
         List {
             Section {
@@ -730,8 +748,7 @@ private struct CompareCharacters: View {
                 }
                 // The summary, with the title of the column the Clone All buttons sit in, like each addon's heading.
                 HStack(alignment: .firstTextBaseline, spacing: 0) {
-                    Text(differing == 0 ? String(localized: "These two are set up the same in every addon they share.")
-                         : String(localized: "\(String(localized: "\(differing) settings differ")) across \(comparisons.filter { !$0.differing.isEmpty }.count) addons."))
+                    Text(summary(differing: differing, addonCount: comparisons.filter { !$0.differing.isEmpty }.count))
                         .foregroundStyle(.secondary)
                         .frame(width: Self.buttonsOffset, alignment: .leading)
                     Text("Clone all from")
@@ -786,21 +803,36 @@ private struct CompareCharacters: View {
         .confirmationDialog(confirmTitle, isPresented: Binding(get: { model.gameFolder.cloneSource != nil }, set: { if !$0 { model.gameFolder.cloneSource = nil } })) {
             if let source = model.gameFolder.cloneSource {
                 Button("Back Up and Copy") {
-                    let rows = model.gameFolder.copyAllRows(from: source, to: other(source))
+                    let rows = copyAll(from: source, to: other(source))
                     Task { await model.gameFolder.copySettings(rows, from: source, to: other(source), undoManager: undoManager) }
                 }
             }
             Button("Cancel", role: .cancel) {}
         } message: {
             if let source = model.gameFolder.cloneSource {
-                Text("The values of \(name(other(source))) are replaced in each addon's SavedVariables file. MacMinion backs up first; restore the backup to undo.")
+                if let file {
+                    Text("The values of \(name(other(source))) are replaced in \(model.addonName(file)). MacMinion backs up first; restore the backup to undo.")
+                } else {
+                    Text("The values of \(name(other(source))) are replaced in each addon's SavedVariables file. MacMinion backs up first; restore the backup to undo.")
+                }
             }
         }
     }
 
+    private func summary(differing: Int, addonCount: Int) -> String {
+        if differing == 0 {
+            if let file { return String(localized: "These two are set up the same in \(model.addonName(file)).") }
+            return String(localized: "These two are set up the same in every addon they share.")
+        }
+        if let file {
+            return String(localized: "\(String(localized: "\(differing) settings differ")) in \(model.addonName(file)).")
+        }
+        return String(localized: "\(String(localized: "\(differing) settings differ")) across \(addonCount) addons.")
+    }
+
     private var confirmTitle: String {
         guard let source = model.gameFolder.cloneSource else { return "" }
-        let count = model.gameFolder.copyAllRows(from: source, to: other(source)).count
+        let count = copyAll(from: source, to: other(source)).count
         return String(localized: "Copy \(String(localized: "\(count) settings")) from \(name(source)) to \(name(other(source)))?")
     }
 
@@ -819,7 +851,7 @@ private struct CompareCharacters: View {
 
     /// "Clone Masisi (NA)…": every difference from this character to the other, after a question.
     private func cloneButton(_ id: String) -> some View {
-        let rows = model.gameFolder.copyAllRows(from: id, to: other(id))
+        let rows = copyAll(from: id, to: other(id))
         // The same small button as on each row; it asks before it clones.
         return Button(name(id)) { model.gameFolder.cloneSource = id }
             .buttonStyle(.bordered)
@@ -910,7 +942,7 @@ private struct CompareChooser: View {
                 Button("Cancel", role: .cancel) { dismiss() }.keyboardShortcut(.cancelAction)
                 Button("Compare") {
                     model.gameFolder.tab = .characters
-                    model.gameFolder.explorerPath = [.grid, .compare(a, b)]
+                    model.gameFolder.explorerPath = [.grid, .compare(a, b, file: nil)]
                     dismiss()
                 }
                 .keyboardShortcut(.defaultAction)
@@ -941,12 +973,14 @@ private struct CompareChooser: View {
 private struct CharacterMenuItems<Item: View>: View {
     let matrix: SettingsMatrix
     var excluding: String?
+    /// When set, only these character IDs (e.g. who have settings in one addon).
+    var only: Set<String>? = nil
     @ViewBuilder let item: (String) -> Item
 
     var body: some View {
         ForEach(matrix.accounts) { account in
             ForEach(account.servers) { server in
-                let ids = server.characters.filter { $0 != excluding }
+                let ids = server.characters.filter { $0 != excluding && (only?.contains($0) ?? true) }
                 if !ids.isEmpty {
                     Section("\(account.account) · \(SettingsMatrix.shortServer(server.server))") {
                         ForEach(ids, id: \.self) { item($0) }
