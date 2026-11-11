@@ -20,3 +20,4 @@
 - Optional support is Buy Me a Coffee via `.github/FUNDING.yml` (`buy_me_a_coffee: lewisvavasw`); the public page display name is solaegis. Do not add a BMC shield.
 - r/elderscrollsonline bans anything that uses AI in any form ([wiki/rules](https://www.reddit.com/r/elderscrollsonline/wiki/rules/)). Posts, comments, screenshots, and linked copy for that sub must not mention AI, Ollama, Claude, OpenAI, or related features.
 - Snapshot runs need MacMinion excluded from BetterStage so the window keeps the requested size (including `-min` shots).
+- CI `swift test` for trusted events (`push` to `main`, same-repo PRs) uses a repo-scoped self-hosted runner on **atreides** (`~/actions-runner/mac-minion`, labels `self-hosted`/`macOS`/`ARM64`); fork PRs stay on GitHub-hosted `macos-26`. Release stays GitHub-hosted. Ops notes: `docs/self-hosted-runner.md`.
