@@ -6898,6 +6898,1154 @@
           }
         }
       }
+    },
+    "Loads this addon for this character (or Default). Off keeps it installed but not loaded." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lädt dieses Addon für diesen Charakter (oder Default). Aus lässt es installiert, aber nicht geladen."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Carga este addon para este personaje (o Default). Desactivado lo deja instalado, pero no cargado."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Charge cet addon pour ce personnage (ou Default). Désactivé le laisse installé, mais non chargé."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Загружает этот аддон для персонажа (или Default). Выкл. оставляет установленным, но не загружает."
+          }
+        }
+      }
+    },
+    "Which megaserver the client last used: NA Megaserver, EU Megaserver, or PTS." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Welchen Megaserver der Client zuletzt verwendet hat: NA Megaserver, EU Megaserver oder PTS."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Qué megaserver usó el cliente por última vez: NA Megaserver, EU Megaserver o PTS."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Quel mégaserver le client a utilisé en dernier : NA Megaserver, EU Megaserver ou PTS."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Какой мегасервер клиент использовал последним: NA Megaserver, EU Megaserver или PTS."
+          }
+        }
+      }
+    },
+    "Client UI language (en, de, fr, es, ru, jp, zh). The game may overwrite this while running." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sprache der Client-Oberfläche (en, de, fr, es, ru, jp, zh). Das Spiel kann dies während des Laufs überschreiben."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Idioma de la interfaz del cliente (en, de, fr, es, ru, jp, zh). El juego puede sobrescribirlo mientras corre."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Langue de l’interface client (en, de, fr, es, ru, jp, zh). Le jeu peut l’écraser pendant l’exécution."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Язык интерфейса клиента (en, de, fr, es, ru, jp, zh). Игра может перезаписать это во время работы."
+          }
+        }
+      }
+    },
+    "Last language the client accepted as valid. Usually matches Language.2." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Letzte Sprache, die der Client als gültig akzeptiert hat. Entspricht meist Language.2."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Último idioma que el cliente aceptó como válido. Suele coincidir con Language.2."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dernière langue acceptée comme valide par le client. Correspond en général à Language.2."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Последний язык, который клиент принял как действительный. Обычно совпадает с Language.2."
+          }
+        }
+      }
+    },
+    "Language last reported from the platform or launcher." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zuletzt von der Plattform oder dem Launcher gemeldete Sprache."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Último idioma informado por la plataforma o el launcher."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dernière langue signalée par la plateforme ou le lanceur."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Последний язык, сообщённый платформой или лаунчером."
+          }
+        }
+      }
+    },
+    "API version this AddOnSettings.txt was written under. Pick the update name that matches your game build." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "API-Version, unter der diese AddOnSettings.txt geschrieben wurde. Wähle den Update-Namen passend zu deinem Spielstand."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Versión de API con la que se escribió este AddOnSettings.txt. Elige el nombre de actualización de tu build."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Version d’API sous laquelle ce AddOnSettings.txt a été écrit. Choisis le nom de mise à jour de ton build."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Версия API, под которой записан этот AddOnSettings.txt. Выберите обновление, соответствующее вашей сборке."
+          }
+        }
+      }
+    },
+    "API version for which you last dismissed the out-of-date addons warning." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "API-Version, für die du die Warnung zu veralteten Addons zuletzt bestätigt hast."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Versión de API para la que descartaste por última vez el aviso de addons desactualizados."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Version d’API pour laquelle tu as écarté en dernier l’avertissement d’addons obsolètes."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Версия API, для которой вы в последний раз закрыли предупреждение об устаревших аддонах."
+          }
+        }
+      }
+    },
+    "Master switch for loading addons. Off loads none, even if a character's list is on." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hauptschalter für das Laden von Addons. Aus lädt keines, auch wenn die Charakterliste an ist."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Interruptor maestro para cargar addons. Desactivado no carga ninguno, aunque la lista del personaje esté activa."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Interrupteur principal pour charger les addons. Désactivé n’en charge aucun, même si la liste du personnage est active."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Главный переключатель загрузки аддонов. Выкл. не загружает ни одного, даже если список персонажа включён."
+          }
+        }
+      }
+    },
+    "On: cap frame rate while the game is in the background. Off: uncapped in the background (uses more power)." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "An: Bildrate begrenzen, während das Spiel im Hintergrund ist. Aus: im Hintergrund unbegrenzt (mehr Strom)."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Activado: limita los FPS en segundo plano. Desactivado: sin límite en segundo plano (más consumo)."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Activé : plafonne les IPS en arrière-plan. Désactivé : sans plafond en arrière-plan (plus d’énergie)."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Вкл.: ограничить FPS в фоне. Выкл.: без ограничения в фоне (больше энергии)."
+          }
+        }
+      }
+    },
+    "Target FPS while in the background when USE_BACKGROUND_FPS_LIMIT is on." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ziel-FPS im Hintergrund, wenn USE_BACKGROUND_FPS_LIMIT an ist."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "FPS objetivo en segundo plano cuando USE_BACKGROUND_FPS_LIMIT está activado."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "IPS cible en arrière-plan lorsque USE_BACKGROUND_FPS_LIMIT est activé."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Целевой FPS в фоне, когда USE_BACKGROUND_FPS_LIMIT включён."
+          }
+        }
+      }
+    },
+    "Minimum seconds per frame (about 1 ÷ target FPS). Example: 0.01 ≈ 100 FPS, 0.0167 ≈ 60 FPS." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mindestsekunden pro Frame (etwa 1 ÷ Ziel-FPS). Beispiel: 0,01 ≈ 100 FPS, 0,0167 ≈ 60 FPS."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Segundos mínimos por fotograma (aprox. 1 ÷ FPS objetivo). Ejemplo: 0,01 ≈ 100 FPS, 0,0167 ≈ 60 FPS."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Secondes minimales par image (environ 1 ÷ IPS cible). Exemple : 0,01 ≈ 100 IPS, 0,0167 ≈ 60 IPS."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Минимум секунд на кадр (примерно 1 ÷ целевой FPS). Пример: 0,01 ≈ 100 FPS, 0,0167 ≈ 60 FPS."
+          }
+        }
+      }
+    },
+    "On: sync frames to the display refresh to reduce tearing. Off: uncapped by vsync (can tear)." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "An: Frames an die Bildwiederholrate koppeln, weniger Tearing. Aus: nicht durch VSync begrenzt (kann reißen)."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Activado: sincroniza fotogramas con el refresco para reducir tearing. Desactivado: sin tope de vsync (puede haber tearing)."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Activé : synchronise les images au rafraîchissement pour réduire le tearing. Désactivé : non plafonné par le vsync (peut déchirer)."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Вкл.: синхронизация кадров с обновлением экрана, меньше разрывов. Выкл.: без ограничения vsync (возможны разрывы)."
+          }
+        }
+      }
+    },
+    "How many refresh intervals per frame when VSYNC is on (1 = every refresh, 2 = half rate)." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wie viele Refresh-Intervalle pro Frame bei aktivem VSYNC (1 = jeder Refresh, 2 = halbe Rate)."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cuántos intervalos de refresco por fotograma con VSYNC activado (1 = cada refresco, 2 = mitad)."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nombre d’intervalles de rafraîchissement par image avec VSYNC activé (1 = chaque rafraîchissement, 2 = moitié)."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Сколько интервалов обновления на кадр при включённом VSYNC (1 = каждый, 2 = половина)."
+          }
+        }
+      }
+    },
+    "On: run full screen. Off: windowed. Pair with PreferExclusiveFullscreen and PreferMaximizedWindow." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "An: Vollbild. Aus: Fenstermodus. Zusammen mit PreferExclusiveFullscreen und PreferMaximizedWindow."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Activado: pantalla completa. Desactivado: ventana. Combínalo con PreferExclusiveFullscreen y PreferMaximizedWindow."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Activé : plein écran. Désactivé : fenêtré. À combiner avec PreferExclusiveFullscreen et PreferMaximizedWindow."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Вкл.: полный экран. Выкл.: оконный режим. Вместе с PreferExclusiveFullscreen и PreferMaximizedWindow."
+          }
+        }
+      }
+    },
+    "On: prefer exclusive full screen when FULLSCREEN is on. Off: prefer borderless where available." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "An: exklusives Vollbild bevorzugen, wenn FULLSCREEN an ist. Aus: randlos bevorzugen, wo verfügbar."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Activado: prefiere pantalla completa exclusiva si FULLSCREEN está activo. Desactivado: prefiere sin bordes si hay."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Activé : préfère le plein écran exclusif si FULLSCREEN est actif. Désactivé : préfère sans bordure si disponible."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Вкл.: предпочитать эксклюзивный полный экран при FULLSCREEN. Выкл.: предпочитать безрамочный, если доступен."
+          }
+        }
+      }
+    },
+    "On: prefer a maximized window when not in exclusive full screen." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "An: maximiertes Fenster bevorzugen, wenn nicht im exklusiven Vollbild."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Activado: prefiere una ventana maximizada si no estás en pantalla completa exclusiva."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Activé : préfère une fenêtre maximisée hors plein écran exclusif."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Вкл.: предпочитать развёрнутое окно вне эксклюзивного полного экрана."
+          }
+        }
+      }
+    },
+    "Horizontal resolution in full-screen mode (pixels)." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Horizontale Auflösung im Vollbildmodus (Pixel)."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Resolución horizontal en pantalla completa (píxeles)."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Résolution horizontale en plein écran (pixels)."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Горизонтальное разрешение в полноэкранном режиме (пиксели)."
+          }
+        }
+      }
+    },
+    "Vertical resolution in full-screen mode (pixels)." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vertikale Auflösung im Vollbildmodus (Pixel)."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Resolución vertical en pantalla completa (píxeles)."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Résolution verticale en plein écran (pixels)."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Вертикальное разрешение в полноэкранном режиме (пиксели)."
+          }
+        }
+      }
+    },
+    "Window width when not full screen (pixels)." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fensterbreite außerhalb des Vollbilds (Pixel)."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ancho de ventana fuera de pantalla completa (píxeles)."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Largeur de fenêtre hors plein écran (pixels)."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ширина окна вне полного экрана (пиксели)."
+          }
+        }
+      }
+    },
+    "Window height when not full screen (pixels)." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fensterhöhe außerhalb des Vollbilds (Pixel)."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Alto de ventana fuera de pantalla completa (píxeles)."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hauteur de fenêtre hors plein écran (pixels)."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Высота окна вне полного экрана (пиксели)."
+          }
+        }
+      }
+    },
+    "File format for screenshots (for example PNG or JPG), as the client writes it." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dateiformat für Screenshots (z. B. PNG oder JPG), so wie der Client es schreibt."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Formato de archivo para capturas (por ejemplo PNG o JPG), como lo escribe el cliente."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Format de fichier des captures (par ex. PNG ou JPG), tel que le client l’écrit."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Формат файлов скриншотов (например PNG или JPG), как пишет клиент."
+          }
+        }
+      }
+    },
+    "Anti-aliasing method index the client uses. Higher quality usually costs more GPU time." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Index der Anti-Aliasing-Methode des Clients. Höhere Qualität kostet meist mehr GPU-Zeit."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Índice del método de antialiasing del cliente. Más calidad suele costar más GPU."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Index de la méthode d’anticrénelage du client. Une meilleure qualité coûte souvent plus de GPU."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Индекс метода сглаживания клиента. Более высокое качество обычно дороже по GPU."
+          }
+        }
+      }
+    },
+    "AMD FidelityFX Super Resolution mode. 0 is typically off; higher values are stronger upscaling presets." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AMD FidelityFX Super Resolution-Modus. 0 ist meist aus; höhere Werte sind stärkere Upscaling-Presets."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Modo AMD FidelityFX Super Resolution. 0 suele ser desactivado; valores más altos son presets de upscaling más fuertes."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mode AMD FidelityFX Super Resolution. 0 est en général désactivé ; des valeurs plus élevées sont des presets d’upscaling plus forts."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Режим AMD FidelityFX Super Resolution. 0 обычно выкл.; более высокие значения — более сильные пресеты апскейла."
+          }
+        }
+      }
+    },
+    "NVIDIA DLSS mode when supported. 0 is typically off; higher values are stronger upscaling presets." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NVIDIA-DLSS-Modus, wenn unterstützt. 0 ist meist aus; höhere Werte sind stärkere Upscaling-Presets."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Modo NVIDIA DLSS si está soportado. 0 suele ser desactivado; valores más altos son presets de upscaling más fuertes."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mode NVIDIA DLSS s’il est pris en charge. 0 est en général désactivé ; des valeurs plus élevées sont des presets d’upscaling plus forts."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Режим NVIDIA DLSS при поддержке. 0 обычно выкл.; более высокие значения — более сильные пресеты апскейла."
+          }
+        }
+      }
+    },
+    "Shadow quality level. Higher values look sharper and cost more GPU time." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Schattenqualitätsstufe. Höhere Werte wirken schärfer und kosten mehr GPU-Zeit."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nivel de calidad de sombras. Valores más altos se ven más nítidos y cuestan más GPU."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Niveau de qualité des ombres. Des valeurs plus élevées sont plus nettes et coûtent plus de GPU."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Уровень качества теней. Более высокие значения резче и дороже по GPU."
+          }
+        }
+      }
+    },
+    "On: use HDR output when the display supports it. Off: standard dynamic range." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "An: HDR-Ausgabe nutzen, wenn das Display es unterstützt. Aus: Standard-Dynamikumfang."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Activado: usa salida HDR si la pantalla lo admite. Desactivado: rango dinámico estándar."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Activé : utilise la sortie HDR si l’écran le permet. Désactivé : plage dynamique standard."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Вкл.: вывод HDR, если дисплей поддерживает. Выкл.: обычный динамический диапазон."
+          }
+        }
+      }
+    },
+    "On: invert vertical look. Off: normal vertical look." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "An: vertikale Blickrichtung umkehren. Aus: normale vertikale Blickrichtung."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Activado: invierte la mirada vertical. Desactivado: mirada vertical normal."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Activé : inverse le regard vertical. Désactivé : regard vertical normal."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Вкл.: инвертировать вертикальный обзор. Выкл.: обычный вертикальный обзор."
+          }
+        }
+      }
+    },
+    "On: invert horizontal look. Off: normal horizontal look." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "An: horizontale Blickrichtung umkehren. Aus: normale horizontale Blickrichtung."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Activado: invierte la mirada horizontal. Desactivado: mirada horizontal normal."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Activé : inverse le regard horizontal. Désactivé : regard horizontal normal."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Вкл.: инвертировать горизонтальный обзор. Выкл.: обычный горизонтальный обзор."
+          }
+        }
+      }
+    },
+    "On: invert mouse-wheel zoom direction. Off: normal zoom." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "An: Zoomrichtung des Mausrads umkehren. Aus: normaler Zoom."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Activado: invierte el zoom de la rueda del ratón. Desactivado: zoom normal."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Activé : inverse le zoom de la molette. Désactivé : zoom normal."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Вкл.: инвертировать зум колёсика мыши. Выкл.: обычный зум."
+          }
+        }
+      }
+    },
+    "Master audio on/off for the client." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Master-Audio ein/aus für den Client."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Audio maestro activado/desactivado para el cliente."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Audio principal activé/désactivé pour le client."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Главный звук вкл./выкл. для клиента."
+          }
+        }
+      }
+    },
+    "On: play game music. Off: mute music only." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "An: Spielmusik abspielen. Aus: nur Musik stumm."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Activado: reproduce la música del juego. Desactivado: silencia solo la música."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Activé : joue la musique du jeu. Désactivé : coupe seulement la musique."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Вкл.: играть музыку. Выкл.: отключить только музыку."
+          }
+        }
+      }
+    },
+    "On: keep playing audio while the game is in the background. Off: silence in the background." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "An: Audio weiter abspielen, während das Spiel im Hintergrund ist. Aus: Stille im Hintergrund."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Activado: sigue el audio en segundo plano. Desactivado: silencio en segundo plano."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Activé : continue l’audio en arrière-plan. Désactivé : silence en arrière-plan."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Вкл.: продолжать звук в фоне. Выкл.: тишина в фоне."
+          }
+        }
+      }
+    },
+    "On: show subtitles for cinematics and videos. Off: hide them." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "An: Untertitel für Videos und Zwischensequenzen zeigen. Aus: verbergen."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Activado: muestra subtítulos en cinemáticas y vídeos. Desactivado: ocultarlos."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Activé : affiche les sous-titres des cinématiques et vidéos. Désactivé : les masquer."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Вкл.: показывать субтитры к роликам и видео. Выкл.: скрывать."
+          }
+        }
+      }
+    },
+    "On: show subtitles. Off: hide them." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "An: Untertitel zeigen. Aus: verbergen."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Activado: muestra subtítulos. Desactivado: ocultarlos."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Activé : affiche les sous-titres. Désactivé : les masquer."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Вкл.: показывать субтитры. Выкл.: скрывать."
+          }
+        }
+      }
+    },
+    "On: draw terrain shadows. Off: skip them (faster, flatter lighting)." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "An: Geländeschatten zeichnen. Aus: weglassen (schneller, flachere Beleuchtung)."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Activado: dibuja sombras del terreno. Desactivado: omitirlas (más rápido, luz más plana)."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Activé : dessine les ombres du terrain. Désactivé : les omettre (plus rapide, éclairage plus plat)."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Вкл.: рисовать тени рельефа. Выкл.: пропускать (быстрее, более плоский свет)."
+          }
+        }
+      }
+    },
+    "On: enable renderer overlays. Off: disable them." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "An: Renderer-Overlays aktivieren. Aus: deaktivieren."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Activado: habilita superposiciones del renderer. Desactivado: deshabilitarlas."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Activé : active les overlays du renderer. Désactivé : les désactiver."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Вкл.: включить оверлеи рендерера. Выкл.: отключить."
+          }
+        }
+      }
+    },
+    "On: enable post-process effect overlays. Off: disable them." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "An: Post-Process-Effekt-Overlays aktivieren. Aus: deaktivieren."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Activado: habilita superposiciones de efectos postproceso. Desactivado: deshabilitarlas."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Activé : active les overlays d’effets post-process. Désactivé : les désactiver."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Вкл.: включить оверлеи постэффектов. Выкл.: отключить."
+          }
+        }
+      }
+    },
+    "On: enable the RLS renderer feature. Off: disable it." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "An: RLS-Renderer-Funktion aktivieren. Aus: deaktivieren."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Activado: habilita la función RLS del renderer. Desactivado: deshabilitarla."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Activé : active la fonction RLS du renderer. Désactivé : la désactiver."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Вкл.: включить функцию RLS рендерера. Выкл.: отключить."
+          }
+        }
+      }
+    },
+    "Renderer color-picker flag used by the client (0 or 1 as written in MachineSettings)." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Renderer-Farbwähler-Flag des Clients (0 oder 1 wie in MachineSettings)."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Indicador del selector de color del renderer (0 o 1 como en MachineSettings)."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Indicateur du sélecteur de couleur du renderer (0 ou 1 comme dans MachineSettings)."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Флаг выбора цвета рендерера клиента (0 или 1, как в MachineSettings)."
+          }
+        }
+      }
+    },
+    "On: draw simple blob shadows under characters. Off: no blob shadows." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "An: einfache Blob-Schatten unter Charakteren zeichnen. Aus: keine Blob-Schatten."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Activado: dibuja sombras blob simples bajo los personajes. Desactivado: sin sombras blob."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Activé : dessine de simples ombres blob sous les personnages. Désactivé : pas d’ombres blob."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Вкл.: простые blob-тени под персонажами. Выкл.: без blob-теней."
+          }
+        }
+      }
+    },
+    "Display resolution as width×height (for example 5120x1440). The game may overwrite this while running." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Anzeigeauflösung als Breite×Höhe (z. B. 5120x1440). Das Spiel kann dies während des Laufs überschreiben."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Resolución de pantalla como ancho×alto (por ejemplo 5120x1440). El juego puede sobrescribirlo mientras corre."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Résolution d’affichage en largeur×hauteur (par ex. 5120x1440). Le jeu peut l’écraser pendant l’exécution."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Разрешение экрана как ширина×высота (например 5120x1440). Игра может перезаписать это во время работы."
+          }
+        }
+      }
     }
   },
   "version" : "1.0"

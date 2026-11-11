@@ -103,7 +103,7 @@ private struct GameSettingRow: View {
     private var edited: Bool { value != field.value }
 
     var body: some View {
-        LabeledContent {
+        let row = LabeledContent {
             HStack(spacing: Space.sm) {
                 editor
                 if edited {
@@ -123,6 +123,11 @@ private struct GameSettingRow: View {
             if edited { Button("Undo Edit") { model.gameFolder.setGameSetting(field, in: kind, to: field.value) } }
             Button("Copy Key") { copy(field.key) }
             Button("Copy Value") { copy(value) }
+        }
+        if let tip = GameSettingsFile.help(for: field, kind: kind) {
+            row.help(tip)
+        } else {
+            row
         }
     }
 

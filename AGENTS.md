@@ -1,5 +1,6 @@
 ## Learned User Preferences
 
+- When building from a plan: create a feature branch, commit after verified success, merge into local `main`, then delete the feature branch and stay on `main` (no push unless asked).
 - Write GitHub README and user docs for people installing and using the app; keep agent/build internals (snapshots, grid lint, MCP, CI badges) out of the main path. README shields stay at latest-release, macOS, and license only — no CI, vanity, or AI badges.
 - Do not propose Developer ID, notarization, App Store, sandbox, or SwiftLint unless Lewis changes those product goals.
 - Treat MacMinion as source-available under PolyForm Noncommercial, not open source — do not suggest MIT/Apache or lists that require an OSI license.

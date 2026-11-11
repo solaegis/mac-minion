@@ -41,3 +41,23 @@ private let addOns = "#Version 101051\n#AcknowledgedOutOfDateAddonsVersion 10105
     #expect(out == addOns.replacingOccurrences(of: "MasterMerchant 0", with: "MasterMerchant 1")
         .replacingOccurrences(of: "#Version 101051", with: "#Version 101052"))
 }
+
+@Test func curatedSettingsHaveHoverHelpAndUnknownKeysDoNot() {
+    let user = GameSettingsFile.parse(Data(user.utf8), kind: .user)
+    let realm = user.fields.first { $0.key == "LastRealm" }!
+    let fps = user.fields.first { $0.key == "BACKGROUND_FPS_LIMIT" }!
+    let invert = user.fields.first { $0.key == "InvertMouseY" }!
+    #expect(GameSettingsFile.help(for: realm, kind: .user)?.isEmpty == false)
+    #expect(GameSettingsFile.help(for: fps, kind: .user)?.contains("FPS") == true)
+    #expect(GameSettingsFile.help(for: invert, kind: .user)?.isEmpty == false)
+    let unknown = GameSettingsFile.Field(id: 99, section: nil, key: "SomeObscureSetting", value: "1", type: .toggle)
+    #expect(GameSettingsFile.help(for: unknown, kind: .user) == nil)
+    let addOnFile = GameSettingsFile.parse(Data(addOns.utf8), kind: .addOns)
+    let version = addOnFile.fields.first { $0.key == "Version" }!
+    let perCharacter = addOnFile.fields.first { $0.section != nil }!
+    #expect(GameSettingsFile.help(for: version, kind: .addOns)?.contains("API") == true)
+    #expect(GameSettingsFile.help(for: perCharacter, kind: .addOns)?.contains("Loads this addon") == true)
+    let machine = GameSettingsFile.Field(id: 0, section: nil, key: "RESOLUTION", value: "2560x1440", type: .size)
+    #expect(GameSettingsFile.help(for: machine, kind: .machine)?.contains("width") == true
+            || GameSettingsFile.help(for: machine, kind: .machine)?.contains("×") == true)
+}

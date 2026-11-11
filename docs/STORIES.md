@@ -589,12 +589,13 @@ Acceptance:
 Status: done
 
 ### S-062 Edit the game's settings files
-As the user, Files › Game Settings shows UserSettings.txt, AddOnSettings.txt, and MachineSettings.txt as forms. Each field is edited the way its value reads: a switch for on/off settings, number fields, a color well for AARRGGBB colors, width × height for the resolution, pickers for the realm, the language, and the API version (named by update, from the ESOUI wiki), and text for the rest. AddOnSettings shows its headers, then each character's addons as switches. Edits are a draft: a dot and an undo arrow on each, a count beside Save (⌘S) and Revert (⌥⌘Z). Save refuses while ESO runs, backs up first, and rewrites only the changed lines, each with its own line ending. Backups now hold MachineSettings.txt too. Sources: docs/research/SETTINGS-FILES.md.
+As the user, Files › Game Settings shows UserSettings.txt, AddOnSettings.txt, and MachineSettings.txt as forms. Each field is edited the way its value reads: a switch for on/off settings, number fields, a color well for AARRGGBB colors, width × height for the resolution, pickers for the realm, the language, and the API version (named by update, from the ESOUI wiki), and text for the rest. AddOnSettings shows its headers, then each character's addons as switches. Edits are a draft: a dot and an undo arrow on each, a count beside Save (⌘S) and Revert (⌥⌘Z). Save refuses while ESO runs, backs up first, and rewrites only the changed lines, each with its own line ending. Backups now hold MachineSettings.txt too. Hover help explains curated high-value settings and their options; unknown keys have no tip. Sources: docs/research/SETTINGS-FILES.md.
 Depends: S-028
 Acceptance:
 - [unit] Each value gets the editor that fits it; LastRealm and the API version are pickers with names.
 - [unit] Saving rewrites only the changed lines and keeps CRLF and LF endings; with no edits the bytes come back the same.
 - [unit] AddOnSettings reads its headers and each character's block, names with spaces included.
+- [unit] Curated keys return hover help; unknown keys return none; AddOn character rows share one tip.
 - [self] Saving is refused while the game runs; a save changes one line and keeps CRLF; an edit set back isn't an edit; backups hold MachineSettings.txt.
 - [snap] UserSettings with one edit, and AddOnSettings with each character's addons.
 Status: done
