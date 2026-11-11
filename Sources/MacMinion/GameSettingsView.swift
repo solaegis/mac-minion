@@ -101,11 +101,14 @@ private struct GameSettingRow: View {
 
     private var value: String { model.gameFolder.gameSettingValue(field, in: kind) }
     private var edited: Bool { value != field.value }
+    /// Curated tip for this row; Form cells ignore `.help` on the outer `LabeledContent`, so it goes on the label and editor.
+    private var tip: String? { GameSettingsFile.help(for: field, kind: kind) }
 
     var body: some View {
-        let row = LabeledContent {
+        LabeledContent {
             HStack(spacing: Space.sm) {
                 editor
+                    .modifier(OptionalHelp(tip))
                 if edited {
                     Button("Undo Edit", systemImage: "arrow.uturn.backward") { model.gameFolder.setGameSetting(field, in: kind, to: field.value) }
                         .labelStyle(.iconOnly)
@@ -118,16 +121,12 @@ private struct GameSettingRow: View {
                 if edited { Circle().fill(Palette.accent).frame(width: Space.sm, height: Space.sm).accessibilityLabel("Edited") }
                 Text(field.key).textSelection(.enabled)
             }
+            .modifier(OptionalHelp(tip))
         }
         .contextMenu {
             if edited { Button("Undo Edit") { model.gameFolder.setGameSetting(field, in: kind, to: field.value) } }
             Button("Copy Key") { copy(field.key) }
             Button("Copy Value") { copy(value) }
-        }
-        if let tip = GameSettingsFile.help(for: field, kind: kind) {
-            row.help(tip)
-        } else {
-            row
         }
     }
 
@@ -195,5 +194,20 @@ private struct GameSettingRow: View {
         let ns = NSColor(color).usingColorSpace(.sRGB) ?? .black // hig: ok fallback for a color value, not drawn
         func b(_ x: CGFloat) -> Int { Int((x * 255).rounded()) }
         return String(format: "%02x%02x%02x%02x", b(ns.alphaComponent), b(ns.redComponent), b(ns.greenComponent), b(ns.blueComponent))
+    }
+}
+
+/// Applies `.help` only when MacMinion has a curated tip (Form cells need it on the control, not the row chrome).
+private struct OptionalHelp: ViewModifier {
+    let tip: String?
+    init(_ tip: String?) { self.tip = tip }
+
+    @ViewBuilder
+    func body(content: Content) -> some View {
+        if let tip {
+            content.help(tip)
+        } else {
+            content
+        }
     }
 }
