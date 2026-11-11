@@ -18,7 +18,14 @@ concurrency:
 jobs:
   test:
     name: swift test
-    runs-on: macos-26
+    # Trusted events (push / same-repo PRs) use the atreides self-hosted runner.
+    # Fork PRs stay on GitHub-hosted macos-26 so untrusted code never runs on the Mac.
+    runs-on: ${{
+      github.event_name == 'pull_request' &&
+      github.event.pull_request.head.repo.full_name != github.repository
+      && 'macos-26'
+      || fromJSON('["self-hosted", "macOS", "ARM64"]')
+    }}
     steps:
       - uses: actions/checkout@v7
       - name: Run unit tests
