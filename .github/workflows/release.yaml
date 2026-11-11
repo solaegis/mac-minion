@@ -1,6 +1,6 @@
 name: Release
 
-# On a version tag (v0.5, v1.2.0): build MacMinion, sign it and Sparkle's helpers with the stable
+# On a semver tag (vMAJOR.MINOR.PATCH, e.g. v0.6.0): build MacMinion, sign it and Sparkle's helpers with the stable
 # "MacMinion Release" certificate, zip it, sign the zip for Sparkle (EdDSA), publish a GitHub Release,
 # add it to site/appcast.xml, and redeploy the docs site so the update feed lists it.
 #
