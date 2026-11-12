@@ -119,14 +119,32 @@ extension SelfTest {
         check("copying refuses while the game runs", model.gameFolder.errorMessage != nil && (try? Data(contentsOf: writURL)) == svBefore[writURL])
         model.simulatesRunningGame = false
         check("Copy All takes every difference", model.gameFolder.copyAllRows(from: masisiKey, to: alphaKey).count == compared.reduce(0) { $0 + $1.differing.count })
-        await model.gameFolder.copySettings([("WritWorthy.lua", "Auto craft")], from: masisiKey, to: alphaKey)
-        check("copying one setting makes it the same and leaves the rest", writDiff()?.differing.map(\.key) == ["Writ count"],
+        // Mixed directions in one Clone: Auto craft Masisi→Alpha, Writ count Alpha→Masisi.
+        await model.gameFolder.applyCloneOps([
+            .init(file: "WritWorthy.lua", key: "Auto craft", from: masisiKey, to: alphaKey),
+            .init(file: "WritWorthy.lua", key: "Writ count", from: alphaKey, to: masisiKey),
+        ])
+        check("mixed clone makes both WritWorthy settings the same", writDiff()?.differing.isEmpty == true,
               "\(writDiff()?.differing.map(\.key) ?? []) \(model.gameFolder.errorMessage ?? "")")
-        check("a copy says what it did", model.gameFolder.message?.contains("Masisi") == true, model.gameFolder.message ?? "none")
+        check("a clone says what it did", model.gameFolder.message?.contains("cloned") == true, model.gameFolder.message ?? "none")
         await model.gameFolder.copySettings([("WritWorthy.lua", "Gold spent")], from: masisiKey, to: alphaKey)
         check("a setting only one has can be given to the other", writDiff().map { !$0.onlyA.contains { $0.key == "Gold spent" } } ?? true)
+        // Restore sample, then remove an only-one key by cloning from the empty side.
+        for (url, data) in svBefore { try? data.write(to: url) }
+        await model.gameFolder.scan()
+        await model.gameFolder.load()
+        await model.gameFolder.applyCloneOps([
+            .init(file: "WritWorthy.lua", key: "Gold spent", from: alphaKey, to: masisiKey),
+        ])
+        check("cloning from the empty side removes the only-one key",
+              model.gameFolder.matrix?.addons.first { $0.file == "WritWorthy.lua" }?.characters[masisiKey]?["Gold spent"] == nil,
+              "\(model.gameFolder.matrix?.addons.first { $0.file == "WritWorthy.lua" }?.characters[masisiKey]?.keys.sorted() ?? [])")
+        for (url, data) in svBefore { try? data.write(to: url) }
+        await model.gameFolder.scan()
+        await model.gameFolder.load()
         await model.gameFolder.copySettings(model.gameFolder.copyAllRows(from: alphaKey, to: masisiKey), from: alphaKey, to: masisiKey)
-        check("Copy All the other way leaves no differences",
+        await model.gameFolder.copySettings(model.gameFolder.copyAllRows(from: masisiKey, to: alphaKey), from: masisiKey, to: alphaKey)
+        check("cloning both ways leaves no differences",
               model.gameFolder.matrix?.compare(masisiKey, alphaKey).allSatisfy { $0.differing.isEmpty } == true)
         // Dustman.lua is damaged on purpose in the sample; every file that read cleanly still does.
         let brokenAfter = model.gameFolder.savedVariables.filter { file in

@@ -9677,6 +9677,34 @@
         }
       }
     },
+    "Show Preview Image": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vorschaubild zeigen"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mostrar imagen de vista previa"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Afficher l’image d’aperçu"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Показать изображение"
+          }
+        }
+      }
+    },
     "Show Raw…": {
       "localizations": {
         "de": {
@@ -16681,6 +16709,34 @@
         }
       }
     },
+    "Couldn't Load Image": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bild konnte nicht geladen werden"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No se pudo cargar la imagen"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Impossible de charger l’image"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Не удалось загрузить изображение"
+          }
+        }
+      }
+    },
     "Current game version": {
       "localizations": {
         "de": {
@@ -16845,6 +16901,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "Дважды щёлкните, чтобы найти все места, где он встречается."
+          }
+        }
+      }
+    },
+    "Double-click to show full size": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Doppelklicken für Vollbild"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Haz doble clic para ver a tamaño completo"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Double-cliquez pour afficher en grand"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Дважды щёлкните, чтобы открыть в полном размере"
           }
         }
       }
@@ -24143,86 +24227,618 @@
         }
       }
     },
-    "Show Preview Image": {
+    "%@ because the source has no key. %@": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Vorschaubild zeigen"
+            "value": "%@, weil die Quelle keinen Schlüssel hat. %@"
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "Mostrar imagen de vista previa"
+            "value": "%@ porque la fuente no tiene la clave. %@"
           }
         },
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Afficher l’image d’aperçu"
+            "value": "%@ car la source n’a pas de clé. %@"
           }
         },
         "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "Показать изображение"
+            "value": "%@, потому что у источника нет ключа. %@"
           }
         }
       }
     },
-    "Couldn't Load Image": {
+    "%lld keys removed": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Bild konnte nicht geladen werden"
+            "value": "%lld Schlüssel entfernt"
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "No se pudo cargar la imagen"
+            "value": "%lld claves eliminadas"
           }
         },
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Impossible de charger l’image"
+            "value": "%lld clés supprimées"
           }
         },
         "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "Не удалось загрузить изображение"
+            "value": "Удалено ключей: %lld"
           }
         }
       }
     },
-    "Double-click to show full size": {
+    "%lld keys will be removed": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Doppelklicken für Vollbild"
+            "value": "%lld Schlüssel werden entfernt"
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "Haz doble clic para ver a tamaño completo"
+            "value": "Se eliminarán %lld claves"
           }
         },
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Double-cliquez pour afficher en grand"
+            "value": "%lld clés seront supprimées"
           }
         },
         "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "Дважды щёлкните, чтобы открыть в полном размере"
+            "value": "Будет удалено ключей: %lld"
+          }
+        }
+      }
+    },
+    "Back Up and Clone": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sichern und klonen"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hacer copia y clonar"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sauvegarder et cloner"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Сохранить копию и клонировать"
+          }
+        }
+      }
+    },
+    "Backed up, then cloned %@ (%@).": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gesichert, dann %@ geklont (%@)."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Copia hecha; luego se clonaron %@ (%@)."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sauvegardé, puis %@ clonés (%@)."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Сделана копия, затем клонировано %@ (%@)."
+          }
+        }
+      }
+    },
+    "Backed up, then cloned %@.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gesichert, dann %@ geklont."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Copia hecha; luego se clonaron %@."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sauvegardé, puis %@ clonés."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Сделана копия, затем клонировано %@."
+          }
+        }
+      }
+    },
+    "Choose a source on at least one setting": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wähle für mindestens eine Einstellung eine Quelle"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Elige un origen en al menos un ajuste"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choisissez une source pour au moins un réglage"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Выберите источник хотя бы для одной настройки"
+          }
+        }
+      }
+    },
+    "Clear %@ as source on every row": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ als Quelle in jeder Zeile aufheben"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Quitar a %@ como origen en cada fila"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Retirer %@ comme source sur chaque ligne"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Снять %@ как источник в каждой строке"
+          }
+        }
+      }
+    },
+    "Clone": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Klonen"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Clonar"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cloner"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Клонировать"
+          }
+        }
+      }
+    },
+    "Clone %@?": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ klonen?"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "¿Clonar %@?"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cloner %@ ?"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Клонировать %@?"
+          }
+        }
+      }
+    },
+    "Clone from %@": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Von %@ klonen"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Clonar desde %@"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cloner depuis %@"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Клонировать от %@"
+          }
+        }
+      }
+    },
+    "Clone the selected settings (Control-Option-Command-Left Arrow)": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die gewählten Einstellungen klonen (Control-Option-Command-Pfeil links)"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Clonar los ajustes seleccionados (Control-Opción-Comando-flecha izquierda)"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cloner les réglages sélectionnés (Contrôle-Option-Commande-flèche gauche)"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Клонировать выбранные настройки (Control-Option-Command-стрелка влево)"
+          }
+        }
+      }
+    },
+    "Clone…": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Klonen …"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Clonar…"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cloner…"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Клонировать…"
+          }
+        }
+      }
+    },
+    "MacMinion backs up first; restore the backup to undo.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "MacMinion sichert zuerst; stelle die Sicherung wieder her, um rückgängig zu machen."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "MacMinion hace una copia primero; restaura la copia para deshacer."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "MacMinion sauvegarde d’abord ; restaurez la sauvegarde pour annuler."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "MacMinion сначала делает копию; восстановите её, чтобы отменить."
+          }
+        }
+      }
+    },
+    "Nothing to clone from %@": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Von %@ gibt es nichts zu klonen"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No hay nada que clonar desde %@"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rien à cloner depuis %@"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Нечего клонировать от %@"
+          }
+        }
+      }
+    },
+    "Remove this setting from %@": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Diese Einstellung von %@ entfernen"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Quitar este ajuste de %@"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Retirer ce réglage de %@"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Удалить эту настройку у %@"
+          }
+        }
+      }
+    },
+    "Select all from %@": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Alles von %@ wählen"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Seleccionar todo desde %@"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tout sélectionner depuis %@"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Выбрать всё от %@"
+          }
+        }
+      }
+    },
+    "Selected values are written in %@. %@": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gewählte Werte werden in %@ geschrieben. %@"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Los valores seleccionados se escriben en %@. %@"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Les valeurs sélectionnées sont écrites dans %@. %@"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Выбранные значения записываются в %@. %@"
+          }
+        }
+      }
+    },
+    "Selected values are written in each addon's SavedVariables file. %@": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gewählte Werte werden in der SavedVariables-Datei jedes Addons geschrieben. %@"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Los valores seleccionados se escriben en el archivo SavedVariables de cada addon. %@"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Les valeurs sélectionnées sont écrites dans le fichier SavedVariables de chaque addon. %@"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Выбранные значения записываются в SavedVariables каждого аддона. %@"
+          }
+        }
+      }
+    },
+    "Use %@ as source on every row": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ in jeder Zeile als Quelle verwenden"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Usar %@ como origen en cada fila"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Utiliser %@ comme source sur chaque ligne"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Использовать %@ как источник в каждой строке"
+          }
+        }
+      }
+    },
+    "Use %@'s value for %@": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wert von %1$@ für %2$@ verwenden"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Usar el valor de %1$@ para %2$@"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Utiliser la valeur de %1$@ pour %2$@"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Использовать значение %1$@ для %2$@"
+          }
+        }
+      }
+    },
+    "—": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "—"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "—"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "—"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "—"
           }
         }
       }

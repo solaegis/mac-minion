@@ -44,4 +44,42 @@ extension SettingsMatrix {
         }
         return byFile
     }
+
+    /// One Compare radio choice: copy `from`'s value to the other character, or remove the other's key when
+    /// `from` has no key for this setting.
+    public struct CloneOp: Hashable, Sendable {
+        public let file: String
+        public let key: String
+        public let from: String
+        public let to: String
+
+        public init(file: String, key: String, from: String, to: String) {
+            self.file = file
+            self.key = key
+            self.from = from
+            self.to = to
+        }
+    }
+
+    /// Whether this op would delete `to`'s key (source has no setting).
+    public func cloneOpDeletes(_ op: CloneOp) -> Bool {
+        addon(op.file)?.characters[op.from]?[op.key] == nil
+            && addon(op.file)?.characters[op.to]?[op.key] != nil
+    }
+
+    /// Edits for Compare Clone: copy when the source has the setting; remove when it doesn't and the other does.
+    public func cloneChanges(_ ops: [CloneOp]) -> [String: [SVEdit.Change]] {
+        var byFile: [String: [SVEdit.Change]] = [:]
+        for op in ops {
+            let fileAddon = addon(op.file)
+            if let value = fileAddon?.characters[op.from]?[op.key]?.value,
+               let path = target(file: op.file, key: op.key, from: op.from, to: op.to) {
+                byFile[op.file, default: []].append(SVEdit.Change(path: path, value: value))
+            } else if fileAddon?.characters[op.from]?[op.key] == nil,
+                      let path = fileAddon?.characters[op.to]?[op.key]?.path {
+                byFile[op.file, default: []].append(.remove(path: path))
+            }
+        }
+        return byFile
+    }
 }

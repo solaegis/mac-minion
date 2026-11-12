@@ -77,6 +77,17 @@ private let base: [LuaKey] = [.string("Sample_SavedVars"), .string("NA Megaserve
     }
 }
 
+@Test func removesAnEntryAndLeavesTheRest() throws {
+    let path = base + [.string("8796093036412335"), .string("Masisi"), .string("budget")]
+    let craft = base + [.string("8796093036412335"), .string("Masisi"), .string("autoCraft")]
+    let out = try SVEdit.apply([.remove(path: path)], to: Data(file.utf8))
+    #expect(value(out, path) == nil)
+    if case .bool(true)? = value(out, craft) {} else { Issue.record("sibling lost") }
+    #expect(throws: SVEdit.Failure.self) {
+        try SVEdit.apply([.remove(path: path)], to: out)
+    }
+}
+
 @Test func findsWhereASettingGoesForTheOtherCharacter() {
     let doc = SVDocument.parse(Data(file.utf8))
     var names = SVNameIndex()
@@ -123,6 +134,23 @@ private let base: [LuaKey] = [.string("Sample_SavedVars"), .string("NA Megaserve
     #expect(Array(changes.keys) == ["Sample.lua"], "unknown keys and files are left out")
     #expect(changes["Sample.lua"]?.map(\.path) == [base + [.string(b), .string("Masisi"), .string("budget")]])
     if case .integer(50)? = changes["Sample.lua"]?.first?.value {} else { Issue.record("not from's value") }
+}
+
+@Test func cloneChangesCopyOrRemovePerSource() throws {
+    var names = SVNameIndex()
+    names.characters["8796093036412335"] = (name: "Masisi", source: "test")
+    names.characters["8798292071293572"] = (name: "Alpha Top", source: "test")
+    let matrix = SettingsMatrix.build(documents: ["Sample.lua": SVDocument.parse(Data(file.utf8))], names: names)
+    let a = "8796093036412335", b = "8798292071293572"
+    let budgetKey = try #require(matrix.addons[0].characters[a]?.keys.first { $0.hasSuffix("Budget") })
+    let copy = SettingsMatrix.CloneOp(file: "Sample.lua", key: budgetKey, from: a, to: b)
+    let del = SettingsMatrix.CloneOp(file: "Sample.lua", key: budgetKey, from: b, to: a)
+    #expect(!matrix.cloneOpDeletes(copy))
+    #expect(matrix.cloneOpDeletes(del))
+    let changes = matrix.cloneChanges([copy, del])
+    #expect(changes["Sample.lua"]?.count == 2)
+    #expect(changes["Sample.lua"]?.contains { !$0.removes && $0.path == base + [.string(b), .string("Masisi"), .string("budget")] } == true)
+    #expect(changes["Sample.lua"]?.contains { $0.removes && $0.path == base + [.string(a), .string("Masisi"), .string("budget")] } == true)
 }
 
 @Test func writingFilesChangesTheGoodOnesAndKeepsBeforeAndAfter() async throws {

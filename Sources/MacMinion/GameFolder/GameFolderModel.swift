@@ -120,10 +120,18 @@ final class GameFolderModel {
     var explorerPath: [ExplorerLevel] = [.grid]
     /// The Compare Characters sheet is open (S-057).
     var choosingComparison = false
-    /// The character whose differences Compare is asking to clone to the other (S-060).
-    var cloneSource: String?
+    /// Compare radio choices: `(file, key)` → source character id (S-060).
+    var cloneSources: [CloneRowID: String] = [:]
+    /// True while Compare is asking to apply the selected clone ops (S-060).
+    var cloneConfirmPending = false
     /// Character pairs backed up before their first copy this run, so each click doesn't make a backup.
     @ObservationIgnored var copyBackedUp: Set<String> = []
+
+    /// A setting row in Compare, for radio selection.
+    struct CloneRowID: Hashable {
+        var file: String
+        var key: String
+    }
 
     // MARK: Game Settings (GameFolderModel+GameSettings.swift)
 

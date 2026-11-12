@@ -237,6 +237,7 @@ private struct RestoreSheet: View {
                 }
             }
             .formStyle(.grouped)
+            .fitsContent()
             if model.gameIsRunning {
                 Label("Quit Elder Scrolls Online first: it writes SavedVariables when it quits and would undo the restore.",
                       systemImage: "exclamationmark.triangle.fill")
@@ -259,7 +260,6 @@ private struct RestoreSheet: View {
         }
         .padding(Space.xxl)
         .frame(width: 520)
-        .fitsContent()
         .noInitialFocus()
     }
 }

@@ -713,8 +713,8 @@ private struct ServerConstellation: View {
 // MARK: - Two characters
 
 /// Two characters side by side, each in their own color: every setting, across every addon (or one addon when
-/// `file` is set), where they differ, then the settings only one of them has. A button with a character's name
-/// gives their value to the other.
+/// `file` is set), where they differ, then the settings only one of them has. Radios pick a source per row;
+/// Clone applies the selection either way (S-060).
 private struct CompareCharacters: View {
     let model: AppModel
     let matrix: SettingsMatrix
@@ -730,8 +730,9 @@ private struct CompareCharacters: View {
     private func name(_ id: String) -> String { model.gameFolder.compareName(id, other: other(id)) }
     private func color(_ id: String) -> Color { id == a ? Palette.accentText : Palette.counterpart }
     private func wash(_ id: String) -> Color { id == a ? Palette.accentWash : Palette.counterpartWash }
-    private func copyAll(from: String, to: String) -> [(file: String, key: String)] {
-        model.gameFolder.copyAllRows(from: from, to: to, file: file)
+    private var selectedCount: Int { model.gameFolder.cloneSources.count }
+    private var canClone: Bool {
+        selectedCount > 0 && !model.gameIsRunning && model.backupBusy == nil
     }
 
     var body: some View {
@@ -739,83 +740,65 @@ private struct CompareCharacters: View {
         let scoped = file.map { f in all.filter { $0.file == f } } ?? all
         let comparisons = model.byName(scoped, file: \.file)
         let differing = comparisons.reduce(0) { $0 + $1.differing.count }
+        let onlyRows: [(file: String, key: String, owner: String, setting: SettingsMatrix.Setting)] =
+            comparisons.flatMap { c in
+                c.onlyA.map { (c.file, $0.key, a, $0.setting) } + c.onlyB.map { (c.file, $0.key, b, $0.setting) }
+            }
+        let eligible = comparisons.flatMap { c in c.differing.map { (c.file, $0.key) } }
+            + (onlyDifferences ? [] : onlyRows.map { ($0.file, $0.key) })
         List {
             Section {
                 HStack(alignment: .top, spacing: 0) {
                     Color.clear.frame(width: 240 + Space.lg, height: 1)
-                    person(a)
-                    person(b)
+                    person(a, eligible: eligible)
+                    person(b, eligible: eligible)
                 }
-                // The summary, with the title of the column the Clone All buttons sit in, like each addon's heading.
                 HStack(alignment: .firstTextBaseline, spacing: 0) {
                     Text(summary(differing: differing, addonCount: comparisons.filter { !$0.differing.isEmpty }.count))
                         .foregroundStyle(.secondary)
-                        .frame(width: Self.buttonsOffset, alignment: .leading)
-                    Text("Clone all from")
-                        .font(.caption.weight(.bold))
-                        .foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    Button("Clone") { model.gameFolder.cloneConfirmPending = true }
+                        .buttonStyle(.borderedProminent)
+                        .controlSize(.small)
+                        .disabled(!canClone)
+                        .help(model.gameIsRunning ? String(localized: "Quit Elder Scrolls Online first")
+                              : selectedCount == 0 ? String(localized: "Choose a source on at least one setting")
+                              : String(localized: "Clone the selected settings (Control-Option-Command-Left Arrow)"))
                 }
-                HStack(spacing: 0) {
-                    Toggle("Only differences", isOn: $onlyDifferences)
-                        .toggleStyle(.checkbox)
-                        .help("Hide settings that only one character has, and keep the side-by-side differences")
-                        .frame(width: Self.buttonsOffset, alignment: .leading)
-                    HStack(spacing: Space.sm) {
-                        cloneButton(a)
-                        cloneButton(b)
-                    }
-                }
+                Toggle("Only differences", isOn: $onlyDifferences)
+                    .toggleStyle(.checkbox)
+                    .help("Hide settings that only one character has, and keep the side-by-side differences")
             }
             ForEach(comparisons.filter { !$0.differing.isEmpty }) { c in
                 Section {
                     ForEach(c.differing, id: \.key) { row in
-                        HStack(spacing: 0) {
-                            Button { model.gameFolder.explorerOpen(.setting(file: c.file, key: row.key)) } label: {
-                                Text(row.key).frame(width: 240, alignment: .leading).contentShape(Rectangle())
-                            }
-                            .buttonStyle(.plain)
-                            .help("Show who has which value")
-                            .padding(.trailing, Space.lg)
-                            cell(a, SettingValueView(display: model.gameFolder.display(row.a), label: row.key))
-                            cell(b, SettingValueView(display: model.gameFolder.display(row.b), label: row.key))
-                            HStack(spacing: Space.sm) {
-                                copyButton(file: c.file, key: row.key, from: a)
-                                copyButton(file: c.file, key: row.key, from: b)
-                            }
-                            .padding(.leading, Space.md)
-                        }
+                        compareRow(file: c.file, key: row.key,
+                                   left: SettingValueView(display: model.gameFolder.display(row.a), label: row.key),
+                                   right: SettingValueView(display: model.gameFolder.display(row.b), label: row.key),
+                                   hasA: true, hasB: true)
                     }
                 } header: {
-                    // The addon over the names, and over the buttons what they do.
-                    HStack(spacing: 0) {
-                        Text(model.addonName(c.file)).frame(width: Self.buttonsOffset, alignment: .leading)
-                        Text("Clone row from")
-                    }
+                    Text(model.addonName(c.file))
                 }
             }
             if !onlyDifferences {
-                only(a, comparisons.flatMap { c in c.onlyA.map { (c.file, $0.key, $0.setting) } })
-                only(b, comparisons.flatMap { c in c.onlyB.map { (c.file, $0.key, $0.setting) } })
+                onlySection(owner: a, rows: onlyRows.filter { $0.owner == a })
+                onlySection(owner: b, rows: onlyRows.filter { $0.owner == b })
             }
         }
         .frame(maxWidth: 1040, alignment: .leading)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .confirmationDialog(confirmTitle, isPresented: Binding(get: { model.gameFolder.cloneSource != nil }, set: { if !$0 { model.gameFolder.cloneSource = nil } })) {
-            if let source = model.gameFolder.cloneSource {
-                Button("Back Up and Copy") {
-                    let rows = copyAll(from: source, to: other(source))
-                    Task { await model.gameFolder.copySettings(rows, from: source, to: other(source), undoManager: undoManager) }
-                }
+        .confirmationDialog(confirmTitle, isPresented: Binding(
+            get: { model.gameFolder.cloneConfirmPending },
+            set: { if !$0 { model.gameFolder.cloneConfirmPending = false } }
+        )) {
+            Button("Back Up and Clone") {
+                let ops = model.gameFolder.selectedCloneOps()
+                Task { await model.gameFolder.applyCloneOps(ops, undoManager: undoManager) }
             }
             Button("Cancel", role: .cancel) {}
         } message: {
-            if let source = model.gameFolder.cloneSource {
-                if let file {
-                    Text("The values of \(name(other(source))) are replaced in \(model.addonName(file)). MacMinion backs up first; restore the backup to undo.")
-                } else {
-                    Text("The values of \(name(other(source))) are replaced in each addon's SavedVariables file. MacMinion backs up first; restore the backup to undo.")
-                }
-            }
+            Text(confirmMessage)
         }
     }
 
@@ -831,93 +814,177 @@ private struct CompareCharacters: View {
     }
 
     private var confirmTitle: String {
-        guard let source = model.gameFolder.cloneSource else { return "" }
-        let count = copyAll(from: source, to: other(source)).count
-        return String(localized: "Copy \(String(localized: "\(count) settings")) from \(name(source)) to \(name(other(source)))?")
+        let count = selectedCount
+        guard count > 0 else { return "" }
+        return String(localized: "Clone \(String(localized: "\(count) settings"))?")
     }
 
-    /// Where the name buttons start: the setting's name, then two value cells (each with its padding).
-    static let buttonsOffset: CGFloat = 240 + Space.lg + 2 * (200 + 3 * Space.sm) + Space.md
-
-    /// One character's value in their column's color.
-    private func cell(_ id: String, _ value: some View) -> some View {
-        value
-            .frame(width: 200, alignment: .leading)
-            .padding(.horizontal, Space.sm)
-            .padding(.vertical, Space.xs)
-            .background(wash(id), in: .rect(cornerRadius: Radius.small))
-            .padding(.trailing, Space.sm)
-    }
-
-    /// "Clone Masisi (NA)…": every difference from this character to the other, after a question.
-    private func cloneButton(_ id: String) -> some View {
-        let rows = copyAll(from: id, to: other(id))
-        // The same small button as on each row; it asks before it clones.
-        return Button(name(id)) { model.gameFolder.cloneSource = id }
-            .buttonStyle(.bordered)
-            .controlSize(.small)
-            .tint(color(id))
-            .disabled(rows.isEmpty || model.gameIsRunning || model.backupBusy != nil)
-            .help(model.gameIsRunning ? String(localized: "Quit Elder Scrolls Online first")
-                  : String(localized: "Give \(name(other(id))) every value of \(name(id)) that differs (\(id == a ? "Control-Option-Command-Left Arrow" : "Control-Option-Command-Right Arrow"))"))
-    }
-
-    /// A button with a character's name, in their color: gives their value of this setting to the other.
-    /// Off where the other keeps nothing in that addon to put it under.
-    private func copyButton(file: String, key: String, from: String) -> some View {
-        let to = other(from)
-        let place = model.gameFolder.copyTarget(file: file, key: key, from: from, to: to)
-        return Button(name(from)) {
-            Task { await model.gameFolder.copySettings([(file, key)], from: from, to: to, undoManager: undoManager) }
+    private var confirmMessage: String {
+        let deletions = model.gameFolder.selectedCloneDeletions()
+        let backup = String(localized: "MacMinion backs up first; restore the backup to undo.")
+        if deletions > 0 {
+            let removed = String(localized: "\(deletions) keys will be removed")
+            return String(localized: "\(removed) because the source has no key. \(backup)")
         }
-        .buttonStyle(.bordered)
-        .controlSize(.small)
-        .tint(color(from))
-        .disabled(place == nil || model.gameIsRunning || model.backupBusy != nil)
-        .help(place == nil ? String(localized: "\(name(to)) keeps nothing in this addon to put it under")
-              : model.gameIsRunning ? String(localized: "Quit Elder Scrolls Online first")
-              : String(localized: "Copy the value of \(name(from)) to \(name(to))"))
+        if let file {
+            return String(localized: "Selected values are written in \(model.addonName(file)). \(backup)")
+        }
+        return String(localized: "Selected values are written in each addon's SavedVariables file. \(backup)")
     }
 
-    private func person(_ id: String) -> some View {
-        Button { model.gameFolder.explorerOpen(.character(id)) } label: {
-            HStack(spacing: Space.sm) {
-                Initials(name: model.gameFolder.characterName(id), color: color(id), wash: wash(id))
-                VStack(alignment: .leading, spacing: 0) {
-                    Text(name(id)).font(.headline).foregroundStyle(color(id))
-                    Text(characterLine(model, id)).font(.caption).foregroundStyle(.secondary)
-                    Text(id).font(.caption.monospacedDigit()).foregroundStyle(.secondary).textSelection(.enabled)
-                }
+    /// Setting name column, then two value cells with radios under them.
+    private func compareRow(file: String, key: String, left: some View, right: some View, hasA: Bool, hasB: Bool) -> some View {
+        HStack(alignment: .top, spacing: 0) {
+            Button { model.gameFolder.explorerOpen(.setting(file: file, key: key)) } label: {
+                Text(key).frame(width: 240, alignment: .leading).contentShape(Rectangle())
             }
-            .frame(width: 200, alignment: .leading)
-            .padding(.horizontal, Space.sm)
-            .padding(.vertical, Space.xs)
-            .background(wash(id), in: .rect(cornerRadius: Radius.small))
-            .padding(.trailing, Space.sm)
+            .buttonStyle(.plain)
+            .help("Show who has which value")
+            .padding(.trailing, Space.lg)
+            valueColumn(id: a, file: file, key: key, hasValue: hasA, value: left)
+            valueColumn(id: b, file: file, key: key, hasValue: hasB, value: right)
+        }
+    }
+
+    private func valueColumn(id: String, file: String, key: String, hasValue: Bool, value: some View) -> some View {
+        VStack(alignment: .leading, spacing: Space.xs) {
+            value
+                .frame(width: 200, alignment: .leading)
+                .padding(.horizontal, Space.sm)
+                .padding(.vertical, Space.xs)
+                .background(wash(id), in: .rect(cornerRadius: Radius.small))
+            sourceRadio(id: id, file: file, key: key, hasValue: hasValue)
+                .padding(.horizontal, Space.sm)
+        }
+        .padding(.trailing, Space.sm)
+    }
+
+    /// Optional radio: pick this character as source, or clear when already selected.
+    private func sourceRadio(id: String, file: String, key: String, hasValue: Bool) -> some View {
+        let row = GameFolderModel.CloneRowID(file: file, key: key)
+        let selected = model.gameFolder.cloneSources[row]
+        let isOn = selected == id
+        let to = other(id)
+        let canCopy = hasValue && model.gameFolder.copyTarget(file: file, key: key, from: id, to: to) != nil
+        let canDelete = !hasValue && matrix.addon(file)?.characters[to]?[key] != nil
+        let enabled = canCopy || canDelete
+        return Button {
+            guard enabled else { return }
+            if isOn {
+                model.gameFolder.cloneSources.removeValue(forKey: row)
+            } else {
+                model.gameFolder.cloneSources[row] = id
+            }
+        } label: {
+            Image(systemName: isOn ? "circle.inset.filled" : "circle")
+                .foregroundStyle(enabled ? color(id) : .secondary)
+                .frame(width: 200, alignment: .leading)
+                .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .help("\(model.gameFolder.characterTitle(id)): show their settings across addons")
+        .disabled(!enabled || model.gameIsRunning || model.backupBusy != nil)
+        .help(radioHelp(id: id, hasValue: hasValue, canCopy: canCopy, canDelete: canDelete))
+        .accessibilityLabel(Text("Clone from \(name(id))"))
+        .accessibilityAddTraits(isOn ? .isSelected : [])
+    }
+
+    private func radioHelp(id: String, hasValue: Bool, canCopy: Bool, canDelete: Bool) -> String {
+        if model.gameIsRunning { return String(localized: "Quit Elder Scrolls Online first") }
+        if hasValue && !canCopy {
+            return String(localized: "\(name(other(id))) keeps nothing in this addon to put it under")
+        }
+        if !hasValue && canDelete {
+            return String(localized: "Remove this setting from \(name(other(id)))")
+        }
+        if hasValue {
+            return String(localized: "Use \(name(id))'s value for \(name(other(id)))")
+        }
+        return String(localized: "Nothing to clone from \(name(id))")
     }
 
     @ViewBuilder
-    private func only(_ id: String, _ rows: [(String, String, SettingsMatrix.Setting)]) -> some View {
+    private func onlySection(owner: String, rows: [(file: String, key: String, owner: String, setting: SettingsMatrix.Setting)]) -> some View {
         if !rows.isEmpty {
             Section {
                 ForEach(Array(rows.enumerated()), id: \.offset) { _, row in
-                    LabeledContent {
-                        HStack(spacing: Space.lg) {
-                            SettingValueView(display: model.gameFolder.display(row.2), label: row.1)
-                            copyButton(file: row.0, key: row.1, from: id)
-                        }
-                    } label: {
-                        Text(row.1)
-                        Text(model.addonName(row.0))
-                    }
+                    onlyRow(row)
                 }
             } header: {
-                Text("Only \(name(id)) Has").foregroundStyle(color(id))
+                Text("Only \(name(owner)) Has").foregroundStyle(color(owner))
             }
         }
+    }
+
+    private func onlyRow(_ row: (file: String, key: String, owner: String, setting: SettingsMatrix.Setting)) -> some View {
+        compareRow(file: row.file, key: row.key,
+                    left: onlyValue(row, for: a),
+                    right: onlyValue(row, for: b),
+                    hasA: row.owner == a, hasB: row.owner == b)
+    }
+
+    @ViewBuilder
+    private func onlyValue(_ row: (file: String, key: String, owner: String, setting: SettingsMatrix.Setting), for id: String) -> some View {
+        if row.owner == id {
+            SettingValueView(display: model.gameFolder.display(row.setting), label: row.key)
+        } else {
+            Text("—").foregroundStyle(.secondary)
+        }
+    }
+
+    private func canSelect(id: String, file: String, key: String, hasValue: Bool) -> Bool {
+        let to = other(id)
+        if hasValue { return model.gameFolder.copyTarget(file: file, key: key, from: id, to: to) != nil }
+        return matrix.addon(file)?.characters[to]?[key] != nil
+    }
+
+    private func person(_ id: String, eligible: [(String, String)]) -> some View {
+        let selectable = eligible.filter { file, key in
+            let hasValue = matrix.addon(file)?.characters[id]?[key] != nil
+            return canSelect(id: id, file: file, key: key, hasValue: hasValue)
+        }.map { GameFolderModel.CloneRowID(file: $0.0, key: $0.1) }
+        let allSelected = !selectable.isEmpty && selectable.allSatisfy { model.gameFolder.cloneSources[$0] == id }
+        return VStack(alignment: .leading, spacing: Space.xs) {
+            Button { model.gameFolder.explorerOpen(.character(id)) } label: {
+                HStack(spacing: Space.sm) {
+                    Initials(name: model.gameFolder.characterName(id), color: color(id), wash: wash(id))
+                    VStack(alignment: .leading, spacing: 0) {
+                        Text(name(id)).font(.headline).foregroundStyle(color(id))
+                        Text(characterLine(model, id)).font(.caption).foregroundStyle(.secondary)
+                        Text(id).font(.caption.monospacedDigit()).foregroundStyle(.secondary).textSelection(.enabled)
+                    }
+                }
+                .frame(width: 200, alignment: .leading)
+                .padding(.horizontal, Space.sm)
+                .padding(.vertical, Space.xs)
+                .background(wash(id), in: .rect(cornerRadius: Radius.small))
+            }
+            .buttonStyle(.plain)
+            .help("\(model.gameFolder.characterTitle(id)): show their settings across addons")
+            Button {
+                if allSelected {
+                    for row in selectable where model.gameFolder.cloneSources[row] == id {
+                        model.gameFolder.cloneSources.removeValue(forKey: row)
+                    }
+                } else {
+                    for row in selectable {
+                        model.gameFolder.cloneSources[row] = id
+                    }
+                }
+            } label: {
+                Image(systemName: allSelected ? "circle.inset.filled" : "circle")
+                    .foregroundStyle(color(id))
+                    .frame(width: 200, alignment: .leading)
+                    .padding(.horizontal, Space.sm)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .disabled(selectable.isEmpty || model.gameIsRunning || model.backupBusy != nil)
+            .help(allSelected
+                  ? String(localized: "Clear \(name(id)) as source on every row")
+                  : String(localized: "Use \(name(id)) as source on every row"))
+            .accessibilityLabel(Text("Select all from \(name(id))"))
+        }
+        .padding(.trailing, Space.sm)
     }
 }
 

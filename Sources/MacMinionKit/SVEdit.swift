@@ -5,11 +5,28 @@ import Foundation
 /// closed: it writes its own copy over the file when it quits.
 public enum SVEdit {
     /// Set `value` at `path`, the variable first. Missing tables on the way are made.
+    /// When `removes` is true, delete the entry at `path` instead (value is ignored).
     public struct Change: Sendable {
         public let path: [LuaKey]
         public let value: LuaValue
+        public let removes: Bool
 
-        public init(path: [LuaKey], value: LuaValue) { self.path = path; self.value = value }
+        public init(path: [LuaKey], value: LuaValue) {
+            self.path = path
+            self.value = value
+            self.removes = false
+        }
+
+        /// Remove the entry at `path`; parent tables stay.
+        public static func remove(path: [LuaKey]) -> Change {
+            Change(path: path, value: .nil, removes: true)
+        }
+
+        private init(path: [LuaKey], value: LuaValue, removes: Bool) {
+            self.path = path
+            self.value = value
+            self.removes = removes
+        }
     }
 
     public enum Failure: Error, Equatable, CustomStringConvertible {
@@ -34,6 +51,7 @@ public enum SVEdit {
     }
 
     static func apply(_ change: Change, to data: Data) throws -> Data {
+        if change.removes { return try remove(change.path, from: data) }
         let doc = SVDocument.parse(data)
         if let error = doc.error { throw Failure.unreadable(error.description) }
         let where_ = change.path.map(\.description).joined(separator: " › ")
@@ -59,6 +77,41 @@ public enum SVEdit {
             return insert(Self.key(key) + " = " + Self.value(value, indent: depth), into: table, depth: depth, data: data)
         }
         throw Failure.noPlace(where_)
+    }
+
+    /// Deletes the entry at `path`. The entry span plus its trailing comma and surrounding blank
+    /// on that line go; parent tables stay.
+    static func remove(_ path: [LuaKey], from data: Data) throws -> Data {
+        let doc = SVDocument.parse(data)
+        if let error = doc.error { throw Failure.unreadable(error.description) }
+        let where_ = path.map(\.description).joined(separator: " › ")
+        guard let first = path.first, path.count > 1,
+              var table = doc.variables.first(where: { $0.key == first })?.value.table else { throw Failure.noPlace(where_) }
+        let rest = Array(path.dropFirst())
+        for (i, key) in rest.enumerated() {
+            guard let entry = table.entries.first(where: { $0.key == key }) else { throw Failure.noPlace(where_) }
+            if i == rest.count - 1 {
+                return splice(data, removalRange(entry.span, in: data), Data())
+            }
+            guard let inner = entry.value.table else { throw Failure.noPlace(where_) }
+            table = inner
+        }
+        throw Failure.noPlace(where_)
+    }
+
+    /// Entry text plus trailing comma/semicolon, and leading indent/newline on the same run of space.
+    static func removalRange(_ span: Range<Int>, in data: Data) -> Range<Int> {
+        let bytes = [UInt8](data)
+        var lo = span.lowerBound
+        var hi = span.upperBound
+        while hi < bytes.count, [9, 32].contains(bytes[hi]) { hi += 1 }
+        if hi < bytes.count, bytes[hi] == UInt8(ascii: ",") || bytes[hi] == UInt8(ascii: ";") { hi += 1 }
+        while lo > 0, [9, 32].contains(bytes[lo - 1]) { lo -= 1 }
+        if lo > 0, bytes[lo - 1] == 10 || bytes[lo - 1] == 13 {
+            lo -= 1
+            if lo > 0, bytes[lo - 1] == 13, bytes[lo] == 10 { lo -= 1 }
+        }
+        return lo..<hi
     }
 
     /// Adds an entry as the table's last, with a comma after the one before it if it has none.

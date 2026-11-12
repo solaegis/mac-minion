@@ -3,15 +3,32 @@ import MacMinionKit
 
 /// Characters and Addons: where the explorer is, names, Compare, and Copy Settings (S-053 to S-060).
 extension GameFolderModel {
-    func explorerOpen(_ level: ExplorerLevel) { explorerPath.append(level) }
+    func explorerOpen(_ level: ExplorerLevel) {
+        clearCloneSelectionIfLeavingCompare(to: level)
+        explorerPath.append(level)
+    }
 
     func explorerBack() {
-        if explorerPath.count > 1 { explorerPath.removeLast() }
+        if explorerPath.count > 1 {
+            explorerPath.removeLast()
+            if comparedCharacters == nil { clearCloneSelection() }
+        }
     }
 
     /// Starts the explorer over at the Characters or Addons tab's top level.
     func explorerReset() {
+        clearCloneSelection()
         explorerPath = [.grid]
+    }
+
+    func clearCloneSelection() {
+        cloneSources = [:]
+        cloneConfirmPending = false
+    }
+
+    private func clearCloneSelectionIfLeavingCompare(to level: ExplorerLevel) {
+        if case .compare = level { return }
+        if case .compare = explorerPath.last { clearCloneSelection() }
     }
 
     func characterName(_ id: String) -> String { names?.characters[id]?.name ?? SVName.unknownCharacter }
@@ -79,19 +96,42 @@ extension GameFolderModel {
             .filter { copyTarget(file: $0.file, key: $0.key, from: from, to: to) != nil }
     }
 
+    /// Selected Compare radios as clone ops between the two compared characters.
+    func selectedCloneOps() -> [SettingsMatrix.CloneOp] {
+        guard let (a, b) = comparedCharacters else { return [] }
+        return cloneSources.compactMap { row, from in
+            let to = from == a ? b : a
+            guard from == a || from == b else { return nil }
+            return SettingsMatrix.CloneOp(file: row.file, key: row.key, from: from, to: to)
+        }
+    }
+
+    /// How many selected ops would remove a key on the destination.
+    func selectedCloneDeletions() -> Int {
+        guard let matrix else { return 0 }
+        return selectedCloneOps().filter { matrix.cloneOpDeletes($0) }.count
+    }
+
     /// Writes `from`'s values for these settings into `to`'s place in each addon's file (S-060). ESO must be
     /// closed: it writes its own copy when it quits. Backs up first, once per pair of characters a run.
     func copySettings(_ rows: [(file: String, key: String)], from: String, to: String, undoManager: UndoManager? = nil) async {
+        let ops = rows.map { SettingsMatrix.CloneOp(file: $0.file, key: $0.key, from: from, to: to) }
+        await applyCloneOps(ops, undoManager: undoManager)
+    }
+
+    /// Applies Compare Clone ops (copy and/or key removal) after backup (S-060).
+    func applyCloneOps(_ ops: [SettingsMatrix.CloneOp], undoManager: UndoManager? = nil) async {
         message = nil
         errorMessage = nil
         guard !app.gameIsRunning else {
             errorMessage = String(localized: "Quit Elder Scrolls Online first: it writes its own copy of these files when it quits.")
             return
         }
-        guard let matrix = matrix else { return }
-        let byFile = matrix.copyChanges(rows, from: from, to: to)
+        guard let matrix = matrix, !ops.isEmpty else { return }
+        let byFile = matrix.cloneChanges(ops)
         guard !byFile.isEmpty else { return }
-        let pair = [from, to].sorted().joined(separator: "|")
+        let characters = Set(ops.flatMap { [$0.from, $0.to] })
+        let pair = characters.sorted().joined(separator: "|")
         if !copyBackedUp.contains(pair) {
             await app.backUp()
             if let backupError = app.backupError {
@@ -108,10 +148,17 @@ extension GameFolderModel {
         }
         registerFileUndo(before: edits.before, after: edits.after, name: String(localized: "Copy Settings"), undoManager: undoManager)
         let copied = edits.changed
+        let deleted = byFile.values.flatMap { $0 }.filter(\.removes).count
         if copied > 0 {
             let settings = String(localized: "\(copied) settings")
-            message = String(localized: "Backed up, then copied \(settings) from \(characterName(from)) to \(characterName(to)).")
+            if deleted > 0 {
+                let removals = String(localized: "\(deleted) keys removed")
+                message = String(localized: "Backed up, then cloned \(settings) (\(removals)).")
+            } else {
+                message = String(localized: "Backed up, then cloned \(settings).")
+            }
         }
+        clearCloneSelection()
         // The matrix reads the files again, so Compare shows what's now the same.
         await scan()
         await load()

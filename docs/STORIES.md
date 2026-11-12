@@ -552,15 +552,15 @@ UX: each icon shows only when there is something behind it. Installed reads the 
 Status: done
 
 ### S-060 Copy settings from one character to another
-As the user, Compare shows each character in their own color (the accent, and orange, or teal when the accent is warm): their header, their values, and buttons with their name. Each addon's heading reads "Clone row from" over the buttons: on a row, the button with a character's name gives their value to the other. The summary line reads "Clone all from" over the same buttons on the Only differences line, which give every difference to the other after asking (⌥⇧⌘C for the left character, ⌥⇧⌘V for the right). A setting only one has gets a button with that character's name; Clone leaves those alone. Two characters with the same name show their megaserver. MacMinion refuses while ESO runs (it writes its own copy when it quits) and backs up before the first copy between two characters. Packed addon data (LibCharacterKnowledge's encoded strings) and timestamps aren't settings, so they never show or clone.
+As the user, Compare shows each character in their own color (the accent, and orange, or teal when the accent is warm): their header, their values, and a radio under each value. Rows start with nothing selected; choosing a radio marks that character as the source for that setting (re-click clears; at most one source per row). A header radio selects that character on every visible eligible row (re-click clears). One Clone (⌃⌥⌘←) applies every selected row after asking and backing up: each row can go either way in the same run. A source that has the key (even with an empty value) writes that value and keeps the key; a source that has no key removes the key on the other. The confirm calls out key deletions when any. Only-one-has rows (when shown) get radios on both sides too. Two characters with the same name show their megaserver. MacMinion refuses while ESO runs (it writes its own copy when it quits). Packed addon data (LibCharacterKnowledge's encoded strings) and timestamps aren't settings, so they never show or clone.
 Depends: S-057
 Acceptance:
-- [unit] A change rewrites only the entry it touches, in the game's format; a missing setting is added with the tables on the way; a file that doesn't read cleanly is left alone.
+- [unit] A change rewrites only the entry it touches, in the game's format; a missing setting is added with the tables on the way; a file that doesn't read cleanly is left alone; a removal deletes only that entry.
 - [unit] A setting goes to the other character's own entry, or the same place under their table in the same variable.
 - [unit] Packed strings and timestamps are left out of a character's settings; names like LibAddonMenu2 stay.
-- [self] Refused while the game runs; one copy makes that setting the same and leaves the rest; an only-one setting can be given; cloning the other way leaves no differences; every file still reads.
+- [self] Refused while the game runs; selected ops copy either way in one run; an only-one setting can be given or removed; every file still reads.
 - [self] Same-named characters read "Masisi (NA)" and "Masisi (EU)"; different names stay plain.
-- [snap] Compare with the colored columns, the name buttons on each row, and the two Clone buttons.
+- [snap] Compare with the colored columns, radios under values, header select, and one Clone.
 Status: done
 
 ### S-065 An addon's creator filters by creator
@@ -659,11 +659,11 @@ Acceptance:
 Status: done
 
 ### S-066 Compare two characters in one addon
-As the user, from a character in one addon (Masisi › WritWorthy), I choose Compare With… another character and see only that addon's differing settings side by side, with the same Clone row and Clone all actions limited to that file. Full Compare With… on a character and Compare Characters… ⌃⌘C still cover every addon.
+As the user, from a character in one addon (Masisi › WritWorthy), I choose Compare With… another character and see only that addon's differing settings side by side, with the same radio + Clone actions limited to that file. Full Compare With… on a character and Compare Characters… ⌃⌘C still cover every addon.
 Screens: gameFolder-compare-addon
 Depends: S-057, S-060
 Acceptance:
-- [self] From Masisi › WritWorthy, Compare With Alpha Top opens a scoped compare; Back returns to character-in-addon; scoped Copy All is only WritWorthy's differences; cloning clears those and leaves HarvestMap's differences.
+- [self] From Masisi › WritWorthy, Compare With Alpha Top opens a scoped compare; Back returns to character-in-addon; scoped Clone ops are only WritWorthy's differences; cloning clears those and leaves HarvestMap's differences.
 - [snap] Masisi beside Alpha Top in WritWorthy only.
 
 ## Dropped
