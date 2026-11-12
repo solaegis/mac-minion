@@ -76,12 +76,12 @@ It should:
 3. Zip `MacMinion-X.Y.Z-macos-arm64.zip`.
 4. Sparkle-sign the zip (EdDSA) and verify the signature.
 5. Create the GitHub Release titled `MacMinion X.Y.Z` with notes from the matching CHANGELOG section (or generated notes if that section is missing).
-6. Prepend an item to `site/appcast.xml` on `main` and commit `Update feed: MacMinion X.Y.Z`.
+6. Open a short-lived PR (`feed/X.Y.Z`) that prepends the item to `site/appcast.xml`, wait for required `swift test`, squash-merge as `Update feed: MacMinion X.Y.Z`, and delete the branch.
 7. Dispatch `pages.yml` so the docs site and feed redeploy.
 
 Watch with `gh run list --workflow=release.yaml --limit 3` and open the run if anything fails.
 
-If step 6 fails because branch protection rejects `github-actions[bot]` (`Required status check "swift test" is expected`), the GitHub Release and zip are still good. Finish by hand: copy `sparkle:edSignature` and `length` from the “Sign the update for Sparkle” log into `site/appcast.xml` (newest first, `sparkle:version` = that run’s number), commit and push `main`, then `gh workflow run pages.yml --ref main`.
+If step 6 fails (feed PR or merge), the GitHub Release and zip are still good. Finish by hand: copy `sparkle:edSignature` and `length` from the “Sign the update for Sparkle” log into `site/appcast.xml` (newest first, `sparkle:version` = that run’s number), commit and push `main`, then `gh workflow run pages.yml --ref main`.
 
 ### 7. Smoke after publish
 
@@ -97,7 +97,7 @@ Drafts and venue notes live in [`docs/LAUNCH-KIT.md`](docs/LAUNCH-KIT.md). They 
 ## Flow
 
 ```text
-docs + CHANGELOG → push main → CI green → tag vX.Y.Z → Release workflow → appcast + Pages
+docs + CHANGELOG → push main → CI green → tag vX.Y.Z → Release workflow → feed PR merge → Pages
 ```
 
 ## Related

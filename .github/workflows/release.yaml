@@ -2,7 +2,8 @@ name: Release
 
 # On a semver tag (vMAJOR.MINOR.PATCH, e.g. v0.6.0): build MacMinion, sign it and Sparkle's helpers with the stable
 # "MacMinion Release" certificate, zip it, sign the zip for Sparkle (EdDSA), publish a GitHub Release,
-# add it to site/appcast.xml, and redeploy the docs site so the update feed lists it.
+# open a short-lived PR that adds it to site/appcast.xml (wait for swift test, then squash-merge),
+# and redeploy the docs site so the update feed lists it.
 #
 # Secrets (never printed):
 #   SIGNING_CERT_P12_BASE64  base64 of the "MacMinion Release" .p12
@@ -15,8 +16,9 @@ on:
     tags: ["v*"]
 
 permissions:
-  contents: write   # the release, and the appcast commit on main
-  actions: write    # start the docs deploy
+  contents: write        # the release, and the feed/* branch
+  pull-requests: write   # open and merge the appcast PR
+  actions: write         # start the docs deploy
 
 env:
   SIGN_IDENTITY: "MacMinion Release"
@@ -101,10 +103,11 @@ jobs:
           gh release create "$GITHUB_REF_NAME" --title "MacMinion ${{ steps.version.outputs.version }}" \
             "${notes[@]}" "dist/${{ steps.version.outputs.zip }}"
 
-      - name: Add the release to the update feed (site/appcast.xml on main)
+      - name: Add the release to the update feed (PR → main)
         env:
           VERSION: ${{ steps.version.outputs.version }}
           ZIP: ${{ steps.version.outputs.zip }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
           git fetch origin main
@@ -134,11 +137,26 @@ jobs:
           print(f"added {version} (build {build})")
           PY
           cd "$RUNNER_TEMP/main"
-          if git diff --quiet; then exit 0; fi
+          if git diff --quiet; then
+            echo "$VERSION is already on main; nothing to PR"
+            exit 0
+          fi
+          branch="feed/$VERSION"
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git commit -am "Update feed: MacMinion $VERSION"
-          git push origin HEAD:main
+          git push --force origin "HEAD:refs/heads/$branch"
+          pr_url=$(gh pr list --head "$branch" --base main --state open --json url --jq '.[0].url // empty')
+          if [ -z "$pr_url" ]; then
+            pr_url=$(gh pr create --base main --head "$branch" \
+              --title "Update feed: MacMinion $VERSION" \
+              --body "Adds MacMinion $VERSION to \`site/appcast.xml\` so Sparkle can offer the update. Opened by the Release workflow after publishing the GitHub Release.")
+          fi
+          echo "feed PR: $pr_url"
+          # Brief pause so the pull_request CI run can attach before --watch polls.
+          sleep 15
+          gh pr checks "$pr_url" --watch
+          gh pr merge "$pr_url" --squash --delete-branch
 
       - name: Redeploy the docs and feed
         env:
