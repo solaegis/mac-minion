@@ -143,6 +143,6 @@ takes 0.28 s, so the cost is in what runs after parsing, not in reading the file
 ## Checks for every step
 
 - The benchmark above, before and after, with numbers in the commit message.
-- `tools/selftest.sh` (all checks), unit tests, and snapshots for any step that touches views.
+- `task selftest` (all checks), unit tests, and snapshots for any step that touches views.
 - UI stalls: open GS16Data in the Inspector, focus the 79 k-row table, and change the selection. Profile with
   Instruments' Hangs and SwiftUI templates (see the bama `performance` skill) before and after steps 2 and 3.

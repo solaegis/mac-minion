@@ -16,17 +16,18 @@ Everyone who takes part follows the [code of conduct](CODE_OF_CONDUCT.md).
 
 ## Build and check
 
-MacMinion is a Swift package with no Xcode project. You need macOS 26 and Xcode 26 (Swift 6.2) on Apple Silicon.
+MacMinion is a Swift package with no Xcode project. You need macOS 26 and Xcode 26 (Swift 6.2) on Apple Silicon, plus [go-task](https://taskfile.dev) (`brew install go-task`).
 
 ```bash
-./build.sh --open
-swift test --scratch-path ~/Library/Developer/MacMinion/test-build
-tools/selftest.sh
+task build:open
+task test
+task selftest
 ```
 
-- `./build.sh` builds, signs, and installs `~/Applications/MacMinion.app`. Fix any warnings it shows.
-- `tools/selftest.sh` runs the app's real functions against a store in `/tmp`. Never test against your real Application Support JSON store in `~/Library/Application Support/MacMinion/`.
-- For a UI change, run `tools/snap.sh` and look at the light and dark snapshots in `/tmp/MacMinion-shots/`.
+- `task build` builds, signs, and installs `~/Applications/MacMinion.app` (`task build:open` reopens it). Fix any warnings it shows. `task clean` removes local Swift scratch builds so the next build is from scratch.
+- `task selftest` runs the app's real functions against a store in `/tmp`. Never test against your real Application Support JSON store in `~/Library/Application Support/MacMinion/`.
+- For a UI change, run `task snap` and look at the light and dark snapshots in `/tmp/MacMinion-shots/`.
+- `task --list` shows the rest (`grid`, `layout`, `hig`, `strings`, `verify`).
 - Design rules are in [design/DESIGN-SYSTEM.md](design/DESIGN-SYSTEM.md): system controls, design tokens, no hard-coded colors.
 
 Write commit messages that say what someone can now do, for example "Install older releases from ESOUI's archive".

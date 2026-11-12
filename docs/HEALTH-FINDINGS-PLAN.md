@@ -333,7 +333,7 @@ Add `docs/GLOSSARY.md` entries: **Finding**, **Tier**, **Raw check**.
 3. `SVFolderRead` builds the graph and passes the manifests' `dependsOn`, then a benchmark.
 4. `AppModel.healthFindings`, `ProblemsView` cards, menu items, and shortcuts.
 5. CLI grouped output and the SKILL.md update.
-6. Strings: `tools/missing-strings.sh`, then add de, es, fr, ru for each new key.
+6. Strings: `task strings`, then add de, es, fr, ru for each new key.
 7. STORIES, GLOSSARY, SelfTest, Snapshot.
 
 Commit after each step that builds and passes.
@@ -341,13 +341,13 @@ Commit after each step that builds and passes.
 ## 10. Verification (CLAUDE.md)
 
 ```
-./build.sh                                            # no errors, no warnings
-swift test --scratch-path ~/Library/Developer/MacMinion/test-build
-tools/selftest.sh                                     # exit 0
-tools/missing-strings.sh                              # prints nothing
-tools/snap.sh                                         # then look at gameFolder-problems*-light/-dark.png
-tools/grid-lint.sh                                    # PASS
-swift tools/check-layout.swift /tmp/MacMinion-shots/*-layout.json   # PASS
+task build                                            # no errors, no warnings
+task test
+task selftest                                         # exit 0
+task strings                                          # prints nothing
+task snap                                             # then look at gameFolder-problems*-light/-dark.png
+task grid                                             # PASS
+task layout                                           # PASS
 check-agent-cli.sh macminion                          # sv problems grouped output
 ```
 

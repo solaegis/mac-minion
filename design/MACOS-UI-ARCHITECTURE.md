@@ -201,7 +201,7 @@ Rules:
 ### Layout [layout]
 
 - Spacing comes from `Space` (4 pt grid, `UI/Grid.swift`); custom pages and cards carry `.gridArea` and
-  `.gridProbe`. `tools/grid-lint.sh` and `tools/check-layout.swift` enforce it.
+  `.gridProbe`. `task grid` and `task layout` enforce it.
 - Order by importance, align to scan, group related things, disclose progressively. Controls look like
   controls; content looks like content.
 - Layouts adapt to width and to longer localized text (de, es, fr, ru run up to 40% longer). Never fix a
@@ -226,7 +226,7 @@ Rules:
 - One color, one meaning, app-wide: accent = needs attention / selected; positive = good; negative =
   failed. Never use a color to mean two things.
 - Color is never the only signal: pair it with a symbol, a label, or a shape.
-- Test light, dark, Increase Contrast, and a warm and a cool accent (`APP_ACCENT=<id> tools/snap.sh`).
+- Test light, dark, Increase Contrast, and a warm and a cool accent (`APP_ACCENT=<id> task snap`).
 - Data that *is* a color (a game color in SavedVariables) is drawn as itself; mark it `// hig: ok data color`.
 
 ### Materials and Liquid Glass [materials]
@@ -274,10 +274,10 @@ Rules:
 
 ## 10. Text in the interface
 
-- All UI text goes through the String Catalogs (`tools/missing-strings.sh`), with de, es, fr, ru.
+- All UI text goes through the String Catalogs (`task strings`), with de, es, fr, ru.
 - A literal passed where Swift expects a `String` (a custom view's `title: String`, one branch of a ternary,
   a `switch` that returns `String`) is never looked up. Wrap it in `String(localized:)`, or make the
-  parameter a `LocalizedStringKey`. `tools/missing-strings.sh` cannot see these.
+  parameter a `LocalizedStringKey`. `task strings` cannot see these.
 - Title case for menu items, buttons, window and tab titles; sentence case for descriptions and help.
 - Say *window*, *Settings*, *sidebar*, *inspector*: the words macOS uses. Name the thing, not the
   implementation.
@@ -288,7 +288,7 @@ Rules:
 
 Three layers; a change is not done until all pass.
 
-1. **Lint (automatic)** `tools/hig-lint.sh` catches the mechanical rules:
+1. **Lint (automatic)** `task hig` catches the mechanical rules:
 
    | Check | Rule |
    | --- | --- |
@@ -303,8 +303,8 @@ Three layers; a change is not done until all pass.
 
    Silence one line with a reason: `// hig: ok <why>`. The reason is reviewed like code.
 
-2. **Existing gates** `./build.sh` (no warnings), `tools/grid-lint.sh`, `tools/check-layout.swift`,
-   `tools/missing-strings.sh`, and the light and dark snapshots from `tools/snap.sh`.
+2. **Existing gates** `task build` (no warnings), `task grid`, `task layout`,
+   `task strings`, and the light and dark snapshots from `task snap`.
 
 3. **Review checklist** for every UI change (copy into the commit or PR description when it helps):
 
@@ -328,7 +328,7 @@ The November 2026 review's findings are fixed except this one. Record new gaps h
 - The toolbar is not customizable. `.toolbar(id:)` with `ToolbarItem(id:)` on each page crashes AppKit on
   macOS 27.2 (`NSToolbarItemViewer minSize` throws during layout when the window restores or a page swaps
   its items), so the pages keep plain `.toolbar`. Retry with one toolbar declared once on the
-  `NavigationSplitView` instead of per page, and run `tools/selftest.sh` before keeping it.
+  `NavigationSplitView` instead of per page, and run `task selftest` before keeping it.
 
 ---
 

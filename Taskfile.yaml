@@ -1,0 +1,83 @@
+# yaml-language-server: $schema=https://taskfile.dev/schema.json
+version: "3"
+
+# Hides go-task command echo; child tools still print their own output.
+silent: true
+
+vars:
+  DEV_ROOT:
+    sh: echo "$HOME/Library/Developer/MacMinion"
+  TEST_SCRATCH: "{{.DEV_ROOT}}/test-build"
+  SHOTS: /tmp/MacMinion-shots
+
+tasks:
+  default:
+    desc: List available tasks
+    cmds:
+      - task --list
+
+  clean:
+    desc: Remove local Swift scratch builds (next build/test is from scratch)
+    cmds:
+      - rm -rf "{{.DEV_ROOT}}/build" "{{.DEV_ROOT}}/test-build" "{{.DEV_ROOT}}/strings-build"
+
+  build:
+    desc: Build, sign, and install ~/Applications/MacMinion.app
+    cmds:
+      - ./build.sh {{.CLI_ARGS}}
+
+  build:open:
+    desc: Build, install, and reopen the app
+    cmds:
+      - ./build.sh --open {{.CLI_ARGS}}
+
+  build:debug:
+    desc: Debug build, sign, and install
+    cmds:
+      - ./build.sh --debug {{.CLI_ARGS}}
+
+  test:
+    desc: Run unit tests (scratch path outside the repo)
+    cmds:
+      - swift test --scratch-path {{.TEST_SCRATCH}} {{.CLI_ARGS}}
+
+  selftest:
+    desc: Run app self-test against a /tmp store
+    cmds:
+      - tools/selftest.sh {{.CLI_ARGS}}
+
+  snap:
+    desc: Capture UI snapshots (needs APP_STORE in /tmp)
+    cmds:
+      - tools/snap.sh {{.CLI_ARGS}}
+
+  grid:
+    desc: Lint spacing against the 4 pt grid
+    cmds:
+      - tools/grid-lint.sh {{.CLI_ARGS}}
+
+  layout:
+    desc: Check snapshot layout JSON from the last snap run
+    cmds:
+      - swift tools/check-layout.swift {{.SHOTS}}/*-layout.json
+
+  hig:
+    desc: Lint macOS HIG mechanical rules
+    cmds:
+      - tools/hig-lint.sh {{.CLI_ARGS}}
+
+  strings:
+    desc: List localization keys missing from string catalogs
+    cmds:
+      - tools/missing-strings.sh {{.CLI_ARGS}}
+
+  verify:
+    desc: Full local check loop (test → selftest → snap → grid → layout → hig → strings)
+    cmds:
+      - task: test
+      - task: selftest
+      - task: snap
+      - task: grid
+      - task: layout
+      - task: hig
+      - task: strings

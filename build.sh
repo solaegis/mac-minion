@@ -8,7 +8,7 @@
 #        ./build.sh --open          install, then quit the running copy and open the new one
 #        ./build.sh --package <dir> write MacMinion.app to <dir>, skip home install and PATH symlink
 #
-# Env:   MACMINION_VERSION  CFBundleShortVersionString (default 0.1)
+# Env:   MACMINION_VERSION  CFBundleShortVersionString (default: latest v* git tag, else 0.1)
 #        MACMINION_BUILD    CFBundleVersion (default date, or GITHUB_RUN_NUMBER in CI)
 #        APP_DEST           full path of the .app; overrides --package and the home install
 #        SIGN_KEYCHAIN      keychain file to sign from (tests, CI), instead of the search list
@@ -35,7 +35,11 @@ while (( $# )); do
   shift
 done
 
-version="${MACMINION_VERSION:-0.1}"
+if [[ -z "${MACMINION_VERSION:-}" ]]; then
+  version="$(git -C "$here" describe --tags --match 'v*' --abbrev=0 2>/dev/null || true)"
+  version="${version#v}"
+fi
+version="${MACMINION_VERSION:-${version:-0.1}}"
 version="${version#v}"
 build="${MACMINION_BUILD:-${GITHUB_RUN_NUMBER:-$(date +%Y%m%d%H%M)}}"
 

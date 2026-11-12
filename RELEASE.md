@@ -30,13 +30,13 @@ Replace `X.Y.Z` with the version you are shipping (for example `0.6.0`).
 On Apple Silicon with Xcode 26:
 
 ```bash
-./build.sh
-swift test --scratch-path ~/Library/Developer/MacMinion/test-build
-tools/selftest.sh
-tools/missing-strings.sh
+task build
+task test
+task selftest
+task strings
 ```
 
-All must pass. `tools/missing-strings.sh` must report **0 keys missing**. Prefer a `/tmp` `APP_STORE` for self-test and snapshots; never point tests at `~/Library/Application Support/MacMinion/`.
+All must pass. `task strings` must report **0 keys missing**. Prefer a `/tmp` `APP_STORE` for self-test and snapshots; never point tests at `~/Library/Application Support/MacMinion/`.
 
 ### 2. Docs ready
 
@@ -72,7 +72,7 @@ Pushing the tag starts the **Release** workflow.
 It should:
 
 1. Import the release signing certificate into a temporary keychain.
-2. Build and sign with `MACMINION_VERSION=X.Y.Z` and `MACMINION_BUILD` = the run number (`./build.sh --package dist`).
+2. Build and sign with `MACMINION_VERSION=X.Y.Z` and `MACMINION_BUILD` = the run number (`task build -- --package dist`).
 3. Zip `MacMinion-X.Y.Z-macos-arm64.zip`.
 4. Sparkle-sign the zip (EdDSA) and verify the signature.
 5. Create the GitHub Release titled `MacMinion X.Y.Z` with notes from the matching CHANGELOG section (or generated notes if that section is missing).

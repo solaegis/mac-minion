@@ -33,12 +33,14 @@ macminion help</code></pre>
 <p>Use <code>/Applications</code> in the path if you installed there. See <a href="cli.html">Command line</a>.</p>
 
 <h2 id="source">Build from source</h2>
+<p>You need <a href="https://taskfile.dev">go-task</a> (<code>brew install go-task</code>).</p>
 <pre><code>git clone https://github.com/solaegis/mac-minion.git
 cd mac-minion
-./build.sh --open</code></pre>
-<p>That builds <code>~/Applications/MacMinion.app</code> and links <code>macminion</code> into <code>~/.local/bin</code>.</p>
+task build:open</code></pre>
+<p>That builds <code>~/Applications/MacMinion.app</code> and links <code>macminion</code> into <code>~/.local/bin</code>.
+Use <code>task clean</code> before <code>task build</code> when you want a from-scratch rebuild.</p>
 <p>Builds signed ad hoc are a new app to macOS each time, so it asks for Documents access after every build. Create a
-local signing identity once and <code>build.sh</code> signs with it from then on:</p>
+local signing identity once and the build signs with it from then on:</p>
 <pre><code>tools/make-signing-identity.sh</code></pre>
 <p>A build you make yourself has a higher build number than any release, so MacMinion doesn't offer it updates.</p>
 

@@ -41,7 +41,7 @@ Ship MacMinion’s user-visible UI in German, French, Spanish, and Russian, with
 
 ## Verification
 
-- `./build.sh` succeeds; locale resources present in the app bundle
+- `task build` succeeds; locale resources present in the app bundle
 - Self-test: preference persistence; system clears override
 - Spot snapshots: Overview + Settings Appearance in `de` (light/dark)
 - Grid lint after UI changes

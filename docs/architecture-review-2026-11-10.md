@@ -79,8 +79,8 @@ sets `settingsMatrix` directly; that one name keeps a setter.
 Benefits: Locality: loaded is `svRead != nil`, cleared is `svRead = nil`, and a
 new result is one field. Views get one change per read, not ten. It is also the
 first slice of card 2, so no work is thrown away.
-Proof of same behavior: `tools/selftest.sh` (272 checks) before and after;
-`tools/snap.sh` Game Folder pages compared before and after; unit tests
+Proof of same behavior: `task selftest` (272 checks) before and after;
+`task snap` Game Folder pages compared before and after; unit tests
 unchanged (Kit is not touched).
 Open point to settle in the step, not before: whether graph, roster, and top
 folders must stay readable between a file change and the next read. If a view

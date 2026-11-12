@@ -8,23 +8,27 @@ SwiftData database and no server.
 - `Sources/MacMinion/` the app. `App.swift` has the window, menus, and the database location.
 - `Sources/MacMinionKit/` rules and data logic with no SwiftUI. Tests in `Tests/MacMinionKitTests/`.
 - `Package.swift` a Swift package. There is no Xcode project.
-- `build.sh` builds, signs, and installs `~/Applications/MacMinion.app`.
-- `Icon/AppIcon.icon` the app icon, an Icon Composer file (JSON plus SVG layers). `build.sh` compiles it with `tools/make_icon.sh`; `tools/icon_review.sh` renders every look into one PNG.
+- `Taskfile.yaml` the local developer entry point (`task build`, `task test`, …). `build.sh` and `tools/` are what those tasks run.
+- `Icon/AppIcon.icon` the app icon, an Icon Composer file (JSON plus SVG layers). The build compiles it with `tools/make_icon.sh`; `tools/icon_review.sh` renders every look into one PNG.
 - `docs/` the brief, the screen index, and the user stories, when they exist.
 
 ## Build and check
 
-- Build and install: `./build.sh`. Add `--open` to restart the app with the new build. The build shows warnings; fix them.
-- Unit tests: `swift test --scratch-path ~/Library/Developer/MacMinion/test-build`.
-- Self-test (the app's real functions on a /tmp store): `tools/selftest.sh`. Exit 0 when every check passes. Add a check for every story with logic, in its area's file in `SelfTest/`.
-- UI text goes through the string catalogs: SwiftUI literals, or `String(localized:)` (with `bundle: .module` in MacMinionKit) for text built as a `String`. `tools/missing-strings.sh` lists keys the code uses that a catalog lacks; add each with de, es, fr, and ru. AI prompts, data keys, and file names stay as written.
-- After every UI change, take snapshots with sample data and look at them: `tools/snap.sh`.
-  It writes `/tmp/MacMinion-shots/<page>-light.png` and `-dark.png` for every sidebar page, and `settings-<tab>-light.png` and `-dark.png` for every Settings tab, then quits. `APP_SNAPSHOT_PAGES=all,settings tools/snap.sh` limits the pages. The main window is set to 1180 x 760 (`APP_SNAPSHOT_SIZE=1600x900` picks another), and each page is also taken at the minimum size as `<page>-min-light.png` and `-dark.png`. Read the run's `SNAPSHOT warning:` lines: they say when the window was not the key window, or did not keep its size (then there are no `-min` pictures). Each run also copies its PNGs to `snapshots/` in the repo (git-ignored), replacing only the pages it took, so the latest of every page stays there for review.
+Use [go-task](https://taskfile.dev) (`task --list`). Scripts under `build.sh` and `tools/` stay the implementation.
+
+- Build and install: `task build`. Add `task build:open` to restart the app with the new build. The build shows warnings; fix them.
+- Clean scratch builds (then rebuild from scratch): `task clean`.
+- Unit tests: `task test`.
+- Self-test (the app's real functions on a /tmp store): `task selftest`. Exit 0 when every check passes. Add a check for every story with logic, in its area's file in `SelfTest/`.
+- UI text goes through the string catalogs: SwiftUI literals, or `String(localized:)` (with `bundle: .module` in MacMinionKit) for text built as a `String`. `task strings` lists keys the code uses that a catalog lacks; add each with de, es, fr, and ru. AI prompts, data keys, and file names stay as written.
+- After every UI change, take snapshots with sample data and look at them: `task snap`.
+  It writes `/tmp/MacMinion-shots/<page>-light.png` and `-dark.png` for every sidebar page, and `settings-<tab>-light.png` and `-dark.png` for every Settings tab, then quits. `APP_SNAPSHOT_PAGES=all,settings task snap` limits the pages. The main window is set to 1180 x 760 (`APP_SNAPSHOT_SIZE=1600x900` picks another), and each page is also taken at the minimum size as `<page>-min-light.png` and `-dark.png`. Read the run's `SNAPSHOT warning:` lines: they say when the window was not the key window, or did not keep its size (then there are no `-min` pictures). Each run also copies its PNGs to `snapshots/` in the repo (git-ignored), replacing only the pages it took, so the latest of every page stays there for review.
   For a panel, sheet, or popover, add a capture to `Snapshot.swift` like the Settings loop.
 - Snapshots, seed data, and the self-test refuse to run without `APP_STORE` in /tmp.
 - Never test against the real database in `~/Library/Application Support/MacMinion/`.
-- Then check the grid: `tools/grid-lint.sh` and `swift tools/check-layout.swift /tmp/MacMinion-shots/*-layout.json`. Both print PASS.
-- Then check the macOS rules: `tools/hig-lint.sh` (raw colors, font sizes, motion, glass, sheet focus, standard shortcuts). It prints PASS. Fix what it flags or mark the line `// hig: ok <why>`. Its warnings (taps with no keyboard path) are known gaps in `design/MACOS-UI-ARCHITECTURE.md`; add no new ones.
+- Then check the grid: `task grid` and `task layout`. Both print PASS.
+- Then check the macOS rules: `task hig` (raw colors, font sizes, motion, glass, sheet focus, standard shortcuts). It prints PASS. Fix what it flags or mark the line `// hig: ok <why>`. Its warnings (taps with no keyboard path) are known gaps in `design/MACOS-UI-ARCHITECTURE.md`; add no new ones.
+- Full automated loop: `task verify` (test → selftest → snap → grid → layout → hig → strings).
 - A change is done when the build has no errors, the grid checks pass, and you looked at the light and dark snapshots.
 
 ## Design rules

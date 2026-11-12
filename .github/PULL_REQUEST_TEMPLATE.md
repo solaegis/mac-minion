@@ -4,7 +4,7 @@
 
 ## Checks
 
-- [ ] `./build.sh` builds with no warnings
-- [ ] `swift test --scratch-path ~/Library/Developer/MacMinion/test-build` passes
-- [ ] `tools/selftest.sh` exits 0
-- [ ] For a UI change: looked at the light and dark snapshots from `tools/snap.sh`
+- [ ] `task build` builds with no warnings
+- [ ] `task test` passes
+- [ ] `task selftest` exits 0
+- [ ] For a UI change: looked at the light and dark snapshots from `task snap`

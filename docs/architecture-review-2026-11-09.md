@@ -91,8 +91,8 @@ Compare state; its methods move from the view-file extensions into
 `AppModel` (addons folder, `gameIsRunning`, a `backUp()` closure) in its init.
 Benefits: `Models.swift` drops ~400 lines; Game Folder changes stay in one
 folder; views take `GameFolderModel` and can be snapshotted with a seeded one.
-Proof of same behavior: `tools/selftest.sh` (65 inspector references), all
-`tools/snap.sh` pages byte-compared before/after, agent CLI `sv` commands.
+Proof of same behavior: `task selftest` (65 inspector references), all
+`task snap` pages byte-compared before/after, agent CLI `sv` commands.
 Plan: one commit per moved group (read results → Inspector navigation → Find →
 Problems → Compare/Copy), each building and passing selftest. Large: ~10 files,
 so split across several sessions. Do Backup Restore first; it removes one of

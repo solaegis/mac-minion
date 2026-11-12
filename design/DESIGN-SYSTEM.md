@@ -38,7 +38,7 @@ Apple's controls and layout, one accent: **Minion Blue `#007AFF`**, the same blu
 - Inner corners are concentric: inner radius = outer radius - inset (the large card image uses `card - Space.md`).
 
 ## Grid.swift: spacing
-- `Space` on a 4 pt grid (`xs 4` … `section 32`, `margin 20`). `tools/grid-lint.sh` flags anything else.
+- `Space` on a 4 pt grid (`xs 4` … `section 32`, `margin 20`). `task grid` flags anything else.
 - Bento cells: `CardSize` (Settings > Layout) sets the narrowest cell and the cell height; the grid fits as many
   columns as it can. Spans: `small 1×1` for every card in a main grid; `wide 2×1` only in a featured section above it
   (Installed: Updates Ready; Find More: the top four). Never mix sizes inside one grid.

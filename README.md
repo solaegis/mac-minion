@@ -71,13 +71,15 @@ ln -sf ~/Applications/MacMinion.app/Contents/MacOS/MacMinion ~/.local/bin/macmin
 
 ### Build from source
 
+You need [go-task](https://taskfile.dev) (`brew install go-task`).
+
 ```bash
 git clone https://github.com/solaegis/mac-minion.git
 cd mac-minion
-./build.sh --open
+task build:open
 ```
 
-That installs `~/Applications/MacMinion.app` and a `macminion` link in `~/.local/bin`. To stop macOS asking for Documents access after every build, create a local signing identity once with `tools/make-signing-identity.sh`; `build.sh` uses it from then on. The build signs with your Apple Development certificate when Xcode has one, otherwise ad hoc. An app you build on this Mac is not quarantined, so it usually opens without the Gatekeeper step.
+That installs `~/Applications/MacMinion.app` and a `macminion` link in `~/.local/bin`. To stop macOS asking for Documents access after every build, create a local signing identity once with `tools/make-signing-identity.sh`; the build uses it from then on. The build signs with your Apple Development certificate when Xcode has one, otherwise ad hoc. An app you build on this Mac is not quarantined, so it usually opens without the Gatekeeper step. Use `task clean` before `task build` when you want a from-scratch rebuild.
 
 ## Use
 
@@ -118,7 +120,7 @@ Pick one in Settings → AI. Each keeps its own model and key, so switching back
 
 ## Command line
 
-`./build.sh` also links `macminion` on your PATH. Run `macminion help` for commands such as `status`, `addons list`, `catalog search`, `updates install`, `addons recommend`, and `ai benchmark`. Add `--json` for agents. The app must be running (or the command will launch it). `.claude/skills/macminion/SKILL.md` teaches Claude Code the commands.
+`task build` also links `macminion` on your PATH. Run `macminion help` for commands such as `status`, `addons list`, `catalog search`, `updates install`, `addons recommend`, and `ai benchmark`. Add `--json` for agents. The app must be running (or the command will launch it). `.claude/skills/macminion/SKILL.md` teaches Claude Code the commands.
 
 ## Help
 
