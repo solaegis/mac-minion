@@ -74,6 +74,13 @@ enum InstalledSort: String, CaseIterable, Identifiable {
     }
 }
 
+/// Full-size ESOUI preview image shown in a sheet from the detail thumbnail or Addons menu.
+struct AddonImagePreview: Identifiable, Equatable {
+    let url: URL
+    let name: String
+    var id: String { url.absoluteString }
+}
+
 /// App-wide state that menus, toolbars, and views share.
 @Observable
 final class AppModel {
@@ -181,6 +188,8 @@ final class AppModel {
     private(set) var isDigesting = false
     var digestError: String?
     var showDigest = false
+    /// Full-size ESOUI preview image sheet for the selected addon.
+    var addonImagePreview: AddonImagePreview?
     private(set) var isSuggesting = false
     /// One-line descriptions by ESOUI id, for suggestions. Saved, since descriptions rarely change.
     private(set) var blurbs: [Int: String] = Store.loadBlurbs()

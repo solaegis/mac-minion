@@ -1,3 +1,4 @@
+import AppKit
 import Foundation
 import MacMinionKit
 
@@ -89,12 +90,15 @@ enum SeedData {
         try? FileManager.default.removeItem(at: companionSrc)
         try? FileManager.default.copyItem(at: addons.appending(path: CompanionData.folderName), to: companionSrc)
 
+        // Local preview images so Find More / detail / the preview sheet work offline in snaps.
+        let previews = seedPreviewImages()
         let catalog = samples.map { s in
             CatalogAddon(id: s.id, categoryID: s.category, version: s.version,
                          date: .now.addingTimeInterval(-s.daysAgo * 86_400), name: s.name, author: s.author,
                          infoURL: URL(string: "https://www.esoui.com/downloads/info\(s.id).html"),
                          downloads: s.downloads, downloadsMonthly: s.downloads / 120, favorites: s.downloads / 1_500,
-                         compatibility: [GameVersion(version: "12.1.0", name: "Season One")], dirs: s.dirs)
+                         compatibility: [GameVersion(version: "12.1.0", name: "Season One")], dirs: s.dirs,
+                         thumbnails: [previews.thumb], images: [previews.full])
         }
         await model.load(catalog: catalog, categories: categories, details: details, records: records, history: sampleHistory)
         // Snapshots show the assistant set up, with one finished summary. Nothing is sent: the store is in /tmp.
@@ -511,5 +515,28 @@ enum SeedData {
         guard (try? p.run()) != nil else { return nil }
         p.waitUntilExit()
         return p.terminationStatus == 0 ? zip : nil
+    }
+
+    /// Solid PNGs on disk for offline thumbnail and full-size preview snaps.
+    private static func seedPreviewImages() -> (thumb: URL, full: URL) {
+        let dir = Store.directory.appending(path: "previews", directoryHint: .isDirectory)
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let thumb = dir.appending(path: "thumb.png")
+        let full = dir.appending(path: "full.png")
+        writeSeedPNG(side: 96, red: 0.2, green: 0.45, blue: 0.9, to: thumb)
+        writeSeedPNG(side: 480, red: 0.2, green: 0.7, blue: 0.75, to: full)
+        return (thumb, full)
+    }
+
+    private static func writeSeedPNG(side: Int, red: CGFloat, green: CGFloat, blue: CGFloat, to url: URL) {
+        let rep = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: side, pixelsHigh: side,
+                                   bitsPerSample: 8, samplesPerPixel: 3, hasAlpha: false, isPlanar: false,
+                                   colorSpaceName: .deviceRGB, bytesPerRow: side * 3, bitsPerPixel: 24)!
+        let r = UInt8((red * 255).rounded()), g = UInt8((green * 255).rounded()), b = UInt8((blue * 255).rounded())
+        let bytes = rep.bitmapData!
+        for i in 0..<(side * side) {
+            bytes[i * 3] = r; bytes[i * 3 + 1] = g; bytes[i * 3 + 2] = b
+        }
+        try? rep.representation(using: .png, properties: [:])?.write(to: url, options: .atomic)
     }
 }

@@ -212,6 +212,15 @@ enum Snapshot {
                         model.customizingOverview = false
                         try? await Task.sleep(for: .seconds(0.5))
                     }
+                    // Full-size addon preview image sheet (S-005), from Find More's selection.
+                    if page == .findMore, model.canShowAddonImagePreview {
+                        model.showAddonImagePreview()
+                        try? await Task.sleep(for: .seconds(1.5))
+                        let main = NSApp.windows.first { $0.canBecomeMain && !$0.isSheet }
+                        await capture(to: "\(dir)/addon-preview-\(mode).png", window: main?.attachedSheet)
+                        model.addonImagePreview = nil
+                        try? await Task.sleep(for: .seconds(0.5))
+                    }
                 }
             }
             if only == nil || only?.contains("settings") == true {

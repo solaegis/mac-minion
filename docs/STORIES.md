@@ -52,6 +52,7 @@ Acceptance:
 - [unit] Search matches name and author, case- and diacritic-insensitive.
 - [self] Find More leaves out installed addons; when everything matching is installed it says so and points to Installed.
 - [snap] The details pane shows thumbnail, author, version, date, downloads, favorites, compatibility, description (BBCode to plain text) and changelog.
+- [snap] Double-clicking the details thumbnail (when the addon has a picture) opens a sheet with the full-size preview; Done or Escape closes it. Addons → Show Preview Image (⌃⌘P) does the same.
 - [self] Install writes the folders and the addon then appears in Installed.
 UX: The primary button reads "Install", "Update" or "Reinstall" depending on state; "Open on ESOUI" is secondary.
 Status: done

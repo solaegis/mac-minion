@@ -46,6 +46,9 @@ struct ContentView: View {
         } message: { folder in
             Text("The folder \(folder.folder) goes to the Trash. It isn't on ESOUI, so MacMinion can't reinstall it. Saved settings stay.")
         }
+        .sheet(item: $model.addonImagePreview) { preview in
+            PreviewImageSheet(name: preview.name, url: preview.url)
+        }
         .task {
             await Launch.run(model)
             SelfTest.runIfRequested(model: model)
@@ -571,7 +574,7 @@ struct AddonDetail: View {
     private var header: some View {
         VStack(alignment: .leading, spacing: Space.md) {
             HStack(alignment: .top, spacing: Space.lg) {
-                Thumbnail(url: addon.thumbnails.first, size: 96)
+                previewThumbnail
                 VStack(alignment: .leading, spacing: Space.xs) {
                     Text(addon.name).font(.title2.bold()).textSelection(.enabled)
                     AuthorLink(author: addon.author, prefixed: true).foregroundStyle(.secondary)
@@ -590,6 +593,15 @@ struct AddonDetail: View {
                 }
             }
         }
+    }
+
+    @ViewBuilder
+    private var previewThumbnail: some View {
+        let previewURL = addon.images.first ?? addon.thumbnails.first
+        Thumbnail(url: addon.thumbnails.first, size: 96)
+            .modifier(AddonPreviewGesture(enabled: previewURL != nil) {
+                model.showAddonImagePreview()
+            })
     }
 
     @ViewBuilder
@@ -751,6 +763,63 @@ struct SummaryCard: View {
             return String(localized: "Summarize what changed from \(installed) to \(addon.version).")
         }
         return String(localized: "Summarize the latest changes in a few bullets.")
+    }
+}
+
+/// Full-size ESOUI preview image for an addon.
+struct PreviewImageSheet: View {
+    let name: String
+    let url: URL
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: Space.lg) {
+            Text(name).font(.title2.bold())
+            AsyncImage(url: url) { phase in
+                switch phase {
+                case .success(let image):
+                    image.resizable().scaledToFit()
+                        .frame(maxWidth: .infinity, maxHeight: 480)
+                case .failure:
+                    ContentUnavailableView("Couldn't Load Image", systemImage: "photo")
+                        .frame(maxWidth: .infinity, minHeight: 200)
+                case .empty:
+                    ProgressView()
+                        .frame(maxWidth: .infinity, minHeight: 200)
+                @unknown default:
+                    EmptyView()
+                }
+            }
+            HStack {
+                Spacer()
+                Button("Done") { dismiss() }
+                    .keyboardShortcut(.cancelAction)
+            }
+        }
+        .padding(Space.xxl)
+        .frame(width: 560)
+        .fitsContent(max: 560)
+        .noInitialFocus()
+    }
+}
+
+/// Double-click and VoiceOver path to open the full-size preview (hig: tap needs a keyboard path).
+private struct AddonPreviewGesture: ViewModifier {
+    let enabled: Bool
+    let action: () -> Void
+
+    func body(content: Content) -> some View {
+        if enabled {
+            content
+                .onTapGesture(count: 2, perform: action)
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel(String(localized: "Show Preview Image"))
+                .accessibilityAddTraits(.isButton)
+                .accessibilityAction(named: String(localized: "Show Preview Image"), action)
+                .help("Double-click to show full size")
+        } else {
+            content
+        }
     }
 }
 

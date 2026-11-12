@@ -14,6 +14,25 @@ extension AppModel {
               case .addon(let id)? = selection else { return nil }
         return id
     }
+
+    /// Catalog (or installed catalog) for the selected addon on Installed, Updates, or Find More.
+    var selectedCatalogAddon: CatalogAddon? {
+        guard let id = selectedAddonID else { return nil }
+        return catalogAddon(id) ?? installed(id)?.catalog
+    }
+
+    /// Whether the selected addon has an ESOUI preview image to show full size.
+    var canShowAddonImagePreview: Bool {
+        guard let addon = selectedCatalogAddon else { return false }
+        return (addon.images.first ?? addon.thumbnails.first) != nil
+    }
+
+    /// Opens the full-size preview sheet for the selected addon's first image.
+    func showAddonImagePreview() {
+        guard let addon = selectedCatalogAddon,
+              let url = addon.images.first ?? addon.thumbnails.first else { return }
+        addonImagePreview = AddonImagePreview(url: url, name: addon.name)
+    }
 }
 
 /// The Addons menu's items for the selected addon: the same actions as its context menu and detail panel,
@@ -48,6 +67,9 @@ struct SelectedAddonCommands: View {
         Button("Open on ESOUI") { if let url = installed?.catalog.infoURL ?? catalog?.infoURL { NSWorkspace.shared.open(url) } }
             .keyboardShortcut("e", modifiers: [.command, .shift])
             .disabled((installed?.catalog.infoURL ?? catalog?.infoURL) == nil)
+        Button("Show Preview Image") { model.showAddonImagePreview() }
+            .keyboardShortcut("p", modifiers: [.command, .control])
+            .disabled(!model.canShowAddonImagePreview)
         Button("Show Addon in Finder") { model.showInFinder(installed?.record.dirs.first) }
             .keyboardShortcut("r", modifiers: [.command, .shift])
             .disabled(installed == nil)
