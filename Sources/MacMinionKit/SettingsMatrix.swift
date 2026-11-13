@@ -174,12 +174,14 @@ public struct SettingsMatrix: Sendable {
     /// How deep into nested tables a character's settings are read.
     public static let depth = 2
 
-    public static func build(documents: [String: SVDocument], names: SVNameIndex) -> SettingsMatrix {
+    public static func build(documents: [String: SVDocument], names: SVNameIndex,
+                             roster: [String: CompanionCharacter]? = nil) -> SettingsMatrix {
         let sorted = documents.sorted(by: { $0.key < $1.key })
         var homes: [String: Home] = [:]
         for (_, doc) in sorted { mergeHomes(&homes, Self.homes(in: doc)) }
         let byName = charactersByName(names)
-        return assemble(addons: sorted.compactMap { addon(file: $0.key, document: $0.value, names: names, homes: homes, byName: byName) },
+        let locations = CharacterLocations(roster: roster, homes: homes)
+        return assemble(addons: sorted.compactMap { addon(file: $0.key, document: $0.value, names: names, locations: locations, byName: byName) },
                         names: names, homes: homes)
     }
 
@@ -256,15 +258,14 @@ public struct SettingsMatrix: Sendable {
     }
 
     /// One file's settings per character, or nil when it keeps none per character.
-    public static func addon(file: String, document doc: SVDocument, names: SVNameIndex, homes: [String: Home],
+    public static func addon(file: String, document doc: SVDocument, names: SVNameIndex, locations: CharacterLocations,
                              byName: [String: [String]]) -> Addon? {
         // Some addons key characters by name ("Ringil of Eskiath") rather than ID: the one character with that
-        // name, or the one on this account and megaserver. Two characters can share a name on EU and NA.
+        // name on this account and megaserver. Two characters can share a name on EU and NA; under "Default"
+        // the game gives them one table, which belongs to neither.
         func named(_ name: String, server: String, account: String) -> String? {
-            let ids = byName[name] ?? []
-            if ids.count == 1 { return ids[0] }
-            let here = ids.filter { homes[$0]?.account == account && (server == "Default" || homes[$0]?.server == server) }
-            return here.count == 1 ? here[0] : nil
+            if case .one(let id) = locations.resolve(name: name, account: account, profile: server, among: byName[name] ?? []) { return id }
+            return nil
         }
         var shared = 0
         var perCharacter: [String: [String: Setting]] = [:]

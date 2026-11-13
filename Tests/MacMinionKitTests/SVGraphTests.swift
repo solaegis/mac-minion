@@ -37,15 +37,17 @@ private func graph(snapshot: CompanionSnapshot? = nil) -> SVGraph {
     return SVGraph.build(.init(documents: documents, addons: addons, names: names, homes: homes, snapshot: snapshot))
 }
 
-@Test func keepsTwoCharactersWhoShareANameApartAndMarksTheDefaultProfileScopeAmbiguous() {
+@Test func keepsTwoCharactersWhoShareANameApartAndMarksTheDefaultProfileScopeShared() {
     let g = graph()
     let na = SVGraph.NodeID(.character, "8796093036412335"), eu = SVGraph.NodeID(.character, "8798292071266932")
     #expect(g.out[na]?[.onServer] == [SVGraph.NodeID(.megaserver, "NA Megaserver")])
     #expect(g.out[eu]?[.onServer] == [SVGraph.NodeID(.megaserver, "EU Megaserver")])
     #expect(g.explain(na, .onServer, SVGraph.NodeID(.megaserver, "NA Megaserver")).first?.rule == "R5")
     let shared = SVGraph.NodeID(.scope, "WritWorthyVars|Default|@SOLAEGIS|Masisi")
-    #expect(g.nodes[shared]?["ambiguous"] == "true")
-    #expect(g.out[shared]?[.scopeOwner] == [na, eu])
+    // Under Default the game gives NA and EU Masisi one table: it belongs to the account, not to either of them.
+    #expect(g.nodes[shared]?["shared"] == "8796093036412335,8798292071266932")
+    #expect(g.nodes[shared]?["ambiguous"] == nil)
+    #expect(g.out[shared]?[.scopeOwner] == [SVGraph.NodeID(.account, "@SOLAEGIS")])
     // Under a real megaserver profile the name resolves.
     let euScope = SVGraph.NodeID(.scope, "IJA_FavCollectibles_Saves|EU Megaserver|@SOLAEGIS|Masisi")
     #expect(g.out[euScope]?[.scopeOwner] == [eu])
@@ -53,9 +55,38 @@ private func graph(snapshot: CompanionSnapshot? = nil) -> SVGraph {
 
 @Test func recordsNameOnlyCharactersAndUndeclaredGlobalsAsOrphans() {
     let orphans = graph().orphans().map(\.description)
-    #expect(orphans.contains("character:name:@SOLAEGIS:Kellen Dysart"))
+    #expect(orphans.contains("character:name:@SOLAEGIS:Default:Kellen Dysart"))
     #expect(orphans.contains("svGlobal:AGS_UOAFVars"))
-    #expect(orphans.contains("scope:WritWorthyVars|Default|@SOLAEGIS|Masisi"))
+    #expect(!orphans.contains("scope:WritWorthyVars|Default|@SOLAEGIS|Masisi"), "shared, not unknown")
+}
+
+/// A name is unique only on one megaserver: two unknown Kellens, on NA and EU, are two characters.
+@Test func keepsNameOnlyCharactersApartByMegaserver() {
+    let documents = ["K.lua": SVDocument.parse(Data("""
+    K = { ["NA Megaserver"] = { ["@SOLAEGIS"] = { ["Kellen"] = { ["v"] = 1 } } },
+          ["EU Megaserver"] = { ["@SOLAEGIS"] = { ["Kellen"] = { ["v"] = 1 } } } }
+    """.utf8))]
+    let g = SVGraph.build(.init(documents: documents, addons: [:], names: SVNameIndex(), homes: [:], snapshot: nil))
+    let na = SVGraph.NodeID(.character, "name:@SOLAEGIS:NA Megaserver:Kellen"), eu = SVGraph.NodeID(.character, "name:@SOLAEGIS:EU Megaserver:Kellen")
+    #expect(g.nodes[na] != nil && g.nodes[eu] != nil)
+    #expect(g.out[na]?[.onServer] == [SVGraph.NodeID(.megaserver, "NA Megaserver")])
+    #expect(g.out[eu]?[.onServer] == [SVGraph.NodeID(.megaserver, "EU Megaserver")])
+}
+
+/// The companion's roster puts a character on another account: a same-named table here isn't theirs.
+@Test func aNameOnAnotherAccountIsNotThisAccountsCharacter() {
+    let documents = ["K.lua": SVDocument.parse(Data("""
+    K = { ["NA Megaserver"] = { ["@SOLAEGIS"] = { ["Kellen"] = { ["v"] = 1 } } } }
+    N = { ["Default"] = { ["@x"] = { ["8796093000000009"] = { ["$LastCharacterName"] = "Kellen" } } } }
+    """.utf8))]
+    let roster = CompanionCharacter(id: "8796093000000009", name: "Kellen", server: "NA Megaserver", account: "@vavasour",
+                                    classID: nil, raceID: nil, alliance: nil, level: nil, champion: nil, lastPlayed: nil)
+    let snap = CompanionSnapshot(file: "EsoMacMinion.lua", schema: 1, schemaKnown: true, written: nil, env: nil,
+                                 characters: [roster.id: roster], addons: [:], errors: [], guilds: [:], skipped: [])
+    let names = SVNameIndex.build(documents: documents, addons: nil)
+    let g = SVGraph.build(.init(documents: documents, addons: [:], names: names, homes: [:], snapshot: snap))
+    let scope = SVGraph.NodeID(.scope, "K|NA Megaserver|@SOLAEGIS|Kellen")
+    #expect(g.out[scope]?[.scopeOwner] == [SVGraph.NodeID(.character, "name:@SOLAEGIS:NA Megaserver:Kellen")])
 }
 
 @Test func tiesCharactersToAddonsBothWaysAndWalksUpToBothRoots() {

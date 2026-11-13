@@ -8,9 +8,9 @@ extension GameFolderModel {
         "\(inspectorFile ?? "")|\(SVNode.id(inspectorFocus))"
     }
 
-    /// Changes when the sections must be built again: another file or table, or new names.
+    /// Changes when the sections must be built again: another file or table, new names, or new places for characters.
     var readableBuildKey: String {
-        "\(readablePlace)|\(names != nil)|\(inspectorSourceNamesRevision)"
+        "\(readablePlace)|\(names != nil)|\(inspectorSourceNamesRevision)|\(roster?.count ?? -1)|\(matrix?.homes.count ?? -1)"
     }
 
     /// False while the sections on hand belong to another file or table.
@@ -30,11 +30,12 @@ extension GameFolderModel {
         readableGeneration += 1
         let generation = readableGeneration
         let place = readablePlace
-        let doc = inspectorDocument, path = inspectorFocus, names = names
+        let doc = inspectorDocument, path = inspectorFocus, names = names, locations = characterLocations
         let source = inspectorFile.flatMap { inspectorSourceNames[$0] }
         let title = inspectorFile.map { String($0.dropLast(4)) } ?? ""
         let built = await Task.detached {
-            SVReadable.grouped(SVReadable.sheet(Self.entries(in: doc, at: path), at: path, title: title, names: names, source: source))
+            SVReadable.grouped(SVReadable.sheet(Self.entries(in: doc, at: path), at: path, title: title, names: names, source: source,
+                                                  locations: locations))
         }.value
         guard generation == readableGeneration else { return }
         if readableGroups != built { readableGroups = built }

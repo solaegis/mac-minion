@@ -239,7 +239,7 @@ func incrementalRead() async throws {
                  sheetMs, groupMs, sections.count, groups.count))
     #expect(sections.count == 40)
     #expect(groups.count == 2)
-    #expect(groups.map(\.title) == ["Default · @SOLAEGIS", "Default · @vavasour"])
+    #expect(groups.map(\.title) == ["@SOLAEGIS · Default", "@vavasour · Default"])
     #expect(groups.map(\.sections.count) == [20, 20])
     #expect(groups[0].sections.first?.title == SVLevel.everyCharacter)
     #expect(groups[0].sections.first?.rows.count == 125)

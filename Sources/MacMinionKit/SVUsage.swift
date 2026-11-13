@@ -38,6 +38,16 @@ public struct SVUsage: Sendable {
     public let servers: [Bucket]
     public let biggest: [Bucket]
 
+    /// "@acct|NA Megaserver|Masisi^Mf": a character's bucket when an addon keys them by name, which is unique
+    /// only on one account and megaserver.
+    public static func nameKey(account: String, profile: String, name: String) -> String { "\(account)|\(profile)|\(name)" }
+
+    /// The account, profile, and table key of a name bucket's ID; nil for a character ID.
+    public static func nameKeyParts(_ id: String) -> (account: String, profile: String, key: String)? {
+        let parts = id.split(separator: "|", maxSplits: 2).map(String.init)
+        return parts.count == 3 ? (parts[0], parts[1], parts[2]) : nil
+    }
+
     /// How many tables `biggest` keeps.
     public static let biggestCount = 40
 
@@ -72,10 +82,13 @@ public struct SVUsage: Sendable {
                 if case .string(let k) = entry.key {
                     if level == .profile { add(&servers, k, bytes, file) }
                     if CharacterID.isID(k) || level == .character {
-                        add(&characters, k, bytes, file)
-                        perFile[k, default: [:]][file, default: 0] += bytes
+                        // A name ("Masisi^Mf") is unique only on one megaserver and account: key it by both.
+                        let key = CharacterID.isID(k) || parentPath.count < 3 ? k : Self.nameKey(account: parentPath[2].description,
+                                                                                                profile: parentPath[1].description, name: k)
+                        add(&characters, key, bytes, file)
+                        perFile[key, default: [:]][file, default: 0] += bytes
                         if parentPath.count >= 2, SVLevel.of(parentPath[1], at: [parentPath[0]]) == .profile {
-                            characterServers[k, default: []].insert(parentPath[1].description)
+                            characterServers[key, default: []].insert(parentPath[1].description)
                         }
                     }
                     // Accounts with data under them: your own at the ZO_SavedVars level, others anywhere.
@@ -102,6 +115,8 @@ public struct SVUsage: Sendable {
                                   file: file, path: [], flagged: false)]
             totalBytes = doc.byteCount
         }
+
+        static func nameKey(account: String, profile: String, name: String) -> String { SVUsage.nameKey(account: account, profile: profile, name: name) }
 
         public mutating func merge(_ other: Tally) {
             func join(_ a: inout [String: (bytes: Int, files: Set<String>)], _ b: [String: (bytes: Int, files: Set<String>)]) {
@@ -130,8 +145,12 @@ public struct SVUsage: Sendable {
         }
         let characterBuckets = sorted(characters) { id, bytes, files in
             let name = names.characters[id]?.name
-            var bucket = Bucket(kind: .character, id: id, title: name ?? (id.contains("^") ? String(id.split(separator: "^")[0]) : id),
-                                detail: name == nil && CharacterID.isID(id) ? SVName.unknownCharacter : (name == nil ? nil : id),
+            // A name-keyed table: "@acct|profile|Name^Mf" reads "Name", with "@acct · NA" beside it.
+            let byName = nameKeyParts(id).map { (title: String($0.key.split(separator: "^").first ?? Substring($0.key)),
+                                                 detail: "\($0.account) · \(SettingsMatrix.shortServer($0.profile))") }
+            var bucket = Bucket(kind: .character, id: id,
+                                title: name ?? byName?.title ?? (id.contains("^") ? String(id.split(separator: "^")[0]) : id),
+                                detail: name == nil && CharacterID.isID(id) ? SVName.unknownCharacter : (name == nil ? byName?.detail : id),
                                 bytes: bytes, files: files, file: nil, path: [], flagged: name == nil && CharacterID.isID(id))
             bucket.byFile = breakdown(id)
             let servers = characterServers[id] ?? []

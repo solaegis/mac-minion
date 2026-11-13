@@ -96,6 +96,18 @@ extension SelfTest {
               && matrix?.homes["8798292033334444"]?.server == "EU Megaserver"
               && matrix?.characterIDs.prefix(2) == ["8798292033334444", alphaKey],
               "\(matrix?.accounts.map { "\($0.account): \($0.servers.map(\.server))" } ?? [])")
+        // A name is unique only on one megaserver: Inspector groups and name-only characters carry it.
+        let defaultTable = SVDocument.parse(Data("""
+        T = { ["Default"] = { ["@SOLAEGIS"] = { ["\(masisiKey)"] = { ["a"] = 1 }, ["8798292033334444"] = { ["a"] = 1 }, ["Masisi"] = { ["a"] = 1 } } } }
+        """.utf8))
+        let defaultGroups = SVReadable.grouped(SVReadable.sheet(defaultTable.variables, at: [], title: "T", names: model.gameFolder.names,
+                                                                locations: model.gameFolder.characterLocations))
+        let groupTitles = Dictionary(uniqueKeysWithValues: defaultGroups.map { ($0.title ?? "", $0.sections.count) })
+        check("Inspector groups Default-profile characters by account and megaserver",
+              groupTitles["@SOLAEGIS · NA"] == 2 && groupTitles["@SOLAEGIS · EU"] == 1, "\(groupTitles)")
+        let nameOnly = model.gameFolder.lastRead?.graph.nodes.keys.filter { $0.kind == .character && $0.key.hasPrefix("name:") } ?? []
+        check("characters known only by name are kept apart by megaserver",
+              nameOnly.allSatisfy { $0.key.split(separator: ":", omittingEmptySubsequences: false).count >= 4 }, "\(nameOnly)")
         check("an ID used as a key reads as the name, with the ID beside",
               SVReadable.label(.string(masisiKey), names: model.gameFolder.names) == "Masisi (8796093036412335)"
               && model.gameFolder.characterTitle(masisiKey) == "Masisi (8796093036412335)")

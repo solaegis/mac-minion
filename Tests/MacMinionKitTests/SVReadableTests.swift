@@ -54,7 +54,7 @@ import Testing
     let sections = SVReadable.sheet(doc.variables, at: [], title: "WritWorthy", names: names)
     #expect(sections.map(\.title) == ["Every character", "Masisi (8796093036412335)"], "a character's name, with the ID it stands for")
     let shared = try #require(sections.first)
-    #expect(shared.subtitle == "NA Megaserver · @SOLAEGIS")
+    #expect(shared.subtitle == "@SOLAEGIS · NA")
     #expect(shared.rows.map(\.label) == ["Filters", "Mat color", "Show mat cost"], "rows by label")
     #expect(shared.rows[1].display == .color(red: 1, green: 0.5, blue: 0, alpha: 1))
     #expect(shared.rows[0].display == .table(count: 1, isList: false), "a table inside a section is a row that opens")
@@ -84,12 +84,37 @@ import Testing
     """.utf8))
     let sections = SVReadable.sheet(doc.variables, at: [], title: "ADR", names: nil)
     #expect(sections.map { "\($0.subtitle ?? "") \($0.title)" } == [
-        "Default · @SOLAEGIS Every character", "Default · @SOLAEGIS Masisi", "Default · @SOLAEGIS Zirhli",
-        "Default · @vavasour Every character", "Default · @vavasour Pelatiah",
+        "@SOLAEGIS · Default Every character", "@SOLAEGIS · Default Masisi", "@SOLAEGIS · Default Zirhli",
+        "@vavasour · Default Every character", "@vavasour · Default Pelatiah",
     ], "each account's shared settings, then its characters")
     let groups = SVReadable.grouped(sections)
-    #expect(groups.map(\.title) == ["Default · @SOLAEGIS", "Default · @vavasour"])
+    #expect(groups.map(\.title) == ["@SOLAEGIS · Default", "@vavasour · Default"])
     #expect(groups.map(\.sections.count) == [3, 2])
+}
+
+/// Under the Default profile, characters are grouped by their own megaserver, never by account alone.
+@Test func groupsDefaultProfileCharactersByAccountAndMegaserver() {
+    let doc = SVDocument.parse(Data("""
+    ADR = { ["Default"] = { ["@SOLAEGIS"] = {
+        ["$AccountWide"] = { ["a"] = 1 },
+        ["8796093036412335"] = { ["a"] = 1 },
+        ["8798292071266932"] = { ["a"] = 1 },
+        ["Masisi"] = { ["a"] = 1 },
+        ["Zirhli"] = { ["a"] = 1 },
+    } } }
+    """.utf8))
+    let names = SVNameIndex.build(documents: ["WW.lua": SVDocument.parse(Data("""
+    WW = { ["Default"] = { ["@SOLAEGIS"] = {
+        ["8796093036412335"] = { ["$LastCharacterName"] = "Masisi" },
+        ["8798292071266932"] = { ["$LastCharacterName"] = "Masisi" },
+        ["8796093000000009"] = { ["$LastCharacterName"] = "Zirhli" },
+    } } }
+    """.utf8))], addons: nil)
+    let groups = SVReadable.grouped(SVReadable.sheet(doc.variables, at: [], title: "ADR", names: names))
+    let titles = Dictionary(uniqueKeysWithValues: groups.map { ($0.title ?? "", $0.sections.map(\.title)) })
+    #expect(titles["@SOLAEGIS · NA"] == ["Masisi (8796093036412335)", "Zirhli"], "an NA ID, and an NA name")
+    #expect(titles["@SOLAEGIS · EU"] == ["Masisi (8798292071266932)"])
+    #expect(titles["@SOLAEGIS · Default"] == ["Every character", "Masisi (EU and NA)"], "one name on both megaservers shares the Default table")
 }
 
 /// What sheets look like for real files, read-only, run by hand:

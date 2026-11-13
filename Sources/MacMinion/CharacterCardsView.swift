@@ -60,6 +60,11 @@ struct CharacterCardsView: View {
     }
 }
 
+/// What Connections and Find look for: the character ID, or the table key of a character known only by name.
+func characterTarget(_ bucket: SVUsage.Bucket) -> SVTarget {
+    SVTarget(.character, SVUsage.nameKeyParts(bucket.id)?.key ?? bucket.id)
+}
+
 /// "NA · Nightblade 50", or the server alone without the companion.
 @MainActor func characterLine(_ model: AppModel, _ bucket: SVUsage.Bucket) -> String {
     let roster = model.gameFolder.roster?[bucket.id]
@@ -165,12 +170,12 @@ private struct CharacterSheet: View {
                 Spacer()
                 Button("Connections") {
                     dismiss()
-                    Task { await model.gameFolder.showConnections(SVTarget(.character, bucket.id)) }
+                    Task { await model.gameFolder.showConnections(characterTarget(bucket)) }
                 }
                 .help("Show what's connected to this character, as a map")
                 Button("Find Everywhere") {
                     dismiss()
-                    Task { await model.gameFolder.findEverywhere(SVTarget(.character, bucket.id)) }
+                    Task { await model.gameFolder.findEverywhere(characterTarget(bucket)) }
                 }
                 .help("List every place this character appears")
                 Button("Done") { dismiss() }.keyboardShortcut(.defaultAction)

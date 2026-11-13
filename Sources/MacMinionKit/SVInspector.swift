@@ -53,6 +53,11 @@ public enum CharacterID {
     public static func isID(_ s: String) -> Bool {
         s.utf8.count == 16 && s.hasPrefix("87") && s.utf8.allSatisfy { $0 >= 48 && $0 <= 57 }
     }
+
+    /// The megaserver a character ID's prefix suggests. Provisional: it held for 38 of 38 IDs on 2 accounts.
+    public static func megaserver(ofID id: String) -> String? {
+        id.hasPrefix("8796093") ? "NA Megaserver" : id.hasPrefix("8798292") ? "EU Megaserver" : nil
+    }
 }
 
 /// One row of the tree: an entry and where it sits. Children are made on first use, so a

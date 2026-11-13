@@ -113,14 +113,19 @@ public struct SVFolderRead: Sendable {
         let graph = SVGraph.build(.init(parts: Dictionary(uniqueKeysWithValues: readFiles.map { ($0, cache.first[$0]!.graphPart) }),
                                         addons: manifests, names: names, homes: homes, snapshot: snapshot))
 
-        // Pass two: references and settings need every name, so they're kept only while the names stay the same.
-        cache.namesFingerprint = names.fingerprint
+        // Pass two: references and settings need every name, and settings every character's account and
+        // megaserver, so they're kept only while both stay the same.
+        let locations = CharacterLocations(roster: roster, homes: homes)
+        var fingerprint = Hasher()
+        fingerprint.combine(names.fingerprint)
+        fingerprint.combine(locations)
+        cache.namesFingerprint = fingerprint.finalize()
         if old.namesFingerprint == cache.namesFingerprint {
             for file in readFiles where unchanged(file) && fresh.allSatisfy({ $0.0 != file }) { cache.second[file] = old.second[file] }
         }
         let folder = files.first?.deletingLastPathComponent()
         let byName = SettingsMatrix.charactersByName(names)
-        let finalNames = names, finalHomes = homes
+        let finalNames = names
         let toIndex = readFiles.filter { cache.second[$0] == nil }
         await report(String(localized: "Finding where each ID is used…", bundle: .module), 0.6)
         let indexed = await forEach(toIndex.compactMap { folder?.appending(path: $0) },
@@ -128,7 +133,7 @@ public struct SVFolderRead: Sendable {
             let file = url.lastPathComponent
             guard let doc = try? SVDocument.read(url) else { return nil }
             return (file, Cache.Second(hits: SVReferenceIndex.hits(in: doc, file: 0, names: finalNames),
-                                       addon: SettingsMatrix.addon(file: file, document: doc, names: finalNames, homes: finalHomes, byName: byName)))
+                                       addon: SettingsMatrix.addon(file: file, document: doc, names: finalNames, locations: locations, byName: byName)))
         }
         for (file, part) in indexed { cache.second[file] = part }
         cache.parsed = (fresh.count, indexed.count)

@@ -31,6 +31,9 @@ extension GameFolderModel {
         if case .compare = explorerPath.last { clearCloneSelection() }
     }
 
+    /// Every character's account and megaserver: the companion's roster, the tables keyed by their ID, then the ID.
+    var characterLocations: CharacterLocations { CharacterLocations(roster: roster, homes: matrix?.homes ?? [:]) }
+
     func characterName(_ id: String) -> String { names?.characters[id]?.name ?? SVName.unknownCharacter }
 
     /// "Masisi (8796093036412335)": the name people know, with the ID that tells two Masisis apart.
@@ -166,13 +169,19 @@ extension GameFolderModel {
 
     /// What each addon keeps about a character, largest first, with the place to open.
     func characterPlaces(_ bucket: SVUsage.Bucket) async -> [CharacterPlace] {
-        let found = await findResults([SVTarget(.character, bucket.id)], perTarget: 2_000).first
+        // A name bucket ("@acct|NA Megaserver|Masisi^Mf") is found by its key, then kept to its own account and megaserver.
+        let named = SVUsage.nameKeyParts(bucket.id)
+        let found = await findResults([SVTarget(.character, named?.key ?? bucket.id)], perTarget: 2_000).first
         let tops = topFolders ?? [:]
         return bucket.byFile.map { entry in
             let base = String(entry.file.dropLast(4))
             let folder = base.hasPrefix("ZO_") ? "ZO_" : tops[base.lowercased()] ?? base
             // The shortest path is the character's own table, not something deep inside it.
-            let path = found?.files.first { $0.file == entry.file }?.rows.map(\.path).min { $0.count < $1.count } ?? []
+            let rows = found?.files.first { $0.file == entry.file }?.rows.map(\.path).filter { path in
+                guard let named else { return true }
+                return path.count > 2 && path[1].description == named.profile && path[2].description == named.account
+            }
+            let path = rows?.min { $0.count < $1.count } ?? []
             return CharacterPlace(file: entry.file, addon: app.addonTitle(folder: folder), bytes: entry.bytes, path: path)
         }
     }

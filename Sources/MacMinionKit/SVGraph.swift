@@ -55,7 +55,7 @@ public struct SVGraph: Sendable {
     public struct Provenance: Hashable, Sendable {
         public let file: String?
         public let path: [String]
-        /// `zo-scope`, `R1`, `R2`, `R3`, `R5`, `companion`, `manifest`, `name-unique`, `name-ambiguous`, `derived`.
+        /// `zo-scope`, `R1`, `R2`, `R3`, `R5`, `companion`, `manifest`, `name-unique`, `name-ambiguous`, `name-shared`, `derived`.
         public let rule: String
         public let confidence: Confidence
     }
@@ -225,13 +225,6 @@ public struct SVGraph: Sendable {
                   prov: Provenance(file: nil, path: [], rule: server == nil ? "zo-scope" : "R1-R3", confidence: .high))
         }
 
-        /// A character's megaserver: the companion's roster, a real home, else the ID prefix (provisional).
-        func megaserverOf(_ id: String) -> String? {
-            if let c = input.snapshot?.characters[id] { return SVLevel.megaserver(ofProfile: c.server) ?? c.server }
-            if let home = input.homes[id], let real = SVLevel.megaserver(ofProfile: home.server) { return real }
-            return prefixMegaserver(id)
-        }
-
         // Scopes, and who owns each.
         var scopeRecords: [ScopeRecord] = []
         for (file, part) in input.parts {
@@ -239,6 +232,7 @@ public struct SVGraph: Sendable {
         }
         var byName: [String: [String]] = [:]
         for (id, c) in input.names.characters { byName[c.name, default: []].append(id) }
+        let locations = CharacterLocations(roster: input.snapshot?.characters, homes: input.homes)
 
         for r in scopeRecords {
             let global = NodeID(.svGlobal, r.global)
@@ -261,25 +255,29 @@ public struct SVGraph: Sendable {
                 g.link(scope, .scopeOwner, c, prov)
                 if g.into[c]?[.owns]?.isEmpty ?? true { g.link(account, .owns, c, prov) }
             case .character, .characterName:
+                // A name is unique on one megaserver: match the account, and the megaserver unless the profile is Default.
                 let name = String(r.key.split(separator: "^").first ?? Substring(r.key))
-                let candidates = (byName[name] ?? []).filter { id in
-                    let home = input.homes[id]
-                    let sameAccount = home == nil || home?.account == r.account
-                    let theirs = megaserverOf(id)
-                    let sameServer = megaserver == nil || theirs == nil || theirs == megaserver
-                    return sameAccount && sameServer
-                }
-                if candidates.count == 1 {
-                    g.link(scope, .scopeOwner, addCharacter(candidates[0]),
+                switch locations.resolve(name: name, account: r.account, profile: r.profile, among: byName[name] ?? []) {
+                case .one(let id):
+                    g.link(scope, .scopeOwner, addCharacter(id),
                            Provenance(file: r.file, path: prov.path, rule: "name-unique", confidence: .medium))
-                } else if candidates.isEmpty {
-                    let orphan = NodeID(.character, "name:\(r.account):\(name)")
+                case .none:
+                    let orphan = NodeID(.character, "name:\(r.account):\(megaserver ?? r.profile):\(name)")
                     g.node(orphan, ["name": name, "orphan": "true"])
                     g.link(account, .owns, orphan, Provenance(file: r.file, path: prov.path, rule: "name-only", confidence: .low))
                     g.link(scope, .scopeOwner, orphan, Provenance(file: r.file, path: prov.path, rule: "name-only", confidence: .low))
-                } else {
+                    if let megaserver {
+                        g.node(NodeID(.megaserver, megaserver))
+                        g.link(orphan, .onServer, NodeID(.megaserver, megaserver), prov)
+                    }
+                case .shared(let ids):
+                    // Under Default the game gives same-named characters on each megaserver one table: it's theirs together.
+                    for id in ids { _ = addCharacter(id) }
+                    g.node(scope, ["shared": ids.joined(separator: ","), "sharedServers": locations.sharedServers(ids)])
+                    g.link(scope, .scopeOwner, account, Provenance(file: r.file, path: prov.path, rule: "name-shared", confidence: .medium))
+                case .ambiguous(let ids):
                     g.node(scope, ["ambiguous": "true"])
-                    for id in candidates {
+                    for id in ids {
                         g.link(scope, .scopeOwner, addCharacter(id),
                                Provenance(file: r.file, path: prov.path, rule: "name-ambiguous", confidence: .low))
                     }
@@ -320,9 +318,7 @@ public struct SVGraph: Sendable {
     }
 
     /// The megaserver a character ID's prefix suggests. Provisional: it held for 38 of 38 IDs on 2 accounts.
-    static func prefixMegaserver(_ id: String) -> String? {
-        id.hasPrefix("8796093") ? "NA Megaserver" : id.hasPrefix("8798292") ? "EU Megaserver" : nil
-    }
+    static func prefixMegaserver(_ id: String) -> String? { CharacterID.megaserver(ofID: id) }
 
     // MARK: Traversal
 

@@ -157,8 +157,13 @@ public enum SVReadable {
 
     public struct Section: Sendable, Identifiable, Equatable {
         public let title: String
-        /// Where it sits: "NA Megaserver · @SOLAEGIS".
+        /// Where it sits: "@SOLAEGIS · NA".
         public let subtitle: String?
+        /// The account and megaserver it belongs to. A character's megaserver is their own even when the table
+        /// sits under the shared `Default` profile; nil when nothing says (then `profile` places it).
+        public var account: String? = nil
+        public var megaserver: String? = nil
+        public var profile: String? = nil
         public let path: [LuaKey]
         public let rows: [Row]
         /// Rows left out past the limit.
@@ -176,8 +181,12 @@ public enum SVReadable {
     /// tables, and the variables themselves, are see-through: their tables become sections titled by
     /// what they are ("Every character", a character's name), with the server and account as subtitle.
     public static func sheet(_ entries: [LuaEntry], at parentPath: [LuaKey], title: String, names: SVNameIndex?,
-                             source: SVSourceNames? = nil, now: Date = .now) -> [Section] {
+                             source: SVSourceNames? = nil, locations: CharacterLocations = CharacterLocations(),
+                             now: Date = .now) -> [Section] {
         var sections: [Section] = []
+        // Characters by name, for tables an addon keys by name: a name is unique only on one megaserver.
+        var byName: [String: [String]] = [:]
+        for (id, c) in names?.characters ?? [:] { byName[c.name, default: []].append(id) }
         func rows(_ entries: [LuaEntry], _ path: [LuaKey]) -> [Row] {
             entries.prefix(rowsPerSection).map { e in
                 let named = source?.name(for: e.key, at: path)
@@ -185,17 +194,49 @@ public enum SVReadable {
                            display: display(e.value, key: e.key, at: path, names: names, now: now), source: named)
             }
         }
+        /// Where a table sits: its account, profile, and megaserver. The megaserver is the first real one in the
+        /// path (a profile, or one an addon nests under `$AccountWide`), else the character's own: by ID, or by
+        /// name on this account. `shared` lists the characters of one name on several megaservers that the
+        /// `Default` profile gives one table.
+        func whereIs(_ path: [LuaKey]) -> (account: String?, profile: String?, megaserver: String?, shared: [String]) {
+            var account: String?, profile: String?, megaserver: String?, character: String?, nameKey: (index: Int, key: String)?
+            for (i, k) in path.enumerated() {
+                guard case .string(let s) = k else { continue }
+                let level = SVLevel.of(k, at: Array(path.prefix(i)))
+                if level == .profile { profile = s; megaserver = megaserver ?? SVLevel.megaserver(ofProfile: s) }
+                else if level == .account { account = s }
+                else if i > 1, megaserver == nil, path[i - 1] == .string("$AccountWide"), let m = SVLevel.megaserver(ofProfile: s) { megaserver = m }
+                if CharacterID.isID(s) { character = character ?? s }
+                else if level == .characterName || (level == .character && s.contains("^")) { nameKey = nameKey ?? (i, s) }
+            }
+            var shared: [String] = []
+            if megaserver == nil, let character { megaserver = locations.location(character).megaserver }
+            if megaserver == nil, character == nil, let nameKey, let account, let profile {
+                let name = String(nameKey.key.split(separator: "^").first ?? Substring(nameKey.key))
+                switch locations.resolve(name: name, account: account, profile: profile, among: byName[name] ?? []) {
+                case .one(let id): megaserver = locations.location(id).megaserver
+                case .shared(let ids): if nameKey.index == path.count - 1 { shared = ids }
+                default: break
+                }
+            }
+            return (account, profile, megaserver, shared)
+        }
         func sectionTitle(_ key: LuaKey, _ parent: [LuaKey]) -> String {
             if SVLevel.of(key, at: parent) == .accountWide { return SVLevel.everyCharacter }
             if let name = names?.name(forKey: key, at: parent), name.kind == .character { return name.titleWithID }
             return label(key)
         }
-        func subtitle(_ path: [LuaKey]) -> String? {
-            let levels = path.enumerated().compactMap { i, k -> String? in
-                let level = SVLevel.of(k, at: Array(path.prefix(i)))
-                return level == .profile || level == .account ? k.description : nil
-            }
-            return levels.isEmpty ? nil : levels.joined(separator: " · ")
+        func section(title: String, path: [LuaKey], rows: [Row], more: Int, note: String?) -> Section {
+            let place = whereIs(path)
+            let server = place.megaserver.map(SettingsMatrix.shortServer) ?? place.profile
+            let subtitle = [place.account, server].compactMap { $0 }
+            // "Masisi (NA and EU)": under Default, same-named characters on each megaserver share the table.
+            let title = place.shared.isEmpty ? title
+                : String(localized: "\(title) (\(locations.sharedServers(place.shared)))", bundle: .module)
+            var s = Section(title: title, subtitle: subtitle.isEmpty ? nil : subtitle.joined(separator: " · "), path: path,
+                            rows: rows, more: more, note: note)
+            s.account = place.account; s.megaserver = place.megaserver; s.profile = place.profile
+            return s
         }
         func see(_ entries: [LuaEntry], _ path: [LuaKey]) {
             // Plain values at this level form one section, named for the table they're in.
@@ -204,8 +245,8 @@ public enum SVReadable {
                 return color(fromTable: t, colorKey: hints(e.key).contains("colo")) != nil
             }
             if !plain.isEmpty {
-                sections.append(Section(title: path.last.map { sectionTitle($0, Array(path.dropLast())) } ?? title,
-                                        subtitle: subtitle(path), path: path, rows: rows(plain, path),
+                sections.append(section(title: path.last.map { sectionTitle($0, Array(path.dropLast())) } ?? title,
+                                        path: path, rows: rows(plain, path),
                                         more: max(0, plain.count - rowsPerSection), note: path.last.flatMap { source?.note(forTable: $0) }))
             }
             for e in entries where sections.count < sectionsPerSheet {
@@ -216,7 +257,7 @@ public enum SVReadable {
                     see(t.entries, path + [e.key])
                 } else {
                     // A section per table; tables inside it are rows that open.
-                    sections.append(Section(title: sectionTitle(e.key, path), subtitle: subtitle(path + [e.key]), path: path + [e.key],
+                    sections.append(section(title: sectionTitle(e.key, path), path: path + [e.key],
                                             rows: rows(t.entries, path + [e.key]), more: max(0, t.count - rowsPerSection),
                                             note: source?.note(forTable: e.key)))
                 }
@@ -225,35 +266,46 @@ public enum SVReadable {
         see(entries, parentPath)
         // Rows by label.
         return grouped(sections.map { section in
-            Section(title: section.title, subtitle: section.subtitle, path: section.path,
-                    rows: section.rows.sorted { $0.label.localizedStandardCompare($1.label) == .orderedAscending }, more: section.more, note: section.note)
+            var sorted = Section(title: section.title, subtitle: section.subtitle, path: section.path,
+                                 rows: section.rows.sorted { $0.label.localizedStandardCompare($1.label) == .orderedAscending },
+                                 more: section.more, note: section.note)
+            sorted.account = section.account; sorted.megaserver = section.megaserver; sorted.profile = section.profile
+            return sorted
         }).flatMap(\.sections)
     }
 
-    /// Sections that sit in the same place (server and account), kept together.
+    /// Sections that sit in the same place (account and megaserver), kept together.
     public struct Group: Sendable, Identifiable, Equatable {
-        /// "NA Megaserver · @SOLAEGIS"; nil for sections outside any account.
+        /// "@SOLAEGIS · NA"; nil for sections outside any account or profile.
         public let title: String?
         public let sections: [Section]
-        public var id: String { title ?? "" }
+        /// Account, then megaserver (or profile, when no megaserver is known).
+        public let id: String
+    }
+
+    /// The group a section goes in: its account and megaserver, never its account alone.
+    static func groupKey(_ section: Section) -> String {
+        "\(section.account ?? "")|\(section.megaserver ?? section.profile ?? "")"
     }
 
     /// Sections by account, accounts in the order they come: in each, the settings shared by every
     /// character first, then its characters and other tables by name.
     public static func grouped(_ sections: [Section]) -> [Group] {
-        var order: [String?] = [], byGroup: [String?: [Section]] = [:]
+        var order: [String] = [], byGroup: [String: [Section]] = [:]
         for section in sections {
-            if byGroup[section.subtitle] == nil { order.append(section.subtitle) }
-            byGroup[section.subtitle, default: []].append(section)
+            let key = groupKey(section)
+            if byGroup[key] == nil { order.append(key) }
+            byGroup[key, default: []].append(section)
         }
-        return order.map { title in
-            let sorted = (byGroup[title] ?? []).enumerated().sorted { a, b in
+        return order.map { key in
+            let members = byGroup[key] ?? []
+            let sorted = members.enumerated().sorted { a, b in
                 let shared = (a.element.title == SVLevel.everyCharacter, b.element.title == SVLevel.everyCharacter)
                 if shared.0 != shared.1 { return shared.0 }
                 let order = a.element.title.localizedStandardCompare(b.element.title)
                 return order == .orderedSame ? a.offset < b.offset : order == .orderedAscending
             }
-            return Group(title: title, sections: sorted.map(\.element))
+            return Group(title: members.first?.subtitle, sections: sorted.map(\.element), id: key)
         }
     }
 }
