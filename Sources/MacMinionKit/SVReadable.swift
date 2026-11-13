@@ -164,8 +164,15 @@ public enum SVReadable {
         public var account: String? = nil
         public var megaserver: String? = nil
         public var profile: String? = nil
+        /// A name-keyed table the `Default` profile gives same-named characters on several megaservers:
+        /// megaserver -> that character's ID. It is listed under each of their megaservers.
+        public var sharedWith: [String: String] = [:]
+        /// What the outline shows: a character's name alone ("Masisi"), or the ID when no file names them.
+        public var rowTitle: String = ""
+        /// The row's help: the name with its ID.
+        public var rowHelp: String? = nil
         public let path: [LuaKey]
-        public let rows: [Row]
+        public internal(set) var rows: [Row]
         /// Rows left out past the limit.
         public let more: Int
         /// What the table's keys are, from the addon's source: "Keyed by SETTING_TYPE_* values…".
@@ -230,12 +237,17 @@ public enum SVReadable {
             let place = whereIs(path)
             let server = place.megaserver.map(SettingsMatrix.shortServer) ?? place.profile
             let subtitle = [place.account, server].compactMap { $0 }
-            // "Masisi (NA and EU)": under Default, same-named characters on each megaserver share the table.
-            let title = place.shared.isEmpty ? title
-                : String(localized: "\(title) (\(locations.sharedServers(place.shared)))", bundle: .module)
             var s = Section(title: title, subtitle: subtitle.isEmpty ? nil : subtitle.joined(separator: " · "), path: path,
                             rows: rows, more: more, note: note)
             s.account = place.account; s.megaserver = place.megaserver; s.profile = place.profile
+            // Under Default, same-named characters on each megaserver share one table: it's listed under each.
+            for id in place.shared { if let m = locations.location(id).megaserver { s.sharedWith[m] = id } }
+            s.rowTitle = title
+            if let key = path.last, case .string(let k) = key, CharacterID.isID(k) {
+                let name = names?.name(forString: k)
+                s.rowTitle = name.map { $0.title == SVName.unknownCharacter ? k : $0.title } ?? k
+                s.rowHelp = name?.titleWithID ?? k
+            }
             return s
         }
         func see(_ entries: [LuaEntry], _ path: [LuaKey]) {
@@ -266,10 +278,8 @@ public enum SVReadable {
         see(entries, parentPath)
         // Rows by label.
         return grouped(sections.map { section in
-            var sorted = Section(title: section.title, subtitle: section.subtitle, path: section.path,
-                                 rows: section.rows.sorted { $0.label.localizedStandardCompare($1.label) == .orderedAscending },
-                                 more: section.more, note: section.note)
-            sorted.account = section.account; sorted.megaserver = section.megaserver; sorted.profile = section.profile
+            var sorted = section
+            sorted.rows = section.rows.sorted { $0.label.localizedStandardCompare($1.label) == .orderedAscending }
             return sorted
         }).flatMap(\.sections)
     }
@@ -306,6 +316,86 @@ public enum SVReadable {
                 return order == .orderedSame ? a.offset < b.offset : order == .orderedAscending
             }
             return Group(title: members.first?.subtitle, sections: sorted.map(\.element), id: key)
+        }
+    }
+
+    // MARK: Outline
+
+    /// One row of the outline beside the settings. A table can be listed in more than one folder (a name
+    /// same-named characters share under Default), so a row's ID is its folder and its section.
+    public struct OutlineRow: Sendable, Identifiable, Equatable {
+        public let id: String
+        public let sectionID: String
+        public let title: String
+        public let help: String?
+        /// The folder's megaserver; nil for the Default folder and for rows outside any account.
+        public let megaserver: String?
+    }
+
+    /// A megaserver under an account ("NA"), or the Default folder: what every megaserver uses.
+    public struct OutlineFolder: Sendable, Identifiable, Equatable {
+        public let id: String
+        /// Nil for the Default folder.
+        public let megaserver: String?
+        public let title: String
+        public let rows: [OutlineRow]
+    }
+
+    /// An account and its folders. Tables outside any account are `loose` rows of an account of nil.
+    public struct OutlineAccount: Sendable, Identifiable, Equatable {
+        public let id: String
+        public let account: String?
+        public let folders: [OutlineFolder]
+        public let loose: [OutlineRow]
+
+        /// Every row, in the order the outline shows them.
+        public var rows: [OutlineRow] { loose + folders.flatMap(\.rows) }
+    }
+
+    /// The folder title for tables under the Default profile.
+    public static let defaultFolder = String(localized: "Default", bundle: .module)
+
+    /// Sections as an outline: account, then megaserver (real ones by name, then Default), then the
+    /// account's settings for every character first and its characters and other tables by name.
+    public static func outline(_ sections: [Section]) -> [OutlineAccount] {
+        var order: [String] = []
+        var folders: [String: [String: [Section]]] = [:]       // account -> megaserver ("" for Default) -> sections
+        var loose: [String: [Section]] = [:]
+        for section in sections {
+            let account = section.account ?? ""
+            if folders[account] == nil && loose[account] == nil { order.append(account) }
+            if section.account == nil {
+                loose[account, default: []].append(section)
+            } else if !section.sharedWith.isEmpty {
+                for m in section.sharedWith.keys { folders[account, default: [:]][m, default: []].append(section) }
+            } else {
+                folders[account, default: [:]][section.megaserver ?? "", default: []].append(section)
+            }
+        }
+        func rows(_ list: [Section], folder: String) -> [OutlineRow] {
+            list.enumerated().sorted { a, b in
+                let shared = (a.element.title == SVLevel.everyCharacter, b.element.title == SVLevel.everyCharacter)
+                if shared.0 != shared.1 { return shared.0 }
+                // Characters no file names, shown by their ID, come after the named ones.
+                let unnamed = (CharacterID.isID(a.element.rowTitle), CharacterID.isID(b.element.rowTitle))
+                if unnamed.0 != unnamed.1 { return unnamed.1 }
+                let order = a.element.rowTitle.localizedStandardCompare(b.element.rowTitle)
+                return order == .orderedSame ? a.offset < b.offset : order == .orderedAscending
+            }.map { _, s in
+                OutlineRow(id: "\(folder)\u{1E}\(s.id)", sectionID: s.id, title: s.rowTitle.isEmpty ? s.title : s.rowTitle,
+                           help: s.rowHelp, megaserver: folder.isEmpty ? nil : folder)
+            }
+        }
+        return order.map { account in
+            let byServer = folders[account] ?? [:]
+            let names = byServer.keys.sorted { a, b in a.isEmpty != b.isEmpty ? b.isEmpty : a.localizedStandardCompare(b) == .orderedAscending }
+            return OutlineAccount(
+                id: account, account: account.isEmpty ? nil : account,
+                folders: names.map { m in
+                    OutlineFolder(id: "\(account)|\(m)", megaserver: m.isEmpty ? nil : m,
+                                  title: m.isEmpty ? defaultFolder : SettingsMatrix.shortServer(m), rows: rows(byServer[m]!, folder: m))
+                },
+                loose: rows(loose[account] ?? [], folder: ""))
         }
     }
 }

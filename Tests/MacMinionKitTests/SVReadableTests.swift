@@ -90,10 +90,16 @@ import Testing
     let groups = SVReadable.grouped(sections)
     #expect(groups.map(\.title) == ["@SOLAEGIS · Default", "@vavasour · Default"])
     #expect(groups.map(\.sections.count) == [3, 2])
+    // With no known megaserver, each account's tables sit in its Default folder.
+    let outline = SVReadable.outline(sections)
+    #expect(outline.map(\.account) == ["@SOLAEGIS", "@vavasour"])
+    #expect(outline.map { $0.folders.map(\.title) } == [["Default"], ["Default"]])
+    #expect(outline[0].folders[0].rows.map(\.title) == ["Every character", "Masisi", "Zirhli"])
 }
 
-/// Under the Default profile, characters are grouped by their own megaserver, never by account alone.
-@Test func groupsDefaultProfileCharactersByAccountAndMegaserver() {
+/// The outline: account, then megaserver (Default last), then characters. Characters sit under their own
+/// megaserver even under Default; a name NA and EU share there is listed under each.
+@Test func outlinesByAccountThenMegaserver() {
     let doc = SVDocument.parse(Data("""
     ADR = { ["Default"] = { ["@SOLAEGIS"] = {
         ["$AccountWide"] = { ["a"] = 1 },
@@ -101,7 +107,8 @@ import Testing
         ["8798292071266932"] = { ["a"] = 1 },
         ["Masisi"] = { ["a"] = 1 },
         ["Zirhli"] = { ["a"] = 1 },
-    } } }
+    } },
+    ["NA Megaserver"] = { ["@SOLAEGIS"] = { ["8796093000000009"] = { ["b"] = 1 } } } }
     """.utf8))
     let names = SVNameIndex.build(documents: ["WW.lua": SVDocument.parse(Data("""
     WW = { ["Default"] = { ["@SOLAEGIS"] = {
@@ -110,11 +117,19 @@ import Testing
         ["8796093000000009"] = { ["$LastCharacterName"] = "Zirhli" },
     } } }
     """.utf8))], addons: nil)
-    let groups = SVReadable.grouped(SVReadable.sheet(doc.variables, at: [], title: "ADR", names: names))
-    let titles = Dictionary(uniqueKeysWithValues: groups.map { ($0.title ?? "", $0.sections.map(\.title)) })
-    #expect(titles["@SOLAEGIS · NA"] == ["Masisi (8796093036412335)", "Zirhli"], "an NA ID, and an NA name")
-    #expect(titles["@SOLAEGIS · EU"] == ["Masisi (8798292071266932)"])
-    #expect(titles["@SOLAEGIS · Default"] == ["Every character", "Masisi (EU and NA)"], "one name on both megaservers shares the Default table")
+    let sections = SVReadable.sheet(doc.variables, at: [], title: "ADR", names: names)
+    let outline = SVReadable.outline(sections)
+    #expect(outline.map(\.account) == ["@SOLAEGIS"])
+    let folders = outline[0].folders
+    #expect(folders.map(\.title) == ["EU", "NA", "Default"], "real megaservers by name, then Default")
+    #expect(folders.map { $0.rows.map(\.title) } == [["Masisi", "Masisi"], ["Masisi", "Masisi", "Zirhli", "Zirhli"], ["Every character"]],
+            "\(folders.map { $0.rows.map(\.title) })")
+    let rows = outline.flatMap(\.rows)
+    #expect(Set(rows.map(\.id)).count == rows.count, "a table listed twice has two rows")
+    let shared = rows.filter { $0.sectionID.hasSuffix("Masisi") }
+    #expect(shared.count == 2 && Set(shared.map(\.sectionID)).count == 1 && Set(shared.compactMap(\.megaserver)) == ["NA Megaserver", "EU Megaserver"])
+    #expect(rows.first { $0.sectionID.hasSuffix("8796093036412335") }?.help == "Masisi (8796093036412335)")
+    #expect(!sections.contains { $0.title.contains(" and ") }, "no \"(EU and NA)\" titles")
 }
 
 /// What sheets look like for real files, read-only, run by hand:

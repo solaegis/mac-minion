@@ -105,9 +105,14 @@ final class GameFolderModel {
 
     /// The table shown as sections, kept together by account. Built off the main thread.
     var readableGroups: [SVReadable.Group] = []
+    /// The same sections as an outline: account, then megaserver, then character.
+    var readableOutline: [SVReadable.OutlineAccount] = []
+    /// Megaserver folders closed in the outline, by folder ID (`account|megaserver`). Open unless closed.
+    var readableCollapsed: Set<String> = []
     /// The file and table `readableGroups` was built for; nil before the first build.
     var readableBuiltFor: String?
     /// The one section on screen. Remembered per table, so Back returns to the section you left.
+    /// The outline row chosen: a folder and a section, since one table can be listed in two folders.
     var readableSection: String? {
         didSet { if let place = readableBuiltFor, let readableSection { readableRemembered[place] = readableSection } }
     }

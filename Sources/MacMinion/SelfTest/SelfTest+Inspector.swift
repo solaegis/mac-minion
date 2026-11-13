@@ -286,17 +286,21 @@ extension SelfTest {
         check("the settings page lists its sections under their accounts", folder.readableReady && titles.count >= 4
               && folder.readableGroups.allSatisfy { $0.sections.first?.title == SVLevel.everyCharacter || !$0.sections.contains { $0.title == SVLevel.everyCharacter } },
               "\(folder.readableGroups.map { "\($0.title ?? "-"): \($0.sections.map(\.title))" })")
-        check("the first section is on screen when a file opens", folder.readableShownSection?.id == folder.readableSections.first?.id && !folder.canReadableStep(-1))
+        let outline = folder.readableOutline.map { "\($0.account ?? "-"): \($0.folders.map { "\($0.title) [\($0.rows.map(\.title).joined(separator: ", "))]" })" }
+        check("the settings outline goes account, then megaserver, then character",
+              folder.readableOutline.first { $0.account == "@SOLAEGIS" }?.folders.first { $0.title == "NA" }?.rows.contains { $0.title == "Masisi" } == true,
+              "\(outline)")
+        check("the first row is on screen when a file opens", folder.readableShownRow?.id == folder.readableRows.first?.id && !folder.canReadableStep(-1))
         folder.readableStep(1)
         let second = folder.readableSection
-        check("Next Section shows the one after", folder.readableShownSection?.title == titles.dropFirst().first && folder.canReadableStep(-1), "\(second ?? "nil")")
+        check("Next Section shows the one after", second == folder.readableRows.dropFirst().first?.id && folder.canReadableStep(-1), "\(second ?? "nil")")
         folder.inspectorFocus = [.string("WritWorthy_SavedVars"), .string("NA Megaserver"), .string("@SOLAEGIS"), .string("$AccountWide"), .string("byType")]
         check("an opened table waits for its own settings, never the last table's", !folder.readableReady)
         await folder.buildReadable()
-        check("an opened table shows its own settings", folder.readableReady && folder.readableShownSection?.id != second)
+        check("an opened table shows its own settings", folder.readableReady && folder.readableShownRow?.id != second)
         folder.inspectorFocus = []
         await folder.buildReadable()
-        check("going back returns to the section you left", folder.readableSection == second && folder.readableShownSection?.id == second, "\(folder.readableSection ?? "nil")")
+        check("going back returns to the section you left", folder.readableSection == second && folder.readableShownRow?.id == second, "\(folder.readableSection ?? "nil")")
         await folder.inspect("ZO_Ingame.lua")
         check("another file never shows the last file's settings", !folder.readableReady && folder.inspectorPendingFile == nil)
         await folder.inspect("WritWorthy.lua")

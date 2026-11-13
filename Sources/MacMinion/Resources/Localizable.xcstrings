@@ -1,6 +1,64 @@
 {
   "sourceLanguage": "en",
   "strings": {
+    "Settings every megaserver uses": {
+      "comment": "Help for the Default folder in the Inspector's settings outline.",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Einstellungen, die jeder Megaserver nutzt"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ajustes que usan todos los megaservidores"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Réglages utilisés par chaque mégaserveur"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Настройки, общие для всех мегасерверов"
+          }
+        }
+      }
+    },
+    "Shared with %@ %@": {
+      "comment": "A Default-profile table keyed by name that same-named characters on other megaservers also use: \"Shared with EU Masisi\". First: megaservers; second: the character's name.",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Geteilt mit %2$@ auf %1$@"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Compartido con %2$@ de %1$@"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Partagé avec %2$@ sur %1$@"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Общие с %2$@ на %1$@"
+          }
+        }
+      }
+    },
     "%@ of all SavedVariables": {
       "localizations": {
         "de": {

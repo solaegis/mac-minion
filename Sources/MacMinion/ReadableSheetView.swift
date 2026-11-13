@@ -49,17 +49,18 @@ struct WorkingView: View {
     }
 }
 
-/// The sections of the table shown, under the account each belongs to. Choosing one shows it.
+/// The sections of the table shown as an outline: account, then megaserver (and Default, what every
+/// megaserver uses), then characters and tables. Choosing one shows it.
 private struct ReadableOutline: View {
     let model: AppModel
 
     var body: some View {
         List(selection: Bindable(model.gameFolder).readableSection) {
-            ForEach(model.gameFolder.readableGroups) { group in
-                if let title = group.title {
-                    Section(title) { rows(group) }
+            ForEach(model.gameFolder.readableOutline) { account in
+                if let name = account.account {
+                    Section(name) { content(account) }
                 } else {
-                    rows(group)
+                    content(account)
                 }
             }
         }
@@ -67,9 +68,30 @@ private struct ReadableOutline: View {
         .accessibilityLabel("Sections")
     }
 
-    private func rows(_ group: SVReadable.Group) -> some View {
-        ForEach(group.sections) { section in
-            Text(section.title).lineLimit(1).help(section.title).tag(section.id)
+    @ViewBuilder private func content(_ account: SVReadable.OutlineAccount) -> some View {
+        rows(account.loose)
+        ForEach(account.folders) { folder in
+            DisclosureGroup(isExpanded: expanded(folder)) {
+                rows(folder.rows)
+            } label: {
+                Label(folder.title, systemImage: folder.megaserver == nil ? "square.stack" : "globe")
+                    .help(folder.megaserver == nil ? String(localized: "Settings every megaserver uses") : folder.megaserver ?? "")
+            }
+        }
+    }
+
+    private func rows(_ rows: [SVReadable.OutlineRow]) -> some View {
+        ForEach(rows) { row in
+            Text(row.title).lineLimit(1).help(row.help ?? row.title).tag(row.id)
+        }
+    }
+
+    private func expanded(_ folder: SVReadable.OutlineFolder) -> Binding<Bool> {
+        let gameFolder = model.gameFolder
+        return Binding {
+            !gameFolder.readableCollapsed.contains(folder.id)
+        } set: { open in
+            if open { gameFolder.readableCollapsed.remove(folder.id) } else { gameFolder.readableCollapsed.insert(folder.id) }
         }
     }
 }
@@ -106,6 +128,9 @@ private struct ReadableSectionForm: View {
                     VStack(alignment: .leading, spacing: Space.xs / 2) {
                         Text(section.title)
                         if let subtitle = section.subtitle { Text(subtitle).font(.caption).foregroundStyle(.secondary) }
+                        if let shared = folder.readableSharedNote {
+                            Label(shared, systemImage: "person.2").font(.caption).foregroundStyle(.secondary)
+                        }
                         if let note = section.note {
                             Label(note, systemImage: "doc.text.magnifyingglass").font(.caption).foregroundStyle(.secondary)
                                 .help("From the addon's source. The game assigns these numbers when it runs, so they can't be named here.")
