@@ -59,7 +59,7 @@ extension GameFolderModel {
     private func showFind(_ targets: [SVTarget], query: String) async {
         inspectorBusy = true
         defer { inspectorBusy = false }
-        inspectorResults = await findResults(targets)
+        inspectorResults = await withInspectorStatus(String(localized: "Finding “\(query)”…")) { await findResults(targets) }
         inspectorFindMessage = inspectorResults?.isEmpty == true ? String(localized: "Nothing in SavedVariables matches “\(query)”.") : nil
     }
 

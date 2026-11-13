@@ -42,28 +42,8 @@ struct InspectorView: View {
     var body: some View {
         @Bindable var model = model
         HSplitView {
-            List(model.gameFolder.inspectorFiles, selection: Binding(
-                get: { model.gameFolder.inspectorFile },
-                set: { name in if let name, name != model.gameFolder.inspectorFile { Task { await model.gameFolder.inspect(name) } } })) { file in
-                HStack {
-                    Text(file.name).lineLimit(1)
-                    Spacer()
-                    Text(file.bytes.formatted(.byteCount(style: .file))).font(.caption).foregroundStyle(.secondary).monospacedDigit()
-                }
-                .tag(file.name)
-                .contextMenu {
-                    Button("Open in Editor") { model.gameFolder.openInEditor([file.url]) }
-                    Button("Show in Finder") { NSWorkspace.shared.activateFileViewerSelecting([file.url]) }
-                }
-            }
-            .safeAreaInset(edge: .top, spacing: 0) {
-                if let filter = model.gameFolder.inspectorAddonFilter {
-                    AddonFilterBar(title: String(localized: "Files for \(filter.name)"), clear: String(localized: "Show All Files"),
-                                   area: "inspector-filter",
-                                   escape: model.gameFolder.inspectorResults == nil && model.gameFolder.inspectorConnections == nil) { model.gameFolder.inspectorAddonFilter = nil }
-                }
-            }
-            .frame(minWidth: 200, idealWidth: 240, maxWidth: 360, maxHeight: .infinity)
+            InspectorFileList()
+                .frame(minWidth: 200, idealWidth: 240, maxWidth: 360, maxHeight: .infinity)
 
             VStack(spacing: 0) {
                 HStack(spacing: 0) {
@@ -73,6 +53,7 @@ struct InspectorView: View {
                                 .disabled(model.gameFolder.connectionsBack.isEmpty)
                                 .help("Go back to the last thing you followed")
                             Text("Connections: \(model.gameFolder.connectionTitle(hood.target))").font(.headline).lineLimit(1)
+                            InspectorStatus(model: model)
                         }
                         .padding(.leading, Space.margin)
                         Spacer()
@@ -80,7 +61,10 @@ struct InspectorView: View {
                             .keyboardShortcut(.cancelAction)
                             .help("Close the map and go back to the tree (Escape)")
                             .padding(.trailing, Space.sm)
-                    } else if model.gameFolder.inspectorResults == nil, model.gameFolder.inspectorFile != nil { PathBar() } else { Spacer() }
+                    } else {
+                        InspectorStatus(model: model).padding(.leading, Space.margin)
+                        Spacer(minLength: Space.sm)
+                    }
                     if model.gameFolder.inspectorResults != nil, model.gameFolder.inspectorConnections == nil {
                         Button("Done") { model.gameFolder.clearFind() }
                             .keyboardShortcut(.cancelAction)
@@ -114,17 +98,24 @@ struct InspectorView: View {
                     }
                     FindField().padding(.trailing, Space.margin)
                 }
-                .padding(.vertical, model.gameFolder.inspectorResults == nil && model.gameFolder.inspectorConnections == nil && model.gameFolder.inspectorFile != nil ? 0 : Space.sm)
+                .padding(.vertical, Space.sm)
                 .background(.bar)
+                if model.gameFolder.inspectorResults == nil, model.gameFolder.inspectorConnections == nil, model.gameFolder.inspectorFile != nil {
+                    Divider()
+                    PathBar()
+                }
                 Divider()
                 if model.gameFolder.inspectorConnections != nil {
                     ConnectionsView(model: model)
                 } else if model.gameFolder.inspectorResults != nil {
                     FindResultsView(model: model)
-                } else if model.gameFolder.inspectorFile == nil {
+                } else if model.gameFolder.inspectorFile == nil, model.gameFolder.inspectorPendingFile == nil {
                     ContentUnavailableView("Choose a File", systemImage: "list.bullet.indent",
                                            description: Text("Pick a SavedVariables file to see what it stores, with names for the characters, items, and places in it."))
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else if let pending = model.gameFolder.inspectorPendingFile, pending != model.gameFolder.inspectorFile {
+                    // Never the last file's page under the new file's name.
+                    WorkingView(text: model.gameFolder.inspectorActivity ?? "")
                 } else {
                     if let error = model.gameFolder.inspectorDocument?.error, model.gameFolder.inspectorFocus.isEmpty {
                         Label(error.endedEarly ? String(localized: "This file ends early: \(error.description). Everything before it is below.")
@@ -149,6 +140,54 @@ struct InspectorView: View {
     }
 }
 
+/// The SavedVariables files, one addon's while a filter is on. Its own view, so work in the open
+/// file does not lay the list out again.
+private struct InspectorFileList: View {
+    @Environment(AppModel.self) private var model
+
+    var body: some View {
+        List(model.gameFolder.inspectorFiles, selection: Binding(
+            get: { model.gameFolder.inspectorPendingFile ?? model.gameFolder.inspectorFile },
+            set: { name in if let name, name != (model.gameFolder.inspectorPendingFile ?? model.gameFolder.inspectorFile) { Task { await model.gameFolder.inspect(name) } } })) { file in
+            HStack {
+                Text(file.name).lineLimit(1)
+                Spacer()
+                Text(file.bytes.formatted(.byteCount(style: .file))).font(.caption).foregroundStyle(.secondary).monospacedDigit()
+            }
+            .tag(file.name)
+            .contextMenu {
+                Button("Open in Editor") { model.gameFolder.openInEditor([file.url]) }
+                Button("Show in Finder") { NSWorkspace.shared.activateFileViewerSelecting([file.url]) }
+            }
+        }
+        .safeAreaInset(edge: .top, spacing: 0) {
+            if let filter = model.gameFolder.inspectorAddonFilter {
+                AddonFilterBar(title: String(localized: "Files for \(filter.name)"), clear: String(localized: "Show All Files"),
+                               area: "inspector-filter",
+                               escape: model.gameFolder.inspectorResults == nil && model.gameFolder.inspectorConnections == nil) { model.gameFolder.inspectorAddonFilter = nil }
+            }
+        }
+    }
+}
+
+/// What the Inspector is doing in the background, in words; nothing when it is idle.
+private struct InspectorStatus: View {
+    let model: AppModel
+
+    var body: some View {
+        // A file on its way in says so in the page itself.
+        if model.gameFolder.inspectorPendingFile == nil, let activity = model.gameFolder.inspectorActivity {
+            HStack(spacing: Space.sm) {
+                ProgressView().controlSize(.small)
+                Text(activity).font(.callout).foregroundStyle(.secondary).lineLimit(1)
+            }
+            .help(activity)
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(activity)
+        }
+    }
+}
+
 /// Where the shown table sits: the file, then each key, with names. Click one to go up to it.
 private struct PathBar: View {
     @Environment(AppModel.self) private var model
@@ -161,17 +200,21 @@ private struct PathBar: View {
                     .buttonStyle(.borderless)
                     .disabled(model.gameFolder.inspectorFocus.isEmpty)
                     .help("Go back to the table around this one (Command-[)")
-                crumb(model.gameFolder.inspectorFile ?? "", depth: 0, symbol: "doc")
-                ForEach(Array(model.gameFolder.inspectorFocus.enumerated()), id: \.offset) { i, key in
+                // The file on its way in takes the path at once; its tables follow when it opens.
+                let opening = model.gameFolder.inspectorPendingFile.flatMap { $0 == model.gameFolder.inspectorFile ? nil : $0 }
+                crumb(opening ?? model.gameFolder.inspectorFile ?? "", depth: 0, symbol: "doc")
+                ForEach(opening == nil ? Array(model.gameFolder.inspectorFocus.enumerated()) : [], id: \.offset) { i, key in
                     Image(systemName: "chevron.right").font(.caption2).foregroundStyle(.tertiary)
                     crumb(title(key, parent: Array(model.gameFolder.inspectorFocus.prefix(i))), depth: i + 1, symbol: nil)
                 }
-                if model.gameFolder.inspectorBusy { ProgressView().controlSize(.small) }
             }
             .padding(.horizontal, Space.margin)
             .padding(.vertical, Space.sm)
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
         .background(.bar)
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("Path")
     }
 
     private func crumb(_ title: String, depth: Int, symbol: String?) -> some View {
@@ -311,12 +354,13 @@ private struct RawSheet: View {
     @Environment(AppModel.self) private var model
     @Environment(\.dismiss) private var dismiss
     let node: SVNode
+    @State private var text = ""
 
     var body: some View {
         VStack(alignment: .leading, spacing: Space.lg) {
             Text(node.path.luaPath).font(.headline).textSelection(.enabled).lineLimit(2)
             ScrollView([.vertical, .horizontal]) {
-                Text(model.gameFolder.inspectorRawText(node))
+                Text(text)
                     .font(.body.monospaced())
                     .textSelection(.enabled)
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -333,6 +377,7 @@ private struct RawSheet: View {
         .frame(width: 640)
         .noInitialFocus()
         .onExitCommand { dismiss() }
+        .task { text = await model.gameFolder.loadInspectorRawText(node) }
     }
 }
 
@@ -371,6 +416,13 @@ struct InspectorCommands: View {
         Button(model.gameFolder.inspectorReadable ? String(localized: "Show as Tree") : String(localized: "Show as Settings")) { model.gameFolder.inspectorReadable.toggle() }
             .keyboardShortcut("t", modifiers: [.command, .control])
             .disabled(!inspecting)
+        let reading = inspecting && model.gameFolder.inspectorReadable && model.gameFolder.inspectorResults == nil && model.gameFolder.inspectorConnections == nil
+        Button("Next Section") { model.gameFolder.readableStep(1) }
+            .keyboardShortcut(.downArrow, modifiers: [.command, .option])
+            .disabled(!reading || !model.gameFolder.canReadableStep(1))
+        Button("Previous Section") { model.gameFolder.readableStep(-1) }
+            .keyboardShortcut(.upArrow, modifiers: [.command, .option])
+            .disabled(!reading || !model.gameFolder.canReadableStep(-1))
         let exploring = model.sidebar == .gameFolder && model.gameFolder.tab == .characters
         Button("Back") { exploring ? model.gameFolder.explorerBack() : model.gameFolder.inspectorEnclosing() }
             .keyboardShortcut("[", modifiers: .command)

@@ -144,10 +144,21 @@ enum Snapshot {
                         await capture(to: "\(dir)/gameFolder-inspector-empty-\(mode).png")
                         // The Inspector, opened on a character's table.
                         await model.gameFolder.inspect("WritWorthy.lua")
-                        // Settings as you'd read them, for the whole file.
+                        await model.gameFolder.awaitInspectorEnrichment()
+                        // Settings as you'd read them, for the whole file (a list of sections when there are two or more).
                         model.gameFolder.inspectorReadable = true
                         try? await Task.sleep(for: .seconds(1.5))
                         await capture(to: "\(dir)/gameFolder-inspector-settings-\(mode).png")
+                        // The next section, chosen in the list (Option-Command-Down).
+                        model.gameFolder.readableStep(1)
+                        try? await Task.sleep(for: .seconds(1))
+                        await capture(to: "\(dir)/gameFolder-inspector-settings-section-\(mode).png")
+                        model.gameFolder.readableStep(-1)
+                        // A file on its way in: its name selected, and what is being done.
+                        model.gameFolder.inspectorPendingFile = "ZO_Ingame.lua"
+                        try? await Task.sleep(for: .seconds(1))
+                        await capture(to: "\(dir)/gameFolder-inspector-opening-\(mode).png")
+                        model.gameFolder.inspectorPendingFile = nil
                         // Names from the addon's source: its settings panel, and a table keyed by game constants.
                         // A sample answer from AI, as a guess beside the panel's names.
                         model.gameFolder.applyAINames(["goldBudget": "Gold budget in thousands"], file: "WritWorthy.lua", folder: "WritWorthy",

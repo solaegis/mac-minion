@@ -7,6 +7,9 @@ enum Motion {
     /// Selection ring and small state flips.
     static let quick = Animation.easeOut(duration: 0.12)
 
+    /// How long work runs before a placeholder says so: quick work shows no flash.
+    static let progressDelay = Duration.milliseconds(200)
+
     /// The hover scale, or none under Reduce Motion.
     static func hoverScale(_ hovering: Bool, reduceMotion: Bool) -> CGFloat {
         hovering && !reduceMotion ? 1.02 : 1

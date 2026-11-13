@@ -14,11 +14,13 @@ extension GameFolderModel {
         let cache = documents
         inspectorBusy = true
         defer { inspectorBusy = false }
-        inspectorConnections = await Task.detached {
-            SVNeighborhood.build(target, refs: refs, names: names) {
-                cache.document(named: $0, at: folder.appending(path: $0))
-            }
-        }.value
+        inspectorConnections = await withInspectorStatus(String(localized: "Mapping connections…")) {
+            await Task.detached {
+                SVNeighborhood.build(target, refs: refs, names: names) {
+                    cache.document(named: $0, at: folder.appending(path: $0))
+                }
+            }.value
+        }
     }
 
     /// The ID a row stands for, by its key or its value.

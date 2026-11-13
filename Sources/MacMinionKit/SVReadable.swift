@@ -169,7 +169,8 @@ public enum SVReadable {
     }
 
     public static let rowsPerSection = 200
-    public static let sectionsPerSheet = 60
+    /// Only one section is drawn at a time, so this guards the outline, not the page.
+    public static let sectionsPerSheet = 500
 
     /// The entries of one table (or a file's variables) as sections of rows. Server and account
     /// tables, and the variables themselves, are see-through: their tables become sections titled by
@@ -222,17 +223,37 @@ public enum SVReadable {
             }
         }
         see(entries, parentPath)
-        // Settings shared by every character first, then the rest by name; rows by label.
-        return sections.map { section in
+        // Rows by label.
+        return grouped(sections.map { section in
             Section(title: section.title, subtitle: section.subtitle, path: section.path,
                     rows: section.rows.sorted { $0.label.localizedStandardCompare($1.label) == .orderedAscending }, more: section.more, note: section.note)
+        }).flatMap(\.sections)
+    }
+
+    /// Sections that sit in the same place (server and account), kept together.
+    public struct Group: Sendable, Identifiable, Equatable {
+        /// "NA Megaserver · @SOLAEGIS"; nil for sections outside any account.
+        public let title: String?
+        public let sections: [Section]
+        public var id: String { title ?? "" }
+    }
+
+    /// Sections by account, accounts in the order they come: in each, the settings shared by every
+    /// character first, then its characters and other tables by name.
+    public static func grouped(_ sections: [Section]) -> [Group] {
+        var order: [String?] = [], byGroup: [String?: [Section]] = [:]
+        for section in sections {
+            if byGroup[section.subtitle] == nil { order.append(section.subtitle) }
+            byGroup[section.subtitle, default: []].append(section)
         }
-        .enumerated().sorted { a, b in
-            let shared = (a.element.title == SVLevel.everyCharacter, b.element.title == SVLevel.everyCharacter)
-            if shared.0 != shared.1 { return shared.0 }
-            if a.element.subtitle != b.element.subtitle { return a.offset < b.offset }
-            return a.element.title.localizedStandardCompare(b.element.title) == .orderedAscending
+        return order.map { title in
+            let sorted = (byGroup[title] ?? []).enumerated().sorted { a, b in
+                let shared = (a.element.title == SVLevel.everyCharacter, b.element.title == SVLevel.everyCharacter)
+                if shared.0 != shared.1 { return shared.0 }
+                let order = a.element.title.localizedStandardCompare(b.element.title)
+                return order == .orderedSame ? a.offset < b.offset : order == .orderedAscending
+            }
+            return Group(title: title, sections: sorted.map(\.element))
         }
-        .map(\.element)
     }
 }

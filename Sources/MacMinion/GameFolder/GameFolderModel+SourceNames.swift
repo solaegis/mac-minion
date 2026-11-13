@@ -5,10 +5,10 @@ import MacMinionKit
 extension GameFolderModel {
     /// Reads what the file's addon calls its keys, once per file until the files change: only the
     /// open file needs it, and reading every addon's source took half of the whole read.
-    func loadSourceNames(for file: String) async {
+    func loadSourceNames(for file: String, generation: Int? = nil) async {
         guard inspectorSourceNames[file] == nil else { return }
         let addons = app.addonsFolder, aiCache = aiKeyNames, known = addonFolders
-        let found = await Task.detached { () -> SVSourceNames in
+        let found = await withInspectorStatus(String(localized: "Reading names from the addon's source…")) { await Task.detached { () -> SVSourceNames in
             let base = String(file.dropLast(4)).lowercased()
             guard let folder = known?[base] ?? SavedVariablesAudit.saverFolders(addons)[base] else { return SVSourceNames() }
             var found = SVSourceNames.read(folder: folder)
@@ -18,7 +18,9 @@ extension GameFolderModel {
                 found.add(SVSourceName(title: e.name, detail: nil, source: .ai, isGuess: true), key: e.key, parent: e.parent)
             }
             return found
-        }.value
+        }.value }
+        // A newer inspect may have cleared or replaced names while this read ran.
+        if let generation, generation != inspectGeneration { return }
         inspectorSourceNames[file] = found
     }
 

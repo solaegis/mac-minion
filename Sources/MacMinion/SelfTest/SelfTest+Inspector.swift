@@ -24,6 +24,7 @@ extension SelfTest {
         SeedData.writeInspectorSamples(game: model.gameFolderURL, addons: model.addonsFolder)
         await model.gameFolder.scan()
         await model.gameFolder.inspect("WritWorthy.lua")
+        await model.gameFolder.awaitInspectorEnrichment()
         let roots = model.gameFolder.inspectorRoots
         check("the Inspector opens a file's variables", roots.map(\.key) == [.string("WritWorthy_SavedVars")])
         let server = roots.first?.children?.first, account = server?.children?.first
@@ -168,16 +169,41 @@ extension SelfTest {
     static func readable(_ model: AppModel) async {
         // S-050 Settings as you'd read them
         await model.gameFolder.inspect("WritWorthy.lua")
+        await model.gameFolder.awaitInspectorEnrichment()
         let sheet = SVReadable.sheet(model.gameFolder.inspectorRows.map { LuaEntry(key: $0.key, value: $0.value, span: $0.span) },
                                      at: [], title: "WritWorthy", names: model.gameFolder.names)
         check("settings come in sections by who they're for", sheet.map(\.title) == ["Every character", "Alpha Top (8798292071293572)", "Masisi (8796093036412335)",
                                                                                      "Unknown character (8796093079837777)"],
               "\(sheet.map(\.title))")
+        check("a long readable page has enough sections for an outline", sheet.count >= 4, "\(sheet.count)")
         @MainActor func setting(_ section: String, _ label: String) -> SVDisplay? {
             sheet.first { $0.title == section }?.rows.first { $0.label == label }?.display
         }
         check("true and false read as On or Off", setting("Every character", "Show mat cost") == .toggle(true)
               && setting("Every character", "Auto accept") == .toggle(false))
+        // Opening a nested table (Settings › N settings) must change what the sheet would show.
+        if let filters = sheet.first(where: { $0.title == "Every character" })?.rows.first(where: { $0.label == "Filters" || $0.key == .string("byType") })
+            ?? sheet.flatMap(\.rows).first(where: { if case .table = $0.display { true } else { false } }) {
+            model.gameFolder.inspectorFocus = filters.path
+            let opened = SVReadable.sheet(model.gameFolder.inspectorRows.map { LuaEntry(key: $0.key, value: $0.value, span: $0.span) },
+                                          at: model.gameFolder.inspectorFocus, title: "WritWorthy", names: model.gameFolder.names)
+            check("opening a settings table changes the sheet", opened.map(\.title) != sheet.map(\.title) && model.gameFolder.inspectorFocus == filters.path,
+                  "still \(opened.map(\.title)) at \(model.gameFolder.inspectorFocus)")
+            check("drill-down sets breadcrumb depth", model.gameFolder.inspectorFocus.count == filters.path.count,
+                  "\(model.gameFolder.inspectorFocus.count) vs \(filters.path.count)")
+            model.gameFolder.inspectorFocus = []
+            check("going to the file clears breadcrumb depth", model.gameFolder.inspectorFocus.isEmpty)
+        } else {
+            check("opening a settings table changes the sheet", false, "no table row to open")
+        }
+        await model.gameFolder.inspect("ZO_Ingame.lua")
+        await model.gameFolder.awaitInspectorEnrichment()
+        let other = SVReadable.sheet(model.gameFolder.inspectorRows.map { LuaEntry(key: $0.key, value: $0.value, span: $0.span) },
+                                     at: [], title: "ZO_Ingame", names: model.gameFolder.names)
+        check("choosing another file changes the sheet", model.gameFolder.inspectorFile == "ZO_Ingame.lua" && other.map(\.title) != sheet.map(\.title),
+              "\(model.gameFolder.inspectorFile ?? "nil") \(other.map(\.title))")
+        await model.gameFolder.inspect("WritWorthy.lua")
+        await model.gameFolder.awaitInspectorEnrichment()
         if case .color(let r, _, _, _)? = setting("Every character", "Mat cost color"), case .color? = setting("Every character", "Header color") {
             check("colors read as swatches, from tables and color codes", abs(r - 0.36) < 0.001)
         } else {
@@ -237,6 +263,7 @@ extension SelfTest {
             .contains { $0.key == "goldBudget" && $0.parent == "$AccountWide" })
         model.gameFolder.inspectorSourceNames = [:]
         await model.gameFolder.inspect("WritWorthy.lua")
+        await model.gameFolder.awaitInspectorEnrichment()
         model.gameFolder.inspectorFocus = [.string("WritWorthy_SavedVars"), .string("NA Megaserver"), .string("@SOLAEGIS"), .string("$AccountWide")]
         check("AI names come back when the file is opened again", model.gameFolder.inspectorSourceName(.string("goldBudget"), at: model.gameFolder.inspectorFocus)?.source == .ai)
         check("only the open file's addon source is read", model.gameFolder.inspectorSourceNames.keys.sorted() == ["WritWorthy.lua"], "\(model.gameFolder.inspectorSourceNames.keys.sorted())")
@@ -250,6 +277,32 @@ extension SelfTest {
 
         check("plain words stay plain", setting("Every character", "Tooltip style") == .text("Compact")
               && setting("Masisi (8796093036412335)", "Version") == .number("1"))
+
+        // One section on screen at a time, kept together by account.
+        let folder = model.gameFolder
+        folder.inspectorFocus = []
+        await folder.buildReadable()
+        let titles = folder.readableSections.map(\.title)
+        check("the settings page lists its sections under their accounts", folder.readableReady && titles.count >= 4
+              && folder.readableGroups.allSatisfy { $0.sections.first?.title == SVLevel.everyCharacter || !$0.sections.contains { $0.title == SVLevel.everyCharacter } },
+              "\(folder.readableGroups.map { "\($0.title ?? "-"): \($0.sections.map(\.title))" })")
+        check("the first section is on screen when a file opens", folder.readableShownSection?.id == folder.readableSections.first?.id && !folder.canReadableStep(-1))
+        folder.readableStep(1)
+        let second = folder.readableSection
+        check("Next Section shows the one after", folder.readableShownSection?.title == titles.dropFirst().first && folder.canReadableStep(-1), "\(second ?? "nil")")
+        folder.inspectorFocus = [.string("WritWorthy_SavedVars"), .string("NA Megaserver"), .string("@SOLAEGIS"), .string("$AccountWide"), .string("byType")]
+        check("an opened table waits for its own settings, never the last table's", !folder.readableReady)
+        await folder.buildReadable()
+        check("an opened table shows its own settings", folder.readableReady && folder.readableShownSection?.id != second)
+        folder.inspectorFocus = []
+        await folder.buildReadable()
+        check("going back returns to the section you left", folder.readableSection == second && folder.readableShownSection?.id == second, "\(folder.readableSection ?? "nil")")
+        await folder.inspect("ZO_Ingame.lua")
+        check("another file never shows the last file's settings", !folder.readableReady && folder.inspectorPendingFile == nil)
+        await folder.inspect("WritWorthy.lua")
+        await folder.awaitInspectorEnrichment()
+        await folder.buildReadable()
+        check("the Inspector says nothing when it is idle", folder.inspectorActivity == nil, folder.inspectorActivity ?? "")
     }
 
     /// A 100 000-row table opens at once.

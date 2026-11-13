@@ -62,6 +62,36 @@ import Testing
     #expect(shared.rows[2].path == [.string("WW"), .string("NA Megaserver"), .string("@SOLAEGIS"), .string("$AccountWide"), .string("showMatCost")])
 }
 
+@Test func keepsEachAccountsSectionsTogether() {
+    let doc = SVDocument.parse(Data("""
+    ADR =
+    {
+        ["Default"] =
+        {
+            ["@SOLAEGIS"] =
+            {
+                ["Zirhli"] = { ["a"] = 1 },
+                ["$AccountWide"] = { ["a"] = 1 },
+                ["Masisi"] = { ["a"] = 1 },
+            },
+            ["@vavasour"] =
+            {
+                ["Pelatiah"] = { ["a"] = 1 },
+                ["$AccountWide"] = { ["a"] = 1 },
+            },
+        },
+    }
+    """.utf8))
+    let sections = SVReadable.sheet(doc.variables, at: [], title: "ADR", names: nil)
+    #expect(sections.map { "\($0.subtitle ?? "") \($0.title)" } == [
+        "Default · @SOLAEGIS Every character", "Default · @SOLAEGIS Masisi", "Default · @SOLAEGIS Zirhli",
+        "Default · @vavasour Every character", "Default · @vavasour Pelatiah",
+    ], "each account's shared settings, then its characters")
+    let groups = SVReadable.grouped(sections)
+    #expect(groups.map(\.title) == ["Default · @SOLAEGIS", "Default · @vavasour"])
+    #expect(groups.map(\.sections.count) == [3, 2])
+}
+
 /// What sheets look like for real files, read-only, run by hand:
 ///   MM_REAL_SV=~/Documents/Elder\ Scrolls\ Online/live/SavedVariables swift test --filter sheetsForARealFolder
 @Test(.enabled(if: ProcessInfo.processInfo.environment["MM_REAL_SV"] != nil))

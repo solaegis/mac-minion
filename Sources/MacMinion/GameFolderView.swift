@@ -34,7 +34,12 @@ struct GameFolderPage: View {
 
     var body: some View {
         @Bindable var model = model
-        Group {
+        // A split view lays its panes out over a top inset, which hid the Inspector's own bar (its
+        // Settings and Tree picker, and Find) under the tabs. So the Inspector sits below the tabs
+        // in a stack; the scrolling pages keep the inset.
+        let stacked = model.gameFolder.tab == .inspector
+        VStack(spacing: 0) {
+            if stacked { GameFolderHeader() }
             switch model.gameFolder.tab {
             case .characters: CharactersExplorer(model: model)
             case .inspector: InspectorView()
@@ -43,10 +48,7 @@ struct GameFolderPage: View {
             }
         }
         .safeAreaInset(edge: .top, spacing: 0) {
-            VStack(spacing: 0) {
-                GameFolderTabBar()
-                GameFolderBanner()
-            }
+            if !stacked { GameFolderHeader() }
         }
         .navigationTitle("Game Folder")
         .toolbar {
@@ -75,6 +77,16 @@ struct GameFolderPage: View {
         .task { await model.gameFolder.scan(); await model.gameFolder.load() }
         .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
             Task { await model.gameFolder.scan() }
+        }
+    }
+}
+
+/// The tabs, and under them a warning, progress, or the last result.
+private struct GameFolderHeader: View {
+    var body: some View {
+        VStack(spacing: 0) {
+            GameFolderTabBar()
+            GameFolderBanner()
         }
     }
 }

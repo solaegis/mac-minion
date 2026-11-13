@@ -7,28 +7,89 @@ extension GameFolderModel {
     func inspect(_ fileName: String) async {
         tab = .inspector
         guard let url = savedVariables.first(where: { $0.name == fileName })?.url else { return }
+        inspectGeneration += 1
+        let generation = inspectGeneration
         inspectorBusy = true
-        defer { inspectorBusy = false }
+        inspectorPendingFile = fileName
         let cache = documents
-        let (data, doc) = await Task.detached { () -> (Data, SVDocument) in
-            let data = (try? Data(contentsOf: url)) ?? Data()
+        // Cache hit: skip reading bytes until Show Raw needs them. Miss: read once and parse.
+        let loaded = await Task.detached { () -> (data: Data, doc: SVDocument, needsBytes: Bool)? in
             let stamp = SVDocumentCache.Stamp(url: url)
             if let cached = cache.get(fileName, stamp: stamp) {
-                return (data, cached)
+                return (Data(), cached, true)
             }
+            let data = (try? Data(contentsOf: url)) ?? Data()
             let doc = SVDocument.parse(data)
             cache.put(fileName, stamp: stamp, document: doc)
-            return (data, doc)
+            return (data, doc, false)
         }.value
+        guard generation == inspectGeneration, let loaded else {
+            if generation == inspectGeneration { inspectorBusy = false; inspectorPendingFile = nil }
+            return
+        }
         documents.pin(fileName)
         inspectorFile = fileName
-        inspectorData = data
-        inspectorDocument = doc
+        inspectorData = loaded.data
+        inspectorDataNeedsLoad = loaded.needsBytes
+        inspectorDocument = loaded.doc
         inspectorFocus = []
         inspectorSelection = nil
-        inspectorRoots = SVNode.roots(doc)
-        await loadSourceNames(for: fileName)
+        inspectorRoots = SVNode.roots(loaded.doc)
+        // Paint the file now; source names and the folder index enrich in the background.
+        inspectorBusy = false
+        inspectorPendingFile = nil
+        Task {
+            await enrichInspector(generation: generation, file: fileName)
+        }
+    }
+
+    /// Source names and the folder name index for the open file. Safe to call again from tests.
+    func awaitInspectorEnrichment() async {
+        guard let file = inspectorFile else { return }
+        await enrichInspector(generation: inspectGeneration, file: file)
+    }
+
+    private func enrichInspector(generation: Int, file: String) async {
+        guard generation == inspectGeneration else { return }
+        await loadSourceNames(for: file, generation: generation)
+        guard generation == inspectGeneration else { return }
         await load()
+    }
+
+    /// Loads file bytes when Copy Value needs them after a cache-hit inspect.
+    func ensureInspectorData() {
+        guard inspectorDataNeedsLoad, let url = inspectorFileURL else { return }
+        inspectorData = (try? Data(contentsOf: url)) ?? Data()
+        inspectorDataNeedsLoad = false
+    }
+
+    /// The entry as written in the file, for Show Raw: reads the file's bytes off the main thread first.
+    func loadInspectorRawText(_ node: SVNode) async -> String {
+        if inspectorDataNeedsLoad, let url = inspectorFileURL {
+            let generation = inspectGeneration
+            let data = await Task.detached { (try? Data(contentsOf: url)) ?? Data() }.value
+            if generation == inspectGeneration, inspectorDataNeedsLoad {
+                inspectorData = data
+                inspectorDataNeedsLoad = false
+            }
+        }
+        return inspectorRawText(node)
+    }
+
+    /// What the Inspector is doing, in words; nil when it is idle.
+    var inspectorActivity: String? {
+        if let pending = inspectorPendingFile { return String(localized: "Opening \(String(pending.dropLast(4)))…") }
+        if let inspectorStatus { return inspectorStatus }
+        // The read of every file, which names the IDs in this one.
+        if inspectorFile != nil, let progress { return progress.step }
+        return nil
+    }
+
+    /// Says what a piece of background work is doing until it ends, unless newer work took the line.
+    func withInspectorStatus<T>(_ text: String, _ work: () async -> T) async -> T {
+        inspectorStatus = text
+        defer { if inspectorStatus == text { inspectorStatus = nil } }
+        return await work()
     }
 
     /// Finds a row by its ID among the rows on screen and the ones opened under them.
@@ -38,13 +99,18 @@ extension GameFolderModel {
 
     /// Shows only the selected table's entries, like opening a folder.
     func inspectorOpen(_ node: SVNode? = nil) {
-        guard let node = node ?? inspectorSelectedNode, inspectorCursor.open(node) else { return }
+        guard let node = node ?? inspectorSelectedNode else { return }
+        var next = inspectorCursor
+        guard next.open(node) else { return }
+        inspectorCursor = next
         inspectorSelection = nil
     }
 
     /// Goes up to the table around the one shown, selecting the one that was open.
     func inspectorEnclosing() {
-        guard let left = inspectorCursor.enclosing() else { return }
+        var next = inspectorCursor
+        guard let left = next.enclosing() else { return }
+        inspectorCursor = next
         inspectorSelection = left
     }
 
@@ -56,6 +122,7 @@ extension GameFolderModel {
 
     /// The entry as written in the file, up to a limit.
     func inspectorRawText(_ node: SVNode, limit: Int = 200_000) -> String {
+        ensureInspectorData()
         let span = node.span.clamped(to: 0..<inspectorData.count)
         let shown = span.prefix(limit)
         let text = String(decoding: inspectorData[shown], as: UTF8.self)

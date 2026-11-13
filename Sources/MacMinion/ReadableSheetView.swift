@@ -2,23 +2,94 @@ import AppKit
 import MacMinionKit
 import SwiftUI
 
-/// An addon's saved settings as you'd read them (S-050): a grouped form with switches, color
-/// swatches, item tags, dates, and gold. Read-only; every row can show its place in the tree.
+/// An addon's saved settings as you'd read them (S-050): switches, color swatches, item tags, dates,
+/// and gold. Read-only; every row can show its place in the tree. One section is on screen at a time,
+/// chosen in the list beside it, so a file with thousands of settings opens as fast as a small one.
 struct ReadableSheetView: View {
     let model: AppModel
-    @State private var sections: [SVReadable.Section] = []
 
     var body: some View {
+        let folder = model.gameFolder
+        Group {
+            if !folder.readableReady {
+                WorkingView(text: String(localized: "Reading settings…"))
+            } else if folder.readableSections.isEmpty {
+                ContentUnavailableView("Nothing Saved Here", systemImage: "slider.horizontal.3",
+                                       description: Text("This table has no settings to show."))
+            } else if folder.readableSections.count >= 2 {
+                HSplitView {
+                    ReadableOutline(model: model)
+                        .frame(minWidth: 140, idealWidth: 200, maxWidth: 280, maxHeight: .infinity)
+                    ReadableSectionForm(model: model)
+                        .frame(minWidth: 320, maxWidth: .infinity, maxHeight: .infinity)
+                }
+            } else {
+                ReadableSectionForm(model: model)
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .task(id: folder.readableBuildKey) { await folder.buildReadable() }
+    }
+}
+
+/// A spinner with what is being done, shown only when the work is not quick.
+struct WorkingView: View {
+    let text: String
+    @State private var shown = false
+
+    var body: some View {
+        VStack {
+            if shown { ProgressView(text) }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .task {
+            try? await Task.sleep(for: Motion.progressDelay)
+            shown = true
+        }
+    }
+}
+
+/// The sections of the table shown, under the account each belongs to. Choosing one shows it.
+private struct ReadableOutline: View {
+    let model: AppModel
+
+    var body: some View {
+        List(selection: Bindable(model.gameFolder).readableSection) {
+            ForEach(model.gameFolder.readableGroups) { group in
+                if let title = group.title {
+                    Section(title) { rows(group) }
+                } else {
+                    rows(group)
+                }
+            }
+        }
+        .listStyle(.sidebar)
+        .accessibilityLabel("Sections")
+    }
+
+    private func rows(_ group: SVReadable.Group) -> some View {
+        ForEach(group.sections) { section in
+            Text(section.title).lineLimit(1).help(section.title).tag(section.id)
+        }
+    }
+}
+
+/// One section's settings as a grouped form.
+private struct ReadableSectionForm: View {
+    let model: AppModel
+
+    var body: some View {
+        let folder = model.gameFolder
         Form {
             // The table shown is keyed by constants: what its numbers are, as far as the source says.
-            if let note = model.gameFolder.inspectorFocus.last.flatMap({ key in model.gameFolder.inspectorFile.flatMap { model.gameFolder.inspectorSourceNames[$0] }?.note(forTable: key) }) {
+            if let note = folder.inspectorFocus.last.flatMap({ key in folder.inspectorFile.flatMap { folder.inspectorSourceNames[$0] }?.note(forTable: key) }) {
                 Section {
                     Label(note, systemImage: "doc.text.magnifyingglass")
                         .foregroundStyle(.secondary)
                         .help("From the addon's source. The game assigns these numbers when it runs, so they can't be named here.")
                 }
             }
-            ForEach(sections) { section in
+            if let section = folder.readableShownSection {
                 Section {
                     ForEach(section.rows) { row in
                         ReadableRow(model: model, row: row)
@@ -48,26 +119,8 @@ struct ReadableSheetView: View {
             }
         }
         .formStyle(.grouped)
-        .overlay {
-            if sections.isEmpty, !model.gameFolder.inspectorBusy {
-                ContentUnavailableView("Nothing Saved Here", systemImage: "slider.horizontal.3",
-                                       description: Text("This table has no settings to show."))
-            }
-        }
-        .task(id: sheetKey) { await build() }
-    }
-
-    /// Rebuilt when the file, the table shown, or the names change.
-    private var sheetKey: String {
-        "\(model.gameFolder.inspectorFile ?? "")|\(model.gameFolder.inspectorFocus.map(\.description).joined(separator: "\u{1F}"))|\(model.gameFolder.names != nil)|\(model.gameFolder.inspectorSourceNames.count)"
-    }
-
-    private func build() async {
-        let entries = model.gameFolder.inspectorRows.map { LuaEntry(key: $0.key, value: $0.value, span: $0.span) }
-        let path = model.gameFolder.inspectorFocus, names = model.gameFolder.names
-        let source = model.gameFolder.inspectorFile.flatMap { model.gameFolder.inspectorSourceNames[$0] }
-        let title = model.gameFolder.inspectorFile.map { String($0.dropLast(4)) } ?? ""
-        sections = await Task.detached { SVReadable.sheet(entries, at: path, title: title, names: names, source: source) }.value
+        // A new section opens at its top.
+        .id(folder.readableShownSection?.id)
     }
 
     private func open(_ row: SVReadable.Row) {

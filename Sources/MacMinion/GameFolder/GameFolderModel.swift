@@ -48,25 +48,44 @@ final class GameFolderModel {
     @ObservationIgnored var readCache = SVFolderRead.Cache()
     /// Last few parsed trees for Find, Connections, and the Inspector (Step 11).
     @ObservationIgnored var documents = SVDocumentCache(capacity: 4)
+    /// Bumps when a newer `inspect` starts, so an older parse does not replace the file just chosen.
+    @ObservationIgnored var inspectGeneration = 0
 
     // MARK: Inspector (GameFolderModel+Inspector.swift)
 
     /// The file open in the Inspector, its bytes, and the rows of the table it shows.
     var inspectorFile: String?
-    var inspectorData = Data()
+    /// The file being opened, from the click until it is parsed: the list selects it at once.
+    var inspectorPendingFile: String?
+    /// What background work the Inspector is doing, in words, for its status line.
+    var inspectorStatus: String?
+    /// Read only for Show Raw and Copy Value, never by a view's body.
+    @ObservationIgnored var inspectorData = Data()
+    /// When true, `inspectorData` was skipped on a document-cache hit; load on first raw view.
+    @ObservationIgnored var inspectorDataNeedsLoad = false
     var inspectorDocument: SVDocument?
     /// Where the Inspector is in the open file. Its rows are kept, not computed, so a 79 000-row table
-    /// isn't walked again on every render.
+    /// isn't walked again on every render. Assign the whole value (never mutate in place): @Observable
+    /// does not reliably publish nested struct mutations, and Settings mode often leaves selection nil
+    /// so nothing else would redraw the sheet.
     var inspectorCursor = SVTableCursor()
     /// The open file's variables.
     var inspectorRoots: [SVNode] {
         get { inspectorCursor.roots }
-        set { inspectorCursor.roots = newValue }
+        set {
+            var next = inspectorCursor
+            next.roots = newValue
+            inspectorCursor = next
+        }
     }
     /// The table the Inspector shows, as a path from the file's variables; empty for the variables.
     var inspectorFocus: [LuaKey] {
         get { inspectorCursor.focus }
-        set { inspectorCursor.focus = newValue }
+        set {
+            var next = inspectorCursor
+            next.focus = newValue
+            inspectorCursor = next
+        }
     }
     /// The rows the Inspector shows: the focused table's entries, or the file's variables.
     var inspectorRows: [SVNode] { inspectorCursor.rows }
@@ -75,6 +94,20 @@ final class GameFolderModel {
     var inspectorRaw: SVNode?
     /// Settings as you'd read them (S-050), or the tree of keys and values.
     var inspectorReadable = true
+
+    // MARK: Settings as you'd read them (GameFolderModel+Readable.swift)
+
+    /// The table shown as sections, kept together by account. Built off the main thread.
+    var readableGroups: [SVReadable.Group] = []
+    /// The file and table `readableGroups` was built for; nil before the first build.
+    var readableBuiltFor: String?
+    /// The one section on screen. Remembered per table, so Back returns to the section you left.
+    var readableSection: String? {
+        didSet { if let place = readableBuiltFor, let readableSection { readableRemembered[place] = readableSection } }
+    }
+    @ObservationIgnored var readableRemembered: [String: String] = [:]
+    /// Bumps when a newer build starts, so an older one does not replace it.
+    @ObservationIgnored var readableGeneration = 0
 
     // MARK: Find (GameFolderModel+Find.swift)
 
@@ -87,7 +120,9 @@ final class GameFolderModel {
     // MARK: Names from source and AI (GameFolderModel+SourceNames.swift)
 
     /// SavedVariables file -> what its addon's Lua source says its keys mean (docs/SOURCE-NAMES.md).
-    var inspectorSourceNames: [String: SVSourceNames] = [:]
+    var inspectorSourceNames: [String: SVSourceNames] = [:] { didSet { inspectorSourceNamesRevision += 1 } }
+    /// Goes up with every change to the names, AI's included, so pages built from them build again.
+    var inspectorSourceNamesRevision = 0
     /// Names AI gave saved keys, per addon version, kept between launches.
     var aiKeyNames = Store.loadAINames()
     /// AI is reading the open table's source.
