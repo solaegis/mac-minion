@@ -211,6 +211,40 @@ func incrementalRead() async throws {
     withExtendedLifetime(read) {}
 }
 
+/// Synthetic ActionDurationReminder-scale sheet: 2 accounts, 40 sections, 125 rows each.
+/// Always on so CI times Settings sheet + grouped without a SavedVariables copy.
+@Test func benchmarksReadableSheetOfTwoAccounts() {
+    var lua = "ADR =\n{\n  [\"Default\"] =\n  {\n"
+    for (account, chars) in [
+        ("@SOLAEGIS", (1...19).map { "CharA\($0)" }),
+        ("@vavasour", (1...19).map { "CharB\($0)" }),
+    ] as [(String, [String])] {
+        lua += "    [\"\(account)\"] =\n    {\n"
+        for name in ["$AccountWide"] + chars {
+            lua += "      [\"\(name)\"] =\n      {\n"
+            for i in 1...125 { lua += "        [\"setting\(i)\"] = \(i),\n" }
+            lua += "      },\n"
+        }
+        lua += "    },\n"
+    }
+    lua += "  },\n}\n"
+    let doc = SVDocument.parse(Data(lua.utf8))
+    let t0 = Date()
+    let sections = SVReadable.sheet(doc.variables, at: [], title: "ADR", names: nil)
+    let sheetMs = Date().timeIntervalSince(t0) * 1000
+    let t1 = Date()
+    let groups = SVReadable.grouped(sections)
+    let groupMs = Date().timeIntervalSince(t1) * 1000
+    print(String(format: "BENCH readable sheet %.1f ms, grouped %.1f ms, %d sections, %d groups",
+                 sheetMs, groupMs, sections.count, groups.count))
+    #expect(sections.count == 40)
+    #expect(groups.count == 2)
+    #expect(groups.map(\.title) == ["Default · @SOLAEGIS", "Default · @vavasour"])
+    #expect(groups.map(\.sections.count) == [20, 20])
+    #expect(groups[0].sections.first?.title == SVLevel.everyCharacter)
+    #expect(groups[0].sections.first?.rows.count == 125)
+}
+
 /// Times a cold open of the widest table (sort + SVNode children), without warming lazy children during the walk.
 ///   MM_WIDEST=1 MM_REAL_SV=/tmp/mm-sv-copy swift test -c release --filter benchmarksWidestTableOpen
 @Test(.enabled(if: ProcessInfo.processInfo.environment["MM_WIDEST"] != nil))
