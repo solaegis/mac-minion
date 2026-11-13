@@ -85,6 +85,8 @@ struct ProblemsView: View {
             guard let first = findings.first(where: { $0.id == ids.first })?.problems.first else { return }
             Task { await model.gameFolder.openProblem(first) }
         }
+        // Recreate when the addon filter changes so AppKit does not reenter mid-update.
+        .id(filter?.name ?? "all-problems")
         .overlay {
             if model.gameFolder.svProblems == nil, model.gameFolder.fileProblems.isEmpty {
                 InspectorLoadingView(model: model)

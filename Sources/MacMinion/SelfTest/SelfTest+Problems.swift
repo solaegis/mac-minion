@@ -89,6 +89,9 @@ extension SelfTest {
         // Opening Game Folder may read the files again; the filter waits for nothing, so wait for the read here.
         await model.gameFolder.load()
         model.gameFolder.showProblems(of: "WritWorthy", dirs: ["WritWorthy"])
+        for _ in 0..<50 where model.gameFolder.tab != .problems || model.gameFolder.selectedFinding?.id != writWorthy.first?.id {
+            try? await Task.sleep(for: .milliseconds(20))
+        }
         let shownForWrit = model.gameFolder.healthFindings.filter { model.gameFolder.problemsAddonFilter?.matches($0) ?? true }
         check("Show Problems narrows Problems to the addon's findings",
               model.gameFolder.tab == .problems && !shownForWrit.isEmpty

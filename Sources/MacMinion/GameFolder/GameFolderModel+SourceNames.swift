@@ -20,6 +20,7 @@ extension GameFolderModel {
             return found
         }.value }
         // A newer inspect may have cleared or replaced names while this read ran.
+        if Task.isCancelled { return }
         if let generation, generation != inspectGeneration { return }
         inspectorSourceNames[file] = found
     }

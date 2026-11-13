@@ -148,9 +148,15 @@ private struct InspectorFileList: View {
     @Environment(AppModel.self) private var model
 
     var body: some View {
+        // Selection follows the open file only. Pending stays out of the getter so flipping
+        // inspectorPendingFile during inspect does not reenter the AppKit table delegate.
         List(model.gameFolder.inspectorFiles, selection: Binding(
-            get: { model.gameFolder.inspectorPendingFile ?? model.gameFolder.inspectorFile },
-            set: { name in if let name, name != (model.gameFolder.inspectorPendingFile ?? model.gameFolder.inspectorFile) { Task { await model.gameFolder.inspect(name) } } })) { file in
+            get: { model.gameFolder.inspectorFile },
+            set: { name in
+                if let name, name != model.gameFolder.inspectorFile {
+                    Task { await model.gameFolder.inspect(name) }
+                }
+            })) { file in
             HStack {
                 Text(file.name).lineLimit(1)
                 Spacer()
@@ -162,6 +168,8 @@ private struct InspectorFileList: View {
                 Button("Show in Finder") { NSWorkspace.shared.activateFileViewerSelecting([file.url]) }
             }
         }
+        // Recreate the table when the addon filter changes so AppKit does not reenter mid-update.
+        .id(model.gameFolder.inspectorAddonFilter?.name ?? "all-files")
         .safeAreaInset(edge: .top, spacing: 0) {
             if let filter = model.gameFolder.inspectorAddonFilter {
                 AddonFilterBar(title: String(localized: "Files for \(filter.name)"), clear: String(localized: "Show All Files"),

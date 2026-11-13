@@ -61,6 +61,8 @@ final class GameFolderModel {
     var inspectorOpeningTable = false
     /// Bumps when a newer large-table open starts, so an older one does not apply.
     @ObservationIgnored var inspectorOpenGeneration = 0
+    /// The enrich task started by `inspect`; `awaitInspectorEnrichment` waits on it.
+    @ObservationIgnored var inspectorEnrichTask: Task<Void, Never>?
     /// What background work the Inspector is doing, in words, for its status line.
     var inspectorStatus: String?
     /// Read only for Show Raw and Copy Value, never by a view's body.

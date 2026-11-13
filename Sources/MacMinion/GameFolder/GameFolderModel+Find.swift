@@ -51,16 +51,26 @@ extension GameFolderModel {
     /// Finds every place one ID appears: a character or account from the Space tab.
     func findEverywhere(_ target: SVTarget) async {
         await load()
-        tab = .inspector
-        inspectorQuery = names?.title(for: target) ?? target.id
-        await showFind([target], query: inspectorQuery)
+        let query = names?.title(for: target) ?? target.id
+        await showFind([target], query: query, switchToInspector: true)
     }
 
-    private func showFind(_ targets: [SVTarget], query: String) async {
+    private func showFind(_ targets: [SVTarget], query: String, switchToInspector: Bool = false) async {
         inspectorBusy = true
         defer { inspectorBusy = false }
-        inspectorResults = await withInspectorStatus(String(localized: "Finding “\(query)”…")) { await findResults(targets) }
-        inspectorFindMessage = inspectorResults?.isEmpty == true ? String(localized: "Nothing in SavedVariables matches “\(query)”.") : nil
+        let results = await withInspectorStatus(String(localized: "Finding “\(query)”…")) { await findResults(targets) }
+        let message = results.isEmpty ? String(localized: "Nothing in SavedVariables matches “\(query)”.") : nil
+        // Apply after the current List/Table delegate (e.g. Problems) has returned.
+        await withCheckedContinuation { (cont: CheckedContinuation<Void, Never>) in
+            DispatchQueue.main.async { [weak self] in
+                guard let self else { cont.resume(); return }
+                if switchToInspector { self.tab = .inspector }
+                self.inspectorQuery = query
+                self.inspectorResults = results
+                self.inspectorFindMessage = message
+                cont.resume()
+            }
+        }
     }
 
     /// Every place each target appears, with key paths found again; the window and `macminion sv find` share it.

@@ -7,6 +7,12 @@ extension GameFolderModel {
     func inspect(_ fileName: String) async {
         tab = .inspector
         guard let url = savedVariables.first(where: { $0.name == fileName })?.url else { return }
+        // Drop any enrich from the last file before yielding, so its status cannot outlive this open.
+        inspectorEnrichTask?.cancel()
+        inspectorEnrichTask = nil
+        inspectorStatus = nil
+        // Finish any in-flight List/Table delegate before flipping pending/file selection state.
+        await Task.yield()
         inspectGeneration += 1
         let generation = inspectGeneration
         inspectorOpenGeneration += 1
@@ -40,21 +46,27 @@ extension GameFolderModel {
         // Paint the file now; source names and the folder index enrich in the background.
         inspectorBusy = false
         inspectorPendingFile = nil
-        Task {
+        inspectorEnrichTask?.cancel()
+        inspectorEnrichTask = Task {
             await enrichInspector(generation: generation, file: fileName)
         }
     }
 
     /// Source names and the folder name index for the open file. Safe to call again from tests.
     func awaitInspectorEnrichment() async {
-        guard let file = inspectorFile else { return }
-        await enrichInspector(generation: inspectGeneration, file: file)
+        if let task = inspectorEnrichTask {
+            await task.value
+        } else if let file = inspectorFile {
+            await enrichInspector(generation: inspectGeneration, file: file)
+        }
+        // A cancelled enrich from an earlier file must not leave its caption stuck.
+        if progress == nil { inspectorStatus = nil }
     }
 
     private func enrichInspector(generation: Int, file: String) async {
-        guard generation == inspectGeneration else { return }
+        guard generation == inspectGeneration, !Task.isCancelled else { return }
         await loadSourceNames(for: file, generation: generation)
-        guard generation == inspectGeneration else { return }
+        guard generation == inspectGeneration, !Task.isCancelled else { return }
         await load()
     }
 

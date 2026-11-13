@@ -104,8 +104,14 @@ extension GameFolderModel {
         case .showInInspector(let id):
             if let problem = finding.problems.first(where: { $0.id == id }) { Task { await revealProblem(problem) } }
         case .findCharacter(let id):
-            app.open(.gameFolder)
-            Task { await findEverywhere(SVTarget(.character, id)) }
+            // Never mutate List selection/tab from inside a Problems row action — AppKit reenters.
+            let target = SVTarget(.character, id)
+            DispatchQueue.main.async { [weak self] in
+                guard let self else { return }
+                self.problemsSelection = nil
+                self.app.open(.gameFolder)
+                Task { await self.findEverywhere(target) }
+            }
         }
     }
 
@@ -176,7 +182,11 @@ extension GameFolderModel {
         tab = .inspector
         let files = inspectorFiles.map(\.name)
         if let first = files.first, !files.contains(inspectorFile ?? "") {
-            Task { await inspect(first) }
+            // Next turn so a Problems list delegate is not still running when the file list updates.
+            Task {
+                await Task.yield()
+                await inspect(first)
+            }
         }
     }
 
@@ -185,7 +195,12 @@ extension GameFolderModel {
         let filter = AddonFilter(name: name, dirs: dirs)
         problemsAddonFilter = filter
         app.open(.gameFolder)
-        tab = .problems
-        problemsSelection = healthFindings.first { $0.isMain && filter.matches($0) }?.id
+        let select = healthFindings.first { $0.isMain && filter.matches($0) }?.id
+        // Two turns: leave any Inspector List update, then select once Problems is on screen.
+        DispatchQueue.main.async { [weak self] in
+            guard let self else { return }
+            self.tab = .problems
+            DispatchQueue.main.async { self.problemsSelection = select }
+        }
     }
 }
