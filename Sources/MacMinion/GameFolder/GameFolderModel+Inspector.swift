@@ -9,6 +9,8 @@ extension GameFolderModel {
         guard let url = savedVariables.first(where: { $0.name == fileName })?.url else { return }
         inspectGeneration += 1
         let generation = inspectGeneration
+        inspectorOpenGeneration += 1
+        inspectorOpeningTable = false
         inspectorBusy = true
         inspectorPendingFile = fileName
         let cache = documents
@@ -79,6 +81,7 @@ extension GameFolderModel {
     /// What the Inspector is doing, in words; nil when it is idle.
     var inspectorActivity: String? {
         if let pending = inspectorPendingFile { return String(localized: "Opening \(String(pending.dropLast(4)))…") }
+        if inspectorOpeningTable { return String(localized: "Opening table…") }
         if let inspectorStatus { return inspectorStatus }
         // The read of every file, which names the IDs in this one.
         if inspectorFile != nil, let progress { return progress.step }
@@ -98,12 +101,49 @@ extension GameFolderModel {
     var inspectorSelectedNode: SVNode? { inspectorNode(inspectorSelection) }
 
     /// Shows only the selected table's entries, like opening a folder.
+    /// Large tables sort off the main thread; small ones open at once.
     func inspectorOpen(_ node: SVNode? = nil) {
-        guard let node = node ?? inspectorSelectedNode else { return }
+        guard let node = node ?? inspectorSelectedNode, node.value.table != nil else { return }
+        let count = node.value.table?.count ?? 0
+        if node.childrenReady || count < SVNode.asyncChildrenThreshold {
+            _ = node.children
+            applyInspectorOpen(node)
+            return
+        }
+        Task { await openLargeInspectorTable(node) }
+    }
+
+    private func applyInspectorOpen(_ node: SVNode) {
         var next = inspectorCursor
         guard next.open(node) else { return }
         inspectorCursor = next
         inspectorSelection = nil
+    }
+
+    /// Sorts a wide table off the main thread, with the Opening placeholder until it is ready.
+    private func openLargeInspectorTable(_ node: SVNode) async {
+        inspectorOpenGeneration += 1
+        let generation = inspectorOpenGeneration
+        let path = node.path
+        let table = node.value.table!
+        inspectorOpeningTable = true
+        defer {
+            if generation == inspectorOpenGeneration { inspectorOpeningTable = false }
+        }
+        // Sort off the main thread (entries are Sendable); build SVNodes on return.
+        let sorted = await Task.detached {
+            table.entries.sorted { LuaKey.displayOrder($0.key, $1.key) }
+        }.value
+        guard generation == inspectorOpenGeneration, inspectorFile != nil else { return }
+        let kids = sorted.map { SVNode(entry: $0, parentPath: path) }
+        // The selected row is the same object the cursor holds; install there so refresh skips the sort.
+        if let live = inspectorNode(node.id) {
+            live.installChildren(kids)
+            applyInspectorOpen(live)
+        } else {
+            node.installChildren(kids)
+            applyInspectorOpen(node)
+        }
     }
 
     /// Goes up to the table around the one shown, selecting the one that was open.

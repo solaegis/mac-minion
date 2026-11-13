@@ -116,6 +116,8 @@ struct InspectorView: View {
                 } else if let pending = model.gameFolder.inspectorPendingFile, pending != model.gameFolder.inspectorFile {
                     // Never the last file's page under the new file's name.
                     WorkingView(text: model.gameFolder.inspectorActivity ?? "")
+                } else if model.gameFolder.inspectorOpeningTable {
+                    WorkingView(text: model.gameFolder.inspectorActivity ?? String(localized: "Opening table…"))
                 } else {
                     if let error = model.gameFolder.inspectorDocument?.error, model.gameFolder.inspectorFocus.isEmpty {
                         Label(error.endedEarly ? String(localized: "This file ends early: \(error.description). Everything before it is below.")
@@ -176,7 +178,9 @@ private struct InspectorStatus: View {
 
     var body: some View {
         // A file on its way in says so in the page itself.
-        if model.gameFolder.inspectorPendingFile == nil, let activity = model.gameFolder.inspectorActivity {
+        // File open and table open say so in the page itself.
+        if model.gameFolder.inspectorPendingFile == nil, !model.gameFolder.inspectorOpeningTable,
+           let activity = model.gameFolder.inspectorActivity {
             HStack(spacing: Space.sm) {
                 ProgressView().controlSize(.small)
                 Text(activity).font(.callout).foregroundStyle(.secondary).lineLimit(1)
@@ -292,7 +296,7 @@ private struct InspectorTable: View {
         .alternatingRowBackgrounds(.disabled)
         .contextMenu(forSelectionType: SVNode.ID.self) { ids in
             if let id = ids.first, let node = model.gameFolder.inspectorNode(id) {
-                if node.children != nil { Button("Open Table") { model.gameFolder.inspectorOpen(node) } }
+                if node.value.table != nil { Button("Open Table") { model.gameFolder.inspectorOpen(node) } }
                 if SVTarget.of(key: node.key, at: node.parentPath) != nil
                     || model.gameFolder.names.flatMap({ SVTarget.of(value: node.value, key: node.key, at: node.parentPath, names: $0) }) != nil {
                     Button("Find Everywhere") { Task { await model.gameFolder.findEverywhere(node) } }
@@ -390,7 +394,7 @@ struct InspectorCommands: View {
         let node = inspecting ? model.gameFolder.inspectorSelectedNode : nil
         Button("Open Table") { model.gameFolder.inspectorOpen() }
             .keyboardShortcut(.downArrow, modifiers: .command)
-            .disabled(node?.children == nil)
+            .disabled(node?.value.table == nil)
         Button("Enclosing Table") { model.gameFolder.inspectorEnclosing() }
             .keyboardShortcut(.upArrow, modifiers: .command)
             .disabled(!inspecting || model.gameFolder.inspectorFocus.isEmpty)

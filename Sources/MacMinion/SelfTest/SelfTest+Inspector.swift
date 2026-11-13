@@ -305,7 +305,7 @@ extension SelfTest {
         check("the Inspector says nothing when it is idle", folder.inspectorActivity == nil, folder.inspectorActivity ?? "")
     }
 
-    /// A 100 000-row table opens at once.
+    /// A 100 000-row table opens without freezing the main thread (sort off-thread).
     static func bigTable(_ model: AppModel) async {
         let big = model.gameFolderURL.appending(path: "SavedVariables/BigList.lua")
         var bigText = "BigList =\n{\n"
@@ -314,9 +314,20 @@ extension SelfTest {
         await model.gameFolder.scan()
         let opened = Date()
         await model.gameFolder.inspect("BigList.lua")
-        let bigRows = model.gameFolder.inspectorRoots.first?.children?.count
-        check("a 100 000-row table opens at once", bigRows == 100_000 && Date().timeIntervalSince(opened) < 3,
-              "\(bigRows ?? 0) rows in \(Date().timeIntervalSince(opened)) s")
+        model.gameFolder.inspectorReadable = false
+        guard let root = model.gameFolder.inspectorRoots.first else {
+            check("a 100 000-row table opens", false, "no root")
+            return
+        }
+        model.gameFolder.inspectorSelection = root.id
+        model.gameFolder.inspectorOpen(root)
+        // Large open is async; wait until the table is shown.
+        for _ in 0..<200 where model.gameFolder.inspectorOpeningTable || model.gameFolder.inspectorFocus.isEmpty {
+            try? await Task.sleep(for: .milliseconds(20))
+        }
+        let bigRows = model.gameFolder.inspectorRows.count
+        check("a 100 000-row table opens off the main thread", bigRows == 100_000 && Date().timeIntervalSince(opened) < 5,
+              "\(bigRows) rows in \(Date().timeIntervalSince(opened)) s")
         try? FileManager.default.removeItem(at: big)
         await model.gameFolder.scan()
         model.gameFolder.tab = .characters

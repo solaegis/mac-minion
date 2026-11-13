@@ -76,9 +76,33 @@ public final class SVNode: Identifiable {
 
     public static func id(_ path: [LuaKey]) -> String { path.map(\.description).joined(separator: "\u{1F}") }
 
-    public lazy var children: [SVNode]? = value.table.map { table in
-        let path = self.path
-        return table.entries.sorted { LuaKey.displayOrder($0.key, $1.key) }.map { SVNode(entry: $0, parentPath: path) }
+    /// Sorted child rows, built on first use. Nil when this entry is not a table.
+    public var children: [SVNode]? {
+        guard let table = value.table else { return nil }
+        if !didBuildChildren {
+            cachedChildren = Self.makeChildren(from: table, parentPath: path)
+            didBuildChildren = true
+        }
+        return cachedChildren
+    }
+    private var cachedChildren: [SVNode]?
+    private var didBuildChildren = false
+
+    /// True when this is not a table, or its children are already built (including via `installChildren`).
+    public var childrenReady: Bool { value.table == nil || didBuildChildren }
+
+    /// How many entries a table has before opening it off the main thread (~100 ms at ~80 000 rows).
+    public static let asyncChildrenThreshold = 8_000
+
+    /// Sorted child nodes for a table. Safe to call off the main actor.
+    public nonisolated static func makeChildren(from table: LuaTable, parentPath: [LuaKey]) -> [SVNode] {
+        table.entries.sorted { LuaKey.displayOrder($0.key, $1.key) }.map { SVNode(entry: $0, parentPath: parentPath) }
+    }
+
+    /// Installs children built elsewhere (e.g. a detached task) so the next read skips the sort.
+    public func installChildren(_ kids: [SVNode]) {
+        cachedChildren = kids
+        didBuildChildren = true
     }
 
     public var level: SVLevel? { SVLevel.of(key, at: parentPath) }

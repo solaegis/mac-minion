@@ -210,3 +210,66 @@ func incrementalRead() async throws {
     print(String(format: "BENCH   of which merging references: %.2f s", Date().timeIntervalSince(start)))
     withExtendedLifetime(read) {}
 }
+
+/// Times a cold open of the widest table (sort + SVNode children), without warming lazy children during the walk.
+///   MM_WIDEST=1 MM_REAL_SV=/tmp/mm-sv-copy swift test -c release --filter benchmarksWidestTableOpen
+@Test(.enabled(if: ProcessInfo.processInfo.environment["MM_WIDEST"] != nil))
+func benchmarksWidestTableOpen() throws {
+    let folder = URL(fileURLWithPath: ProcessInfo.processInfo.environment["MM_REAL_SV"]!)
+    let urls = try FileManager.default.contentsOfDirectory(at: folder, includingPropertiesForKeys: [.fileSizeKey])
+        .filter { $0.pathExtension == "lua" }
+    let biggest = urls.max(by: {
+        ((try? $0.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? 0) < ((try? $1.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? 0)
+    })!
+    let file = ProcessInfo.processInfo.environment["MM_BENCH_FILE"].map { folder.appending(path: $0) } ?? biggest
+    let doc = try SVDocument.read(file)
+    // Find the widest table by entry counts only — do not touch SVNode.children.
+    var widestPath: [LuaKey] = []
+    var widestCount = 0
+    func walk(_ entries: [LuaEntry], path: [LuaKey], depth: Int) {
+        for e in entries {
+            guard let t = e.value.table else { continue }
+            let next = path + [e.key]
+            if t.count > widestCount { widestCount = t.count; widestPath = next }
+            if depth < 8 { walk(t.entries, path: next, depth: depth + 1) }
+        }
+    }
+    walk(doc.variables, path: [], depth: 0)
+    print("WIDEST \(file.lastPathComponent) path=\(widestPath.luaPath) rows=\(widestCount)")
+    let roots = SVNode.roots(doc)
+    var cursor = SVTableCursor(roots: roots)
+    // Open the parent of the widest table without building the widest children yet.
+    guard let last = widestPath.last else { return }
+    let parentPath = Array(widestPath.dropLast())
+    cursor.focus = parentPath
+    // Cold: time building children for the widest row (first .children access).
+    let parentRows = cursor.rows
+    guard let node = parentRows.first(where: { $0.key == last }) ?? (parentPath.isEmpty ? roots.first(where: { $0.key == last }) : nil) else {
+        Issue.record("widest node missing"); return
+    }
+    let t0 = Date()
+    let kids = node.children ?? []
+    let ms = Date().timeIntervalSince(t0) * 1000
+    print(String(format: "WIDEST children %d rows in %.1f ms", kids.count, ms))
+    #expect(kids.count == widestCount)
+    // Also time assigning focus to that table via cursor.refresh (uses cached children after first touch).
+    let t1 = Date()
+    cursor.focus = widestPath
+    let refreshMs = Date().timeIntervalSince(t1) * 1000
+    print(String(format: "WIDEST refresh after warm %.1f ms, rows %d", refreshMs, cursor.rows.count))
+}
+
+@Test(.enabled(if: ProcessInfo.processInfo.environment["MM_ADR_ORDER"] != nil))
+func actionDurationReminderSectionOrder() throws {
+    let path = ProcessInfo.processInfo.environment["MM_ADR_ORDER"]!
+    let doc = try SVDocument.read(URL(fileURLWithPath: path))
+    let sections = SVReadable.sheet(doc.variables, at: [], title: "ActionDurationReminder", names: nil, source: nil)
+    let groups = SVReadable.grouped(sections)
+    print("ADR groups: \(groups.map { "\($0.title ?? "nil") [\($0.sections.map(\.title).joined(separator: ", "))]" })")
+    #expect(groups.count == 2)
+    #expect(groups[0].sections.first?.title == SVLevel.everyCharacter)
+    #expect(groups[1].sections.first?.title == SVLevel.everyCharacter)
+    // First-seen account order in this file.
+    #expect(groups.map(\.title) == ["Default · @vavasour", "Default · @SOLAEGIS"]
+            || groups.map(\.title) == ["Default · @SOLAEGIS", "Default · @vavasour"])
+}

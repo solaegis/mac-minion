@@ -57,6 +57,10 @@ final class GameFolderModel {
     var inspectorFile: String?
     /// The file being opened, from the click until it is parsed: the list selects it at once.
     var inspectorPendingFile: String?
+    /// True while a wide table's rows are sorting off the main thread for Tree mode.
+    var inspectorOpeningTable = false
+    /// Bumps when a newer large-table open starts, so an older one does not apply.
+    @ObservationIgnored var inspectorOpenGeneration = 0
     /// What background work the Inspector is doing, in words, for its status line.
     var inspectorStatus: String?
     /// Read only for Show Raw and Copy Value, never by a view's body.
