@@ -99,6 +99,8 @@ Rows keep only what the running game knows, and leave out defaults. Title, versi
 
 From `EVENT_LUA_ERROR`. The addon is taken from the `user:/AddOns/<name>/` path in the message. Repeats of the same message add to `count` instead of a new row. At most 50 rows, newest kept; messages cut at 500 characters.
 
+MacMinion merges `errors` across every `$AccountWide` block (dedupe by addon + message). Problems only lists errors from the last seven days; ones from the latest companion logout say "last session", older ones get a relative date. The headline uses the first line of the message; the full stack stays as detail when the row is expanded.
+
 **Unlocks:** Problems gains "WizardsWardrobe threw 12 errors last session", with the message and a link to the addon's ESOUI comments, and the error count shows on its Installed row. This is the most useful thing a player can't easily see today.
 
 ### 5. Performance (`perf`), sampled every 60 seconds out of combat
@@ -171,6 +173,7 @@ What files cannot tell: which addon called which `ZO_SavedVars` constructor, and
 - **Bundled with MacMinion.** Settings > General > "Install ESO Mac Minion" copies `EsoMacMinion` into AddOns. Recommended for You lists it when the folder is missing. It can also go on ESOUI later. Until then, install from the app or from `~/git/solaegis/eso-mac-minion` with `task install:live`.
 - **File names.** The game writes `SavedVariables/EsoMacMinion.lua`. MacMinion also reads `EsoMacMinion_Data.lua`. The variable inside is always `EsoMacMinion_Data`.
 - **A new name source:** answers and the roster rank above LibSets, LibZone, and LibQuestData; UESP becomes a fallback link only.
+- **Newest block:** `written`, `env`, `layoutScan`, and preferred `layouts` come from the `$AccountWide` with the highest `written` stamp (not file order). Layout rows missing there are filled from older blocks; errors are merged across blocks.
 - **Freshness everywhere:** every value that comes from the companion says when it was recorded. If the snapshot is older than the newest file in SavedVariables, MacMinion says "log in once to refresh".
 - **Schema check:** an unknown `schema` makes MacMinion skip the sections it can't read and say which.
 

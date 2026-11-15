@@ -294,6 +294,10 @@ private struct ProblemRow<Action: View>: View {
                     Text(where_).foregroundStyle(.secondary).lineLimit(1).truncationMode(.middle)
                 }
                 Text(problem.message).font(.callout).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+                if let detail = problem.detail {
+                    Text(detail).font(.caption).foregroundStyle(.tertiary).textSelection(.enabled)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
             }
             Spacer(minLength: Space.md)
             action()

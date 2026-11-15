@@ -547,6 +547,7 @@ private struct Builder {
             case (.longList, _): String(localized: "\(title(ofAddon: owner(ofFile: p.file))) keeps a long list", bundle: .module)
             default: p.kind.title
             }
+            // Headline stays short; multiline Lua stacks live on the problem's detail when expanded.
             add(.single, key: p.id, tier: tier, certainty: p.kind == .luaError && folder == nil ? .likely : .certain,
                 title: heading, impact: p.message, affected: affected, action: action, indices: [i], characters: on)
         }

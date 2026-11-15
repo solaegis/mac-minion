@@ -317,12 +317,22 @@ public enum CompanionData {
                 guard let at = error.at else { return String(localized: "last session", bundle: .module) }
                 return at.formatted(.relative(presentation: .named, unitsStyle: .spellOut))
             }()
+            let headline = errorFirstLine(error.message)
+            var problem = SVProblem(file: file, path: [.string(variable), .string("errors"), .integer(Int64(index + 1))],
+                                    kind: .luaError, severity: error.count >= 5 ? .error : .warning,
+                                    message: String(localized: "\(name) threw Lua errors \(times) \(when).", bundle: .module) + " " + headline)
+                .with(addon: error.addon)
+            if headline != error.message { problem.detail = error.message }
             // The error's place in the list, so every error has its own id and opens at its own entry.
-            out.append(SVProblem(file: file, path: [.string(variable), .string("errors"), .integer(Int64(index + 1))],
-                                 kind: .luaError, severity: error.count >= 5 ? .error : .warning,
-                                 message: String(localized: "\(name) threw Lua errors \(times) \(when).", bundle: .module) + " " + error.message).with(addon: error.addon))
+            out.append(problem)
         }
         return out
+    }
+
+    /// First line of a Lua error string (before stack / Locals), trimmed.
+    public static func errorFirstLine(_ message: String) -> String {
+        let line = message.split(whereSeparator: \.isNewline).first.map(String.init) ?? message
+        return line.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     // MARK: Parse

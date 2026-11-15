@@ -46,6 +46,8 @@ public struct SVProblem: Sendable, Identifiable, Equatable {
     public let severity: Severity
     /// One or two sentences: what is wrong and what it means.
     public let message: String
+    /// Longer text kept off the headline (e.g. a full Lua stack). Nil when `message` is enough.
+    public var detail: String? = nil
     /// For a file not in use: the file or folder to move to the Trash, and its size.
     public var url: URL?
     public var bytes: Int64 = 0

@@ -191,6 +191,29 @@ EsoMacMinion_Data =
     #expect(snap.errors.contains { $0.addon == "EUOnly" })
 }
 
+@Test func companionProblemsUseTheFirstLineOfALuaErrorAndKeepTheRestAsDetail() throws {
+    let stack = "user:/AddOns/Boom/a.lua:1: nil value\nstack traceback:\n\t[C]: in function\n<Locals> x = 1"
+    let lua = """
+    EsoMacMinion_Data =
+    {
+        ["NA Megaserver"] = { ["@SOLAEGIS"] = { ["$AccountWide"] = {
+            ["schema"] = 1, ["written"] = \(companionTestStamp),
+            ["errors"] = {
+                [1] = { ["addon"] = "Boom", ["at"] = \(companionTestStamp), ["count"] = 1,
+                        ["message"] = "user:/AddOns/Boom/a.lua:1: nil value\\nstack traceback:\\n\\t[C]: in function\\n<Locals> x = 1" },
+            },
+        } } },
+    }
+    """
+    let snap = try #require(CompanionData.snapshot(SVDocument.parse(Data(lua.utf8))))
+    #expect(snap.errors.first?.message.contains("stack traceback") == true)
+    let problem = try #require(CompanionData.problems(from: snap, now: companionTestNow).first { $0.kind == .luaError })
+    #expect(problem.message.contains("user:/AddOns/Boom/a.lua:1: nil value"))
+    #expect(!problem.message.contains("stack traceback"))
+    #expect(problem.detail?.contains("stack traceback") == true)
+    #expect(CompanionData.errorFirstLine(stack) == "user:/AddOns/Boom/a.lua:1: nil value")
+}
+
 @Test func companionProblemsHideErrorsOlderThanSevenDaysAndDateOlderOnes() throws {
     let staleAt = companionTestStamp - Int(8 * 24 * 3600)
     let olderSessionAt = companionTestStamp - Int(2 * 24 * 3600)
