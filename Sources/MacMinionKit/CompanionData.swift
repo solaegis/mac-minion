@@ -14,6 +14,11 @@ public struct CompanionCharacter: Sendable, Equatable {
     public let level: Int?
     public let champion: Int?
     public let lastPlayed: Date?
+    /// Zone for the character that was logged in when the companion wrote (from GetZoneId).
+    public var zoneId: Int? = nil
+    public var zoneName: String? = nil
+    /// GetCharacterInfo location ID for roster rows (not a zone ID).
+    public var locationId: Int? = nil
     /// Every name this ID has had, with when the companion first saw it. Two or more means a rename.
     public var names: [String: Date] = [:]
 
@@ -351,7 +356,9 @@ public enum CompanionData {
             var character = CompanionCharacter(id: id, name: name, server: server, account: account,
                                                classID: int(c["class"]), raceID: int(c["race"]), alliance: int(c["alliance"]),
                                                level: int(c["level"]), champion: int(c["champion"]),
-                                               lastPlayed: int(c["lastPlayed"]).map { Date(timeIntervalSince1970: TimeInterval($0)) })
+                                               lastPlayed: int(c["lastPlayed"]).map { Date(timeIntervalSince1970: TimeInterval($0)) },
+                                               zoneId: int(c["zoneId"]), zoneName: c["zoneName"]?.string,
+                                               locationId: int(c["locationId"]))
             for seen in c["names"]?.table?.entries ?? [] {
                 guard case .string(let old) = seen.key else { continue }
                 character.names[old] = Date(timeIntervalSince1970: TimeInterval(int(seen.value) ?? 0))
