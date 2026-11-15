@@ -4,6 +4,10 @@ What changed in each MacMinion release. The newest is first.
 
 ## Unreleased
 
+- Guard every Lua SavedVariables write: re-parse before replace, refuse edits that change unexpected keys, refuse if the file changed since it was read, and keep one `*.lua.macminion.bak` beside the file. Companion request writes and Compare Clone share this path; refusals show on the Game Folder banner.
+- Detect Elder Scrolls Online under CrossOver/Wine via `eso64.exe` on the process command line (not Steam or the Bethesda launcher alone), so MacMinion does not write companion requests while the game is up.
+- Companion `lookups.requests` updates re-check that the spliced file still parses and that only those request paths changed (regression coverage for the 2026-11-14 EsoMacMinion.lua corruption report).
+
 ## 0.6.0 — 2026-11-11
 
 - Polish after 0.5: OpenAI beside Ollama and Claude; Light, Dark, or Match System; Installed and Find More without quitting; community docs and GitHub templates; Buy Me a Coffee; UI in English, German, French, Spanish, and Russian; About and the docs credit Minion and the addon authors; the macminion skill loads cleanly.

@@ -1,5 +1,27 @@
 # Fix log
 
+## 2026-11-14 — Companion SavedVariables write left EsoMacMinion.lua unparsable
+
+At 16:28 only `EsoMacMinion.lua` changed (ESO saves all addon SV files together, so the
+game did not write it). `lookups.requests.svGlobals` grew 122→123, matching
+`CompanionRequests.write` while `!gameIsRunning`. Damage was outside `requests`: an
+`errors[1]` entry lost indent and the closers for `errors` / `$AccountWide` / `@account`
+vanished, so Lua failed with `'}' expected … near <eof>` and logout wiped other megaserver
+blocks. The only string with `\"` and `<Locals>` sat at the end of that block (500-byte clip).
+
+`CompanionRequests.apply` on a four-block fixture with that message shape (replace, insert
+requests, insert lookups, CRLF, UTF-8) does **not** reproduce the missing closers; the live
+file also survives apply. Cause of the exact byte damage was not reproduced in-process.
+
+Hardening anyway: `apply` re-parses and refuses if anything but `lookups`/`requests` changed;
+every Lua SV write goes through `SavedVariablesWrite` (parse, allowlisted path diff, stamp
+check, `*.lua.macminion.bak`, atomic); refusals surface on the Game Folder banner; CrossOver
+`eso64.exe` is detected via process command lines so writes do not run while Wine has the
+client up even when `NSRunningApplication` does not.
+
+Rule: Never write SavedVariables bytes you have not re-parsed; never overwrite a file that
+changed since you read it; keep one backup beside the file.
+
 ## 2026-11-14 — File undo could overwrite newer files and claimed success when it failed
 
 Found in the undo review. Edit › Undo for Save Game Settings and Copy Settings wrote the old bytes with
