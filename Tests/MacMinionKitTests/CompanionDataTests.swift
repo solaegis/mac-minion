@@ -2,14 +2,18 @@ import Foundation
 import Testing
 @testable import MacMinionKit
 
+/// Fixed clock for companion age tests (Nov 2026); fixture stamps sit near this.
+private let companionTestNow = Date(timeIntervalSince1970: 1_794_706_243)
+private let companionTestStamp = 1_794_706_243
+
 private let schema1 = """
 EsoMacMinion_Data =
 {
     ["NA Megaserver"] = { ["@SOLAEGIS"] = { ["$AccountWide"] = {
-        ["schema"] = 1, ["written"] = 1793288692,
+        ["schema"] = 1, ["written"] = \(companionTestStamp),
         ["env"] = { ["apiVersion"] = 101051, ["gameVersion"] = "12.1.6", ["server"] = "NA Megaserver", ["companionVersion"] = "0.1.0" },
         ["characters"] = {
-            ["8796093036412335"] = { ["name"] = "Masisi", ["class"] = 3, ["race"] = 9, ["level"] = 50, ["champion"] = 2410, ["lastPlayed"] = 1793288692 },
+            ["8796093036412335"] = { ["name"] = "Masisi", ["class"] = 3, ["race"] = 9, ["level"] = 50, ["champion"] = 2410, ["lastPlayed"] = \(companionTestStamp) },
         },
         ["addons"] = {
             ["WritWorthy"] = { ["title"] = "WritWorthy", ["enabled"] = true, ["state"] = "loaded", ["outOfDate"] = false, ["loadMs"] = 1500 },
@@ -17,7 +21,7 @@ EsoMacMinion_Data =
             ["OldOne"] = { ["title"] = "Old One", ["enabled"] = true, ["state"] = "loaded", ["outOfDate"] = true },
         },
         ["errors"] = {
-            [1] = { ["addon"] = "WizardsWardrobe", ["at"] = 1793288692, ["count"] = 12, ["message"] = "user:/AddOns/WizardsWardrobe/ui.lua:212: attempt to index a nil value" },
+            [1] = { ["addon"] = "WizardsWardrobe", ["at"] = \(companionTestStamp), ["count"] = 12, ["message"] = "user:/AddOns/WizardsWardrobe/ui.lua:212: attempt to index a nil value" },
         },
         ["guilds"] = {
             ["127263"] = { ["name"] = "Bandits Clan", ["members"] = 487, ["server"] = "NA Megaserver" },
@@ -54,15 +58,16 @@ EsoMacMinion_Data =
 
 @Test func companionProblemsCoverLoadFailuresAndLuaErrors() throws {
     let snap = try #require(CompanionData.snapshot(SVDocument.parse(Data(schema1.utf8))))
-    let problems = CompanionData.problems(from: snap)
+    let problems = CompanionData.problems(from: snap, now: companionTestNow)
     #expect(problems.contains { $0.kind == .didntLoad && $0.message.contains("LibLazyCrafting") })
     #expect(problems.contains { $0.kind == .outOfDateAddon && $0.message.contains("Old One") })
     #expect(problems.contains { $0.kind == .luaError && $0.message.contains("WizardsWardrobe") && $0.severity == .error })
+    #expect(problems.contains { $0.kind == .luaError && $0.message.contains("last session") })
 }
 
 @Test func companionProblemsNameTheirAddon() throws {
     let snap = try #require(CompanionData.snapshot(SVDocument.parse(Data(schema1.utf8))))
-    let problems = CompanionData.problems(from: snap)
+    let problems = CompanionData.problems(from: snap, now: companionTestNow)
     func addon(_ kind: SVProblem.Kind) -> String? { problems.first { $0.kind == kind }?.addon }
     #expect(addon(.didntLoad) == "BrokenOne")
     #expect(addon(.outOfDateAddon) == "OldOne")
@@ -184,4 +189,29 @@ EsoMacMinion_Data =
     let shared = try #require(snap.errors.first { $0.addon == "SharedAddon" })
     #expect(shared.count == 5 && shared.at == Date(timeIntervalSince1970: 1_794_706_243))
     #expect(snap.errors.contains { $0.addon == "EUOnly" })
+}
+
+@Test func companionProblemsHideErrorsOlderThanSevenDaysAndDateOlderOnes() throws {
+    let staleAt = companionTestStamp - Int(8 * 24 * 3600)
+    let olderSessionAt = companionTestStamp - Int(2 * 24 * 3600)
+    let lua = """
+    EsoMacMinion_Data =
+    {
+        ["NA Megaserver"] = { ["@SOLAEGIS"] = { ["$AccountWide"] = {
+            ["schema"] = 1, ["written"] = \(companionTestStamp),
+            ["errors"] = {
+                [1] = { ["addon"] = "Fresh", ["at"] = \(companionTestStamp), ["count"] = 1, ["message"] = "fresh boom" },
+                [2] = { ["addon"] = "Recent", ["at"] = \(olderSessionAt), ["count"] = 2, ["message"] = "recent boom" },
+                [3] = { ["addon"] = "Ancient", ["at"] = \(staleAt), ["count"] = 9, ["message"] = "ancient boom" },
+            },
+        } } },
+    }
+    """
+    let snap = try #require(CompanionData.snapshot(SVDocument.parse(Data(lua.utf8))))
+    #expect(snap.errors.count == 3)
+    let problems = CompanionData.problems(from: snap, now: companionTestNow)
+    #expect(problems.filter { $0.kind == .luaError }.count == 2)
+    #expect(problems.contains { $0.kind == .luaError && $0.message.contains("Fresh") && $0.message.contains("last session") })
+    #expect(problems.contains { $0.kind == .luaError && $0.message.contains("Recent") && !$0.message.contains("last session") })
+    #expect(!problems.contains { $0.message.contains("Ancient") })
 }

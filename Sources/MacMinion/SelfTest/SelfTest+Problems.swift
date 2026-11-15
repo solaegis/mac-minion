@@ -22,6 +22,8 @@ extension SelfTest {
         check("companion Lua errors appear in Problems",
               problem(CompanionData.fileName, .luaError)?.message.contains("WizardsWardrobe") == true
               && problem(CompanionData.fileName, .luaError)?.message.contains("12") == true)
+        check("companion Lua errors older than seven days stay out of Problems",
+              !problems.contains { $0.file == CompanionData.fileName && $0.kind == .luaError && $0.message.contains("StaleAddon") })
         check("an addon that didn't load is a problem",
               problem(CompanionData.fileName, .didntLoad)?.message.contains("LibLazyCrafting") == true)
         // S-052 Health in plain words: one finding per cause, every raw problem in exactly one.

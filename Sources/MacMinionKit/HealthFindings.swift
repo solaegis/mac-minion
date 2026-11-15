@@ -248,7 +248,14 @@ private struct Builder {
     }
 
     func luaErrorCount(_ folders: Set<String>) -> Int {
-        context.companion?.errors.filter { $0.addon.map { folders.contains(Self.key($0)) } ?? false }.reduce(0) { $0 + $1.count } ?? 0
+        CompanionData.recentErrors(in: context.companion)
+            .filter { $0.addon.map { folders.contains(Self.key($0)) } ?? false }
+            .reduce(0) { $0 + $1.count }
+    }
+
+    func luaErrorSummary(_ count: Int) -> String? {
+        guard count > 0 else { return nil }
+        return String(localized: "\(count) Lua errors.", bundle: .module)
     }
 
     // MARK: 1. Missing libraries
@@ -327,7 +334,7 @@ private struct Builder {
             add(.missingLibraries, key: libKeys.joined(separator: "+"), tier: .broken,
                 certainty: entries.allSatisfy(\.manifest) ? .certain : .likely,
                 title: heading, impact: impact,
-                summary: errors > 0 ? String(localized: "\(errors) Lua errors last session.", bundle: .module) : nil,
+                summary: luaErrorSummary(errors),
                 affected: folders.map { .addon(title(ofAddon: $0)) },
                 action: action, indices: indices, folders: folders, characters: characters(for: folders))
         }
@@ -351,7 +358,7 @@ private struct Builder {
                 ? String(localized: "It doesn't load in game.", bundle: .module)
                 : String(localized: "It throws Lua errors in game.", bundle: .module)
             let summary = libStub ? String(localized: "It still needs LibStub, which the game no longer has.", bundle: .module)
-                : errors > 0 ? String(localized: "\(errors) Lua errors last session.", bundle: .module) : nil
+                : luaErrorSummary(errors)
             add(.outOfDateAddon, key: k, tier: .broken, title: String(localized: "\(title(ofAddon: folder)) is out of date", bundle: .module),
                 impact: impact, summary: summary,
                 affected: [.addon(title(ofAddon: folder))],

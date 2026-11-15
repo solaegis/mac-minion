@@ -258,8 +258,30 @@ public enum CompanionData {
         return snapshot
     }
 
-    /// Load failures, out-of-date addons, and Lua errors from the last session.
-    public static func problems(from snapshot: CompanionSnapshot) -> [SVProblem] {
+    /// Lua errors older than this are omitted from Problems (still present on the snapshot).
+    public static let errorMaxAge: TimeInterval = 7 * 24 * 3600
+    /// An error within this of `written` counts as the latest logout session.
+    public static let errorSessionWindow: TimeInterval = 24 * 3600
+
+    /// Errors young enough to show in Problems / HealthFindings.
+    public static func recentErrors(in snapshot: CompanionSnapshot?, now: Date = .now) -> [CompanionError] {
+        guard let snapshot else { return [] }
+        return snapshot.errors.filter { isRecentError($0, now: now) }
+    }
+
+    public static func isRecentError(_ error: CompanionError, now: Date = .now) -> Bool {
+        guard let at = error.at else { return true }
+        return now.timeIntervalSince(at) <= errorMaxAge
+    }
+
+    public static func isSameSession(_ error: CompanionError, written: Date?) -> Bool {
+        guard let at = error.at, let written else { return true }
+        let lag = written.timeIntervalSince(at)
+        return lag >= 0 && lag < errorSessionWindow
+    }
+
+    /// Load failures, out-of-date addons, and recent Lua errors.
+    public static func problems(from snapshot: CompanionSnapshot, now: Date = .now) -> [SVProblem] {
         var out: [SVProblem] = []
         let file = snapshot.file
         if !snapshot.schemaKnown {
@@ -285,13 +307,20 @@ public enum CompanionData {
                                      message: String(localized: "\(addon.title ?? addon.name) took \(seconds.formatted(.number.precision(.fractionLength(1)))) s to load last login.", bundle: .module)).with(addon: addon.name))
             }
         }
-        for (index, error) in snapshot.errors.enumerated() {
+        for (index, error) in snapshot.errors.enumerated() where isRecentError(error, now: now) {
             let name = error.addon ?? String(localized: "An addon", bundle: .module)
             let times = error.count == 1 ? String(localized: "once", bundle: .module) : String(localized: "\(error.count) times", bundle: .module)
+            let when: String = {
+                if isSameSession(error, written: snapshot.written) {
+                    return String(localized: "last session", bundle: .module)
+                }
+                guard let at = error.at else { return String(localized: "last session", bundle: .module) }
+                return at.formatted(.relative(presentation: .named, unitsStyle: .spellOut))
+            }()
             // The error's place in the list, so every error has its own id and opens at its own entry.
             out.append(SVProblem(file: file, path: [.string(variable), .string("errors"), .integer(Int64(index + 1))],
                                  kind: .luaError, severity: error.count >= 5 ? .error : .warning,
-                                 message: String(localized: "\(name) threw Lua errors \(times) last session.", bundle: .module) + " " + error.message).with(addon: error.addon))
+                                 message: String(localized: "\(name) threw Lua errors \(times) \(when).", bundle: .module) + " " + error.message).with(addon: error.addon))
         }
         return out
     }

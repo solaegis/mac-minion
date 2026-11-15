@@ -533,30 +533,124 @@
         }
       }
     },
-    "%@ threw Lua errors %@ last session.": {
+    "%@ threw Lua errors %@ %@.": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "%@ hat in der letzten Sitzung %@ Lua-Fehler ausgelöst."
+            "value": "%@ hat %@ Lua-Fehler ausgelöst %@."
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "%@ lanzó errores de Lua %@ en la última sesión."
+            "value": "%@ lanzó errores de Lua %@ %@."
           }
         },
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "%@ a provoqué des erreurs Lua %@ lors de la dernière session."
+            "value": "%@ a provoqué des erreurs Lua %@ %@."
           }
         },
         "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "%@ вызвал ошибки Lua %@ в прошлой сессии."
+            "value": "%@ вызвал ошибки Lua %@ %@."
+          }
+        }
+      }
+    },
+    "%lld Lua errors.": {
+      "localizations": {
+        "en": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld Lua error."
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld Lua errors."
+                }
+              }
+            }
+          }
+        },
+        "de": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld Lua-Fehler."
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld Lua-Fehler."
+                }
+              }
+            }
+          }
+        },
+        "es": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld error de Lua."
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld errores de Lua."
+                }
+              }
+            }
+          }
+        },
+        "fr": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld erreur Lua."
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld erreurs Lua."
+                }
+              }
+            }
+          }
+        },
+        "ru": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld ошибка Lua."
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld ошибки Lua."
+                }
+              }
+            }
           }
         }
       }
@@ -781,112 +875,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "%@; комплект из LibSets"
-          }
-        }
-      }
-    },
-    "%lld Lua errors last session.": {
-      "localizations": {
-        "en": {
-          "variations": {
-            "plural": {
-              "one": {
-                "stringUnit": {
-                  "state": "translated",
-                  "value": "%lld Lua error last session."
-                }
-              },
-              "other": {
-                "stringUnit": {
-                  "state": "translated",
-                  "value": "%lld Lua errors last session."
-                }
-              }
-            }
-          }
-        },
-        "de": {
-          "variations": {
-            "plural": {
-              "one": {
-                "stringUnit": {
-                  "state": "translated",
-                  "value": "%lld Lua-Fehler in der letzten Sitzung."
-                }
-              },
-              "other": {
-                "stringUnit": {
-                  "state": "translated",
-                  "value": "%lld Lua-Fehler in der letzten Sitzung."
-                }
-              }
-            }
-          }
-        },
-        "es": {
-          "variations": {
-            "plural": {
-              "one": {
-                "stringUnit": {
-                  "state": "translated",
-                  "value": "%lld error de Lua en la última sesión."
-                }
-              },
-              "other": {
-                "stringUnit": {
-                  "state": "translated",
-                  "value": "%lld errores de Lua en la última sesión."
-                }
-              }
-            }
-          }
-        },
-        "fr": {
-          "variations": {
-            "plural": {
-              "one": {
-                "stringUnit": {
-                  "state": "translated",
-                  "value": "%lld erreur Lua lors de la dernière session."
-                }
-              },
-              "other": {
-                "stringUnit": {
-                  "state": "translated",
-                  "value": "%lld erreurs Lua lors de la dernière session."
-                }
-              }
-            }
-          }
-        },
-        "ru": {
-          "variations": {
-            "plural": {
-              "one": {
-                "stringUnit": {
-                  "state": "translated",
-                  "value": "%lld ошибка Lua за прошлый сеанс."
-                }
-              },
-              "few": {
-                "stringUnit": {
-                  "state": "translated",
-                  "value": "%lld ошибки Lua за прошлый сеанс."
-                }
-              },
-              "many": {
-                "stringUnit": {
-                  "state": "translated",
-                  "value": "%lld ошибок Lua за прошлый сеанс."
-                }
-              },
-              "other": {
-                "stringUnit": {
-                  "state": "translated",
-                  "value": "%lld ошибки Lua за прошлый сеанс."
-                }
-              }
-            }
           }
         }
       }
@@ -8812,6 +8800,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "«%@» — не число"
+          }
+        }
+      }
+    },
+    "last session": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "letzte Sitzung"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "última sesión"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "dernière session"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "прошлая сессия"
           }
         }
       }

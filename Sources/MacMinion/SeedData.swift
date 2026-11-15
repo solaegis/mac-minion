@@ -434,6 +434,9 @@ enum SeedData {
         }
         """#))
         // MacMinion Companion snapshot (S-042, S-043, S-049): roster, addon states, a Lua error, and a guild.
+        // Stamp written/error `at` to seed time so Problems age filtering still shows the sample error.
+        let companionStamp = Int(Date.now.timeIntervalSince1970)
+        let staleErrorAt = companionStamp - Int(10 * 24 * 3600)
         all.append((sv.appending(path: CompanionData.fileName), """
         EsoMacMinion_Data =
         {
@@ -445,11 +448,11 @@ enum SeedData {
                     {
                         ["version"] = 1,
                         ["schema"] = 1,
-                        ["written"] = 1793288692,
+                        ["written"] = \(companionStamp),
                         ["env"] = { ["apiVersion"] = 101051, ["gameVersion"] = "12.1.6", ["server"] = "NA Megaserver", ["language"] = "en", ["companionVersion"] = "0.1.0" },
                         ["characters"] =
                         {
-                            ["8796093036412335"] = { ["name"] = "Masisi", ["class"] = 3, ["race"] = 9, ["alliance"] = 1, ["level"] = 50, ["champion"] = 2410, ["lastPlayed"] = 1793288692 },
+                            ["8796093036412335"] = { ["name"] = "Masisi", ["class"] = 3, ["race"] = 9, ["alliance"] = 1, ["level"] = 50, ["champion"] = 2410, ["lastPlayed"] = \(companionStamp) },
                             ["8798292071293572"] = { ["name"] = "Alpha Top", ["class"] = 6, ["race"] = 7, ["alliance"] = 3, ["level"] = 50 },
                         },
                         ["addons"] =
@@ -461,7 +464,8 @@ enum SeedData {
                         },
                         ["errors"] =
                         {
-                            [1] = { ["addon"] = "WizardsWardrobe", ["at"] = 1793288692, ["count"] = 12, ["message"] = "user:/AddOns/WizardsWardrobe/ui.lua:212: attempt to index a nil value" },
+                            [1] = { ["addon"] = "WizardsWardrobe", ["at"] = \(companionStamp), ["count"] = 12, ["message"] = "user:/AddOns/WizardsWardrobe/ui.lua:212: attempt to index a nil value" },
+                            [2] = { ["addon"] = "StaleAddon", ["at"] = \(staleErrorAt), ["count"] = 3, ["message"] = "user:/AddOns/StaleAddon/old.lua:1: stale" },
                         },
                         ["guilds"] =
                         {
@@ -469,8 +473,8 @@ enum SeedData {
                         },
                         ["enabledBy"] =
                         {
-                            ["8796093036412335"] = { ["at"] = 1793288692, ["disabled"] = { } },
-                            ["8798292071293572"] = { ["at"] = 1793288000, ["disabled"] = { [1] = "WizardsWardrobe" } },
+                            ["8796093036412335"] = { ["at"] = \(companionStamp), ["disabled"] = { } },
+                            ["8798292071293572"] = { ["at"] = \(companionStamp - 692), ["disabled"] = { [1] = "WizardsWardrobe" } },
                         },
                     },
                 },

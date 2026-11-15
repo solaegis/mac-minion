@@ -23,11 +23,12 @@ private func library(_ folder: String, wantedBy: [String], required: Bool = true
 
 /// A companion snapshot from Lua table bodies for `addons`, `errors`, and `enabledBy`.
 private func companion(addons: String, errors: String = "", enabledBy: String = "") throws -> CompanionSnapshot {
+    let stamp = Int(Date.now.timeIntervalSince1970)
     let lua = """
     EsoMacMinion_Data =
     {
         ["NA Megaserver"] = { ["@ME"] = { ["$AccountWide"] = {
-            ["schema"] = 1, ["written"] = 1793288692,
+            ["schema"] = 1, ["written"] = \(stamp),
             ["characters"] = {
                 ["8796093036412335"] = { ["name"] = "Masisi", ["level"] = 50 },
                 ["8796093036412336"] = { ["name"] = "Alpha Top", ["level"] = 50 },
