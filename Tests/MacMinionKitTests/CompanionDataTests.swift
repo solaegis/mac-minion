@@ -331,3 +331,41 @@ EsoMacMinion_Data =
     #expect(names.itemName(id: 96175, link: nil)?.source != "MacMinion Companion")
     #expect(names.title(for: SVTarget(.achievement, "3")) == nil)
 }
+
+@Test func luaErrorProblemsOpenAtTheirNewestOccurrenceInTheFile() throws {
+    let lua = """
+    EsoMacMinion_Data =
+    {
+        ["EU Megaserver"] = { ["@SOLAEGIS"] = { ["$AccountWide"] = {
+            ["schema"] = 1, ["written"] = \(companionTestStamp),
+            ["errors"] = {
+                [1] = { ["addon"] = "Newer", ["at"] = \(companionTestStamp), ["count"] = 1, ["message"] = "newer boom" },
+                [2] = { ["addon"] = "Shared", ["at"] = \(companionTestStamp - 600), ["count"] = 1, ["message"] = "shared boom" },
+            },
+        } } },
+        ["NA Megaserver"] = { ["@SOLAEGIS"] = { ["$AccountWide"] = {
+            ["schema"] = 1, ["written"] = \(companionTestStamp - 3600),
+            ["errors"] = {
+                [1] = { ["addon"] = "Shared", ["at"] = \(companionTestStamp - 300), ["count"] = 2, ["message"] = "shared boom" },
+                [2] = { ["addon"] = "SecondOnly", ["at"] = \(companionTestStamp - 3600), ["count"] = 1, ["message"] = "second boom" },
+            },
+        } } },
+    }
+    """
+    let doc = SVDocument.parse(Data(lua.utf8))
+    let snap = try #require(CompanionData.snapshot(doc))
+    let problems = CompanionData.problems(from: snap, now: companionTestNow).filter { $0.kind == .luaError }
+    func path(_ addon: String) -> [LuaKey]? { problems.first { $0.addon == addon }?.path }
+    let na: [LuaKey] = [.string(CompanionData.variable), .string("NA Megaserver"), .string("@SOLAEGIS"), .string("$AccountWide"), .string("errors")]
+    #expect(path("SecondOnly") == na + [.integer(2)])
+    // Shared was last thrown in the older block's row.
+    #expect(path("Shared") == na + [.integer(1)])
+    #expect(path("Newer")?[1] == .string("EU Megaserver"))
+    // Each path names the error's own row.
+    for problem in problems {
+        var value: LuaValue? = doc[CompanionData.variable]
+        for key in problem.path.dropFirst() { value = value?.table?.entries.first { $0.key == key }?.value }
+        let message = try #require(value?.table?["message"]?.string)
+        #expect(problem.message.contains(message))
+    }
+}

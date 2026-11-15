@@ -106,6 +106,9 @@ public struct CompanionError: Sendable, Equatable {
     public let count: Int
     public let character: String?
     public let message: String
+    /// Where its newest occurrence is in the file, variable first (server, account, `$AccountWide`,
+    /// `errors`, index), as the Inspector opens it. Empty when not read from a file.
+    public var path: [LuaKey] = []
 }
 
 public struct CompanionGuild: Sendable, Equatable {
@@ -220,11 +223,12 @@ public enum CompanionData {
     public static func snapshot(_ doc: SVDocument, file: String = fileName) -> CompanionSnapshot? {
         guard let root = doc[variable]?.table else { return nil }
         // Collect every $AccountWide so written/env/layouts come from the newest logout, not file order.
-        var blocks: [(stamp: Int, server: String, account: String, wide: LuaTable)] = []
+        var blocks: [(stamp: Int, server: String, account: String, path: [LuaKey], wide: LuaTable)] = []
         for server in root.entries {
             for account in server.value.table?.entries ?? [] {
                 guard let wide = account.value.table?["$AccountWide"]?.table else { continue }
-                blocks.append((int(wide["written"]) ?? 0, server.key.description, account.key.description, wide))
+                blocks.append((int(wide["written"]) ?? 0, server.key.description, account.key.description,
+                               [.string(variable), server.key, account.key, .string("$AccountWide")], wide))
             }
         }
         guard !blocks.isEmpty else { return nil }
@@ -261,7 +265,7 @@ public enum CompanionData {
                 addons = parseAddons(list)
                 addonsStamp = block.stamp
             }
-            for error in parseErrors(wide["errors"]?.table) {
+            for error in parseErrors(wide["errors"]?.table, at: block.path + [.string("errors")]) {
                 let key = "\(error.addon ?? "")\u{1F}\(error.message)"
                 if let old = mergedErrors[key] {
                     let newerAt = (error.lastAt ?? error.at ?? .distantPast) >= (old.lastAt ?? old.at ?? .distantPast)
@@ -278,6 +282,9 @@ public enum CompanionData {
                     merged.lastAt = lasts.max()
                     merged.session = newerAt ? (error.session ?? old.session) : (old.session ?? error.session)
                     merged.addonVersion = newerAt ? (error.addonVersion ?? old.addonVersion) : (old.addonVersion ?? error.addonVersion)
+                    // Opens at the newest occurrence; on a tie, the newer block's (seen first).
+                    let strictlyNewer = (error.lastAt ?? error.at ?? .distantPast) > (old.lastAt ?? old.at ?? .distantPast)
+                    merged.path = strictlyNewer || old.path.isEmpty ? error.path : old.path
                     mergedErrors[key] = merged
                 } else {
                     mergedErrors[key] = error
@@ -389,12 +396,13 @@ public enum CompanionData {
                 return at.formatted(.relative(presentation: .named, unitsStyle: .spellOut))
             }()
             let headline = errorFirstLine(error.message)
-            var problem = SVProblem(file: file, path: [.string(variable), .string("errors"), .integer(Int64(index + 1))],
+            // The newest occurrence's place in the file, so every error has its own id and opens at its own entry.
+            let path = error.path.isEmpty ? [.string(variable), .string("errors"), .integer(Int64(index + 1))] : error.path
+            var problem = SVProblem(file: file, path: path,
                                     kind: .luaError, severity: error.count >= 5 ? .error : .warning,
                                     message: String(localized: "\(name) threw Lua errors \(times) \(when).", bundle: .module) + " " + headline)
                 .with(addon: error.addon)
             if headline != error.message { problem.detail = error.message }
-            // The error's place in the list, so every error has its own id and opens at its own entry.
             out.append(problem)
         }
         return out
@@ -466,7 +474,7 @@ public enum CompanionData {
         return out
     }
 
-    private static func parseErrors(_ table: LuaTable?) -> [CompanionError] {
+    private static func parseErrors(_ table: LuaTable?, at path: [LuaKey]) -> [CompanionError] {
         (table?.entries ?? []).compactMap { entry in
             guard let c = entry.value.table, let message = c["message"]?.string, !message.isEmpty else { return nil }
             var error = CompanionError(addon: c["addon"]?.string, at: date(c["at"]),
@@ -475,6 +483,7 @@ public enum CompanionData {
             error.lastAt = date(c["lastAt"])
             error.session = date(c["session"])
             error.addonVersion = int(c["addonVersion"])
+            error.path = path + [entry.key]
             return error
         }
     }
