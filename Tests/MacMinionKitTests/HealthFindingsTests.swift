@@ -22,7 +22,7 @@ private func library(_ folder: String, wantedBy: [String], required: Bool = true
 }
 
 /// A companion snapshot from Lua table bodies for `addons`, `errors`, and `enabledBy`.
-private func companion(addons: String, errors: String = "", enabledBy: String = "") throws -> CompanionSnapshot {
+private func companion(addons: String, errors: String = "", enabledBy: String = "", env: String? = nil) throws -> CompanionSnapshot {
     let stamp = Int(Date.now.timeIntervalSince1970)
     let lua = """
     EsoMacMinion_Data =
@@ -36,6 +36,7 @@ private func companion(addons: String, errors: String = "", enabledBy: String = 
             ["addons"] = { \(addons) },
             ["errors"] = { \(errors) },
             ["enabledBy"] = { \(enabledBy) },
+            \(env.map { "[\"env\"] = { \($0) }," } ?? "")
         } } },
     }
     """
@@ -173,6 +174,22 @@ private func claimedOnce(_ findings: [HealthFinding], _ input: [SVProblem]) -> B
     #expect(findings.map(\.cause) == [.outOfDateAddon, .outOfDateAddons])
     #expect(findings[0].tier == .broken && findings[0].action == .update(folders: ["A"]))
     #expect(findings[1].summary == "No update yet." && findings[1].impact.hasPrefix("It loads"))
+}
+
+@Test func outOfDateAddonsThatLoadedMeanTheyAreAllowedWhateverTheSettingSays() throws {
+    for env in [#"["loadOutOfDateAddOns"] = false"#, nil] {
+        let snap = try companion(addons: """
+            ["A"] = { ["state"] = "loaded", ["outOfDate"] = true },
+            ["B"] = { ["state"] = "outdated", ["outOfDate"] = true },
+            """, env: env)
+        let findings = HealthFindings.build(problems: CompanionData.problems(from: snap), context: .init(companion: snap))
+        let f = try #require(findings.first { $0.cause == .outOfDateAddons })
+        #expect(f.impact.contains("load because"))
+    }
+    let none = try companion(addons: #"["B"] = { ["state"] = "outdated", ["outOfDate"] = true },"#,
+                             env: #"["loadOutOfDateAddOns"] = false"#)
+    let f = try #require(HealthFindings.build(problems: CompanionData.problems(from: none), context: .init(companion: none)).first)
+    #expect(f.impact.contains("won't load"))
 }
 
 // MARK: Inside one file

@@ -377,8 +377,14 @@ private struct Builder {
             : one ? String(localized: "No update yet.", bundle: .module) : String(localized: "None has an update yet.", bundle: .module)
         let heading = folders.count == 1 ? String(localized: "\(title(ofAddon: folders[0])) is out of date", bundle: .module)
             : String(localized: "\(folders.count) addons are out of date", bundle: .module)
+        // An out-of-date addon that loaded proves the game allows them, whatever the setting read said.
+        let companionAddons = context.companion?.addons ?? [:]
+        let anyLoaded = folders.contains { folder in
+            (companionAddons[folder] ?? companionAddons.values.first { Self.key($0.name) == Self.key(folder) })?.loaded == true
+        }
+        let allowed = anyLoaded ? true : context.companion?.env?.loadOutOfDateAddOns
         let impact: String = {
-            switch context.companion?.env?.loadOutOfDateAddOns {
+            switch allowed {
             case true?:
                 return one
                     ? String(localized: "It loads because out-of-date add-ons are allowed, and can break after a game update.", bundle: .module)
