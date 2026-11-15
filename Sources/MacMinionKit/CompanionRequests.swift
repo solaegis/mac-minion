@@ -10,8 +10,15 @@ public enum CompanionRequests {
         Array(Set(declarations.values.flatMap { $0 }).subtracting([CompanionData.variable])).sorted()
     }
 
+    /// Paths `apply` / `write` are allowed to change under `EsoMacMinion_Data`.
+    public static let allowedWritePaths: Set<LuaCompare.AllowedPath> = [
+        .companionRequests,
+        .companionLookups,
+    ]
+
     /// The file's bytes with `requests.svGlobals` set in every `$AccountWide` table, other request keys
-    /// kept. Nil when the file doesn't parse or holds no `EsoMacMinion_Data` table: nothing to change.
+    /// kept. Nil when the file doesn't parse, holds no `EsoMacMinion_Data` table, or the splice would
+    /// leave unparsable bytes / unintended keys: nothing to change.
     public static func apply(svGlobals: [String], to data: Data) -> Data? {
         let doc = SVDocument.parse(data)
         guard doc.error == nil,
@@ -41,21 +48,27 @@ public enum CompanionRequests {
         for edit in edits.sorted(by: { $0.range.lowerBound > $1.range.lowerBound }) {
             bytes.replaceSubrange(edit.range, with: Array(edit.text.utf8))
         }
-        return Data(bytes)
+        let updated = Data(bytes)
+        // Never hand back bytes that won't load in ESO or that touched keys outside lookups.requests.
+        let after = SVDocument.parse(updated)
+        guard after.error == nil,
+              LuaCompare.onlyAllowedPathsDiffer(old: doc, new: after, allowed: allowedWritePaths) else { return nil }
+        return updated
     }
 
     /// Sets the request in the companion's SavedVariables file in `folder`, if there is one and it
     /// changes. Returns true when the file was written. The caller checks that ESO isn't running.
+    /// Throws `SavedVariablesWrite.Refusal` when a write was needed but refused.
     @discardableResult
     public static func write(svGlobals: [String], savedVariables folder: URL) throws -> Bool {
         let fm = FileManager.default
         guard let url = CompanionData.fileNames.map({ folder.appending(path: $0) }).first(where: { fm.fileExists(atPath: $0.path) })
         else { return false }
-        let data = try Data(contentsOf: url)
-        guard let root = SVDocument.parse(data).variables.first(where: { $0.key == .string(CompanionData.variable) })?.value.table,
+        let stamp = try SavedVariablesWrite.Stamp.read(url: url)
+        guard let root = SVDocument.parse(stamp.data).variables.first(where: { $0.key == .string(CompanionData.variable) })?.value.table,
               requested(in: root) != svGlobals,
-              let updated = apply(svGlobals: svGlobals, to: data), updated != data else { return false }
-        try updated.write(to: url, options: .atomic)
+              let updated = apply(svGlobals: svGlobals, to: stamp.data), updated != stamp.data else { return false }
+        try SavedVariablesWrite.write(updated, to: url, previouslyRead: stamp, allowed: allowedWritePaths)
         return true
     }
 

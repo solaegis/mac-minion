@@ -18,14 +18,23 @@ extension SVEdit {
         var out = FileEdits()
         for (url, changes) in byFile.sorted(by: { $0.key.lastPathComponent < $1.key.lastPathComponent }) {
             do {
-                let data = try Data(contentsOf: url)
-                let changed = try apply(changes, to: data)
-                try changed.write(to: url, options: .atomic)
-                out.before[url] = data
+                let stamp = try SavedVariablesWrite.Stamp.read(url: url)
+                let changed = try apply(changes, to: stamp.data)
+                let allowed = Set(changes.map { LuaCompare.AllowedPath.exact($0.path) })
+                try SavedVariablesWrite.write(changed, to: url, previouslyRead: stamp, allowed: allowed)
+                out.before[url] = stamp.data
                 out.after[url] = changed
                 out.changed += changes.count
             } catch {
-                out.failures.append((url.lastPathComponent, (error as? Failure)?.description ?? error.localizedDescription))
+                let why: String
+                if let failure = error as? Failure {
+                    why = failure.description
+                } else if let refusal = error as? SavedVariablesWrite.Refusal {
+                    why = refusal.description
+                } else {
+                    why = error.localizedDescription
+                }
+                out.failures.append((url.lastPathComponent, why))
             }
         }
         return out

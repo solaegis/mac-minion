@@ -241,15 +241,20 @@ final class GameFolderModel {
         // The companion reads the globals it's asked for at the next login. Ask only while ESO is closed:
         // the game rewrites its SavedVariables when it saves.
         let mayAskCompanion = !app.gameIsRunning
-        let (read, newCache, addonIndex) = await Task.detached {
+        let (read, newCache, addonIndex, companionWriteError) = await Task.detached {
             let addonIndex = SavedVariablesAudit.index(addons)
             let declarations = addonIndex.savers.mapValues(\.variables)
+            var companionWriteError: String?
             if mayAskCompanion, let folder = files.first?.deletingLastPathComponent() {
-                _ = try? CompanionRequests.write(svGlobals: CompanionRequests.svGlobals(from: declarations), savedVariables: folder)
+                do {
+                    _ = try CompanionRequests.write(svGlobals: CompanionRequests.svGlobals(from: declarations), savedVariables: folder)
+                } catch {
+                    companionWriteError = (error as? SavedVariablesWrite.Refusal)?.description ?? error.localizedDescription
+                }
             }
             let (read, newCache) = await SVFolderRead.read(files, addons: addons, declarations: declarations,
                                                            manifests: addonIndex.manifests, cache: cache, report: report)
-            return (read, newCache, addonIndex)
+            return (read, newCache, addonIndex, companionWriteError)
         }.value
         // Each part is stamped with the size and date its file had when read, so keeping it is safe even if
         // the files changed again since: those files are read again next time.
@@ -257,6 +262,9 @@ final class GameFolderModel {
         retainParsedDocuments(files)
         // The files changed while reading: the caller reads again.
         guard started == generation else { return }
+        if let companionWriteError {
+            errorMessage = String(localized: "Companion request wasn't written: \(companionWriteError)")
+        }
         app.companionSnapshot = read.snapshot ?? app.companionSnapshot
         lastRead = SavedVariablesRead(read, topFolders: addonIndex.topFolders, addonFolders: addonIndex.savers.mapValues(\.url))
         readIsCurrent = true

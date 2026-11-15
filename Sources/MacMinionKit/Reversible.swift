@@ -29,7 +29,14 @@ public enum FileSnapshot {
     public static func write(_ bytes: [URL: Data], expecting: [URL: Data]) throws {
         let changed = bytes.keys.filter { url in (try? Data(contentsOf: url)) != expecting[url] }
         guard changed.isEmpty else { throw ReversalError.changedSince(changed.map(\.lastPathComponent).sorted()) }
-        for (url, data) in bytes.sorted(by: { $0.key.path < $1.key.path }) { try data.write(to: url, options: .atomic) }
+        for (url, data) in bytes.sorted(by: { $0.key.path < $1.key.path }) {
+            if url.pathExtension.lowercased() == "lua", let expected = expecting[url] {
+                // Lua SavedVariables: parse + rotating bak via the shared helper; bytes may fully replace.
+                try SavedVariablesWrite.writeUndo(data, to: url, expecting: expected)
+            } else {
+                try data.write(to: url, options: .atomic)
+            }
+        }
     }
 }
 
