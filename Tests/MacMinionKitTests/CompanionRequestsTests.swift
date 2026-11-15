@@ -115,3 +115,13 @@ EsoMacMinion_Data =
     #expect(snap.addons["Off"]?.enabled == false && snap.addons["Off"]?.state == "disabled")
     #expect(snap.addons["LibCharacterKnowledge"]?.rootPath == "user:/AddOns/CharacterKnowledge/LibCharacterKnowledge/")
 }
+
+@Test func noReferencesYetKeepsTheNameRequestsAlreadyInTheFile() throws {
+    let nameIDs = CompanionRequests.unmetNameIDs(references: nil, names: nil)
+    #expect(nameIDs.isEmpty)
+    let updated = try #require(CompanionRequests.apply(svGlobals: ["PCHAT_OPTS"], nameIDs: nameIDs, to: Data(noLookups.utf8)))
+    let root = try #require(SVDocument.parse(updated)[CompanionData.variable]?.table)
+    let eu = try #require(root["EU Megaserver"]?.table?["@SOLAEGIS"]?.table?["$AccountWide"]?.table)
+    let item = eu["lookups"]?.table?["requests"]?.table?["item"]?.table?.entries.first?.value
+    if case .integer(let id)? = item { #expect(id == 96175) } else { Issue.record("item request lost") }
+}

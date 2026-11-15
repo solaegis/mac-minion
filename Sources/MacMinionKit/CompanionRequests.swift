@@ -26,11 +26,12 @@ public enum CompanionRequests {
         return names.sorted()
     }
 
-    /// IDs from SavedVariables references that libraries / answers don't already name.
+    /// IDs from SavedVariables references that libraries / answers don't already name. With no references
+    /// yet (the first read after launch) it returns no kinds, so `write` keeps the lists already in the file.
     public static func unmetNameIDs(references: SVReferenceIndex?, names: SVNameIndex?,
                                     answers: [String: CompanionAnswer] = [:]) -> [String: [Int]] {
+        guard let references else { return [:] }
         var sets: [String: Set<Int>] = Dictionary(uniqueKeysWithValues: nameKinds.map { ($0, []) })
-        guard let references else { return Dictionary(uniqueKeysWithValues: nameKinds.map { ($0, []) }) }
         for target in references.hits.keys {
             let kind = target.kind.rawValue
             guard nameKinds.contains(kind), let id = Int(target.id) else { continue }
@@ -121,7 +122,8 @@ public enum CompanionRequests {
         guard let root = SVDocument.parse(stamp.data).variables.first(where: { $0.key == .string(CompanionData.variable) })?.value.table else { return false }
         let sameGlobals = requested(in: root) == svGlobals
         let samePanels = requestedLamPanels(in: root) == lamPanels
-        let sameNames = nameKinds.allSatisfy { requestedInts(in: root, key: $0) == (nameIDs[$0] ?? []) }
+        // Only kinds in `nameIDs` are rewritten; the others stay as they are.
+        let sameNames = nameIDs.allSatisfy { requestedInts(in: root, key: $0.key) == $0.value }
         guard !(sameGlobals && samePanels && sameNames),
               let updated = apply(svGlobals: svGlobals, lamPanels: lamPanels, nameIDs: nameIDs, to: stamp.data),
               updated != stamp.data else { return false }
