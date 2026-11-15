@@ -247,7 +247,9 @@ final class GameFolderModel {
             var companionWriteError: String?
             if mayAskCompanion, let folder = files.first?.deletingLastPathComponent() {
                 do {
-                    _ = try CompanionRequests.write(svGlobals: CompanionRequests.svGlobals(from: declarations), savedVariables: folder)
+                    let globals = CompanionRequests.svGlobals(from: declarations)
+                    let panels = CompanionRequests.lamPanels(from: Array(addonIndex.savers.keys))
+                    _ = try CompanionRequests.write(svGlobals: globals, lamPanels: panels, savedVariables: folder)
                 } catch {
                     companionWriteError = (error as? SavedVariablesWrite.Refusal)?.description ?? error.localizedDescription
                 }

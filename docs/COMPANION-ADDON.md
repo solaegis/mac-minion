@@ -66,7 +66,7 @@ The definitive roster for this account and server, keyed by character ID (as a s
                          champion = 2410, zoneId = 3, lastPlayed = 1793288692 },
 ```
 
-From `GetNumCharacters()` and `GetCharacterInfo(i)`; `lastPlayed` and champion points only for the character logged in (`GetCurrentCharacterId()`, `GetPlayerChampionPointsEarned()`), kept from earlier sessions for the rest.
+From `GetNumCharacters()` and `GetCharacterInfo(i)`; `lastPlayed` and champion points only for the character logged in (`GetCurrentCharacterId()`, `GetPlayerChampionPointsEarned()`), kept from earlier sessions for the rest. The logged-in character also gets `zoneId` / `zoneName` from `GetZoneId(GetUnitZoneIndex("player"))`. Other characters keep GetCharacterInfo's 8th return as `locationId` (not a zone).
 
 Each row also keeps `names = { ["Masisi"] = <first seen>, … }`: every name the ID has had, so a rename shows as two keys (`CompanionCharacter.previousNames`).
 
@@ -110,7 +110,7 @@ MacMinion merges `errors` across every `$AccountWide` block (dedupe by addon + m
 ["loads"]   = { [1] = { at = 1793288692, seconds = 14.2, zoneId = 3 } },
 ```
 
-`GetFramerate()`, `GetLatency()`, `collectgarbage("count")`, and load-screen time from `EVENT_PLAYER_DEACTIVATED` to `EVENT_PLAYER_ACTIVATED`. Ring buffers: the last 240 samples (4 hours of play) and the last 50 loads.
+`GetFramerate()`, `GetLatency()`, `collectgarbage("count")`, and load-screen time from `EVENT_PLAYER_DEACTIVATED` to `EVENT_PLAYER_ACTIVATED`. A 60 s `RegisterForUpdate` samples out of combat after activation (`src/collect/Perf.lua`). Ring buffers: the last 240 samples (4 hours of play) and the last 50 loads. Honors `recordPerf`.
 
 **Unlocks:** the graphics suggestions in S-032 can check themselves ("since the background frame limit went on, idle frame rate is 30 and memory is steady"), and Overview can chart frame rate, memory, and load times across sessions. Lua memory over time also shows which addons' data keeps growing.
 
@@ -120,7 +120,7 @@ MacMinion merges `errors` across every `$AccountWide` block (dedupe by addon + m
 [127263] = { name = "Bandits Clan", members = 487, rank = "Officer", server = "NA Megaserver" },
 ```
 
-From `GetNumGuilds()`, `GetGuildId(i)`, `GetGuildName(id)`, `GetNumGuildMembers(id)`. **Unlocks:** every guild ID in every file gets a name, not only the ones LibGuildStore happened to see.
+From `GetNumGuilds()`, `GetGuildId(i)`, `GetGuildName(id)`, `GetNumGuildMembers(id)`, and the player's rank via `GetFinalGuildRankName(guildId, rankIndex)` (not the removed `GetGuildRankName`). **Unlocks:** every guild ID in every file gets a name, not only the ones LibGuildStore happened to see.
 
 ### 7. Name lookups (`lookups`): MacMinion asks, the game answers
 
@@ -160,7 +160,7 @@ What files cannot tell: which addon called which `ZO_SavedVars` constructor, and
 
 **Requests.** While ESO is closed, MacMinion writes `lookups.requests.svGlobals` into every `$AccountWide` table of the companion's file: every global the installed manifests declare (`CompanionRequests`, on each Game Folder read). Only that entry is rewritten; other request keys are kept. After the next login the addon looks up each name with `rawget(_G, name)`, 10 per frame and out of combat, and keeps only `layouts.scanned = { at, requested, found, missing }`: proof the request reached the game. The tables' keys aren't copied; MacMinion reads them from the files. `_G` itself is never walked: that aborted the CrossOver client during load.
 
-**Constructor calls.** The `ZO_SavedVars` wrap installs after the first `EVENT_PLAYER_ACTIVATED`, which is after every addon has created its SavedVariables, so by default it sees only late calls. `/emm early on` (experimental, off by default) wraps in the addon's own `EVENT_ADD_ON_LOADED` and queues calls in memory, flushed after activation, and starts the load observer so `loadOrder` / `loadMs` fill. It's the test of whether load-time wrapping is safe on CrossOver; if the client stops while loading, set `experimental.earlyCapture = false` in the file while ESO is closed. It never indexes the returned proxy. LAM is wrapped on `RegisterAddonPanel` / `RegisterOptionControls`; `getFunc` / `setFunc` are never called.
+**Constructor calls.** The `ZO_SavedVars` wrap installs after the first `EVENT_PLAYER_ACTIVATED`, which is after every addon has created its SavedVariables, so by default it sees only late calls. `/emm early on` (experimental, off by default) wraps in the addon's own `EVENT_ADD_ON_LOADED` and queues calls in memory, flushed after activation, and starts the load observer so `loadOrder` / `loadMs` fill. It's the test of whether load-time wrapping is safe on CrossOver; if the client stops while loading, set `experimental.earlyCapture = false` in the file while ESO is closed. It never indexes the returned proxy. Each `layouts.sv` row is keyed by `svName` or `svName/namespace`, stamped with `at` and the login counter, and pruned after five logins without a refresh. LAM is wrapped on `RegisterAddonPanel` / `RegisterOptionControls`; our own panel is attributed as `EsoMacMinion`. MacMinion also writes `lookups.requests.lamPanels` (folder / `FolderPanel` candidates); after activation the companion `rawget`s those globals a few per frame and reads `panel.data` plus control type/name/reference only — never `getFunc` / `setFunc`.
 
 **Unlocks:** Settings Matrix and the Inspector can label keys from live LAM names and tell a profile (`Default` vs `NA Megaserver`) from a namespace.
 

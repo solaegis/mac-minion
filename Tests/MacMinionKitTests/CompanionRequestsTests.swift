@@ -44,6 +44,24 @@ EsoMacMinion_Data =
     #expect(list == ["AUI_Main", "AUI_Minimap", "PCHAT_OPTS"])
 }
 
+@Test func asksForLamPanelCandidatesFromInstalledFolders() {
+    let panels = CompanionRequests.lamPanels(from: ["pChat", "EsoMacMinion", "WritWorthy"])
+    #expect(panels.contains("EsoMacMinionPanel"))
+    #expect(panels.contains("pChat") && panels.contains("pChatPanel"))
+    #expect(panels.contains("WritWorthy") && panels.contains("WritWorthyPanel"))
+    #expect(!panels.contains("EsoMacMinion"))
+}
+
+@Test func setsLamPanelsAlongsideSvGlobalsAndKeepsOtherRequests() throws {
+    let updated = try #require(CompanionRequests.apply(svGlobals: ["PCHAT_OPTS"], lamPanels: ["pChatPanel"], to: Data(noLookups.utf8)))
+    let root = try #require(SVDocument.parse(updated)[CompanionData.variable]?.table)
+    #expect(CompanionRequests.requested(in: root) == ["PCHAT_OPTS"])
+    #expect(CompanionRequests.requestedLamPanels(in: root) == ["pChatPanel"])
+    let eu = try #require(root["EU Megaserver"]?.table?["@SOLAEGIS"]?.table?["$AccountWide"]?.table)
+    let item = eu["lookups"]?.table?["requests"]?.table?["item"]?.table?.entries.first?.value
+    if case .integer(let id)? = item { #expect(id == 96175) } else { Issue.record("item request lost") }
+}
+
 @Test func readsCharacterNamesAddonFoldersEnabledByAndLayouts() throws {
     let text = """
     EsoMacMinion_Data = { ["NA Megaserver"] = { ["@SOLAEGIS"] = { ["$AccountWide"] = {

@@ -68,6 +68,9 @@ public struct CompanionAddonState: Sendable, Equatable, Identifiable {
 public struct CompanionError: Sendable, Equatable {
     public let addon: String?
     public let at: Date?
+    public var firstAt: Date? = nil
+    public var lastAt: Date? = nil
+    public var session: Date? = nil
     public let count: Int
     public let character: String?
     public let message: String
@@ -219,15 +222,21 @@ public enum CompanionData {
             }
             for error in parseErrors(wide["errors"]?.table) {
                 let key = "\(error.addon ?? "")\u{1F}\(error.message)"
-                if let old = mergedErrors[key] {
-                    let newerAt = (error.at ?? .distantPast) >= (old.at ?? .distantPast)
-                    mergedErrors[key] = CompanionError(
+                    if let old = mergedErrors[key] {
+                    let newerAt = (error.lastAt ?? error.at ?? .distantPast) >= (old.lastAt ?? old.at ?? .distantPast)
+                    var merged = CompanionError(
                         addon: error.addon ?? old.addon,
-                        at: newerAt ? error.at : old.at,
+                        at: newerAt ? (error.at ?? old.at) : (old.at ?? error.at),
                         count: old.count + error.count,
                         character: newerAt ? (error.character ?? old.character) : (old.character ?? error.character),
                         message: error.message
                     )
+                    let firsts = [old.firstAt, old.at, error.firstAt, error.at].compactMap { $0 }
+                    merged.firstAt = firsts.min()
+                    let lasts = [old.lastAt, old.at, error.lastAt, error.at].compactMap { $0 }
+                    merged.lastAt = lasts.max()
+                    merged.session = newerAt ? (error.session ?? old.session) : (old.session ?? error.session)
+                    mergedErrors[key] = merged
                 } else {
                     mergedErrors[key] = error
                 }
@@ -275,12 +284,12 @@ public enum CompanionData {
     }
 
     public static func isRecentError(_ error: CompanionError, now: Date = .now) -> Bool {
-        guard let at = error.at else { return true }
+        guard let at = error.lastAt ?? error.at else { return true }
         return now.timeIntervalSince(at) <= errorMaxAge
     }
 
     public static func isSameSession(_ error: CompanionError, written: Date?) -> Bool {
-        guard let at = error.at, let written else { return true }
+        guard let at = error.lastAt ?? error.at, let written else { return true }
         let lag = written.timeIntervalSince(at)
         return lag >= 0 && lag < errorSessionWindow
     }
@@ -390,8 +399,12 @@ public enum CompanionData {
     private static func parseErrors(_ table: LuaTable?) -> [CompanionError] {
         (table?.entries ?? []).compactMap { entry in
             guard let c = entry.value.table, let message = c["message"]?.string, !message.isEmpty else { return nil }
-            return CompanionError(addon: c["addon"]?.string, at: int(c["at"]).map { Date(timeIntervalSince1970: TimeInterval($0)) },
-                                  count: int(c["count"]) ?? 1, character: c["character"]?.string, message: message)
+            var error = CompanionError(addon: c["addon"]?.string, at: date(c["at"]),
+                                       count: int(c["count"]) ?? 1, character: c["character"]?.string, message: message)
+            error.firstAt = date(c["firstAt"])
+            error.lastAt = date(c["lastAt"])
+            error.session = date(c["session"])
+            return error
         }
     }
 
