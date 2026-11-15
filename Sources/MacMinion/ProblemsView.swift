@@ -87,6 +87,8 @@ struct ProblemsView: View {
         }
         // Recreate when the addon filter changes so AppKit does not reenter mid-update.
         .id(filter?.name ?? "all-problems")
+        // Same as Characters and Inspector: if the last read was invalidated while this tab is open, start one.
+        .task { await model.gameFolder.load() }
         .overlay {
             if model.gameFolder.svProblems == nil, model.gameFolder.fileProblems.isEmpty {
                 InspectorLoadingView(model: model)

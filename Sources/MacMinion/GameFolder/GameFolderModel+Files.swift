@@ -76,7 +76,9 @@ extension GameFolderModel {
             let items = String(localized: "\(moved) items")
             message = String(localized: "Backed up, then moved \(items) (\(request.bytes.formatted(.byteCount(style: .file)))) to the Trash.")
         }
+        // Scan marks the last read stale; re-read so Problems does not sit on "Starting…" with an empty list.
         await scan()
+        await load()
     }
 
     func showInFinder() {

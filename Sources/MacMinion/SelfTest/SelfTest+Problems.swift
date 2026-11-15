@@ -202,6 +202,12 @@ extension SelfTest {
         if let request = model.gameFolder.pendingTrash { await model.gameFolder.moveToTrash(request) }
         check("cleaning up a problem moves just that file to the Trash", !FileManager.default.fileExists(atPath: copy.path)
               && fileProblem("WritWorthy copy.lua") == nil && FileManager.default.fileExists(atPath: staleFile.path))
+        // Problems shows "Reading Your SavedVariables" while svProblems is nil and fileProblems is empty;
+        // without a re-read after Clean Up that overlay sticks on "Starting…".
+        check("cleaning up re-reads SavedVariables so Problems isn't stuck loading",
+              model.gameFolder.readIsCurrent && model.gameFolder.svProblems != nil
+              && model.gameFolder.progress == nil && model.gameFolder.loading == nil,
+              "readIsCurrent=\(model.gameFolder.readIsCurrent) svProblems=\(model.gameFolder.svProblems == nil ? "nil" : "set")")
         if let staleDate { try? FileManager.default.setAttributes([.modificationDate: staleDate], ofItemAtPath: staleFile.path) }
         await model.gameFolder.scan()
 
