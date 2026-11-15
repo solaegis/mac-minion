@@ -252,7 +252,11 @@ public struct SVNameIndex: Sendable {
         var h = Hasher()
         h.combine(sum(characters.mapValues { $0.name }))
         h.combine(ownAccounts)
-        h.combine(companionAnswers.count)
+        // Every answer's name, so a renamed answer changes it too, not only one more or fewer.
+        for (key, answer) in companionAnswers.sorted(by: { $0.key < $1.key }) {
+            h.combine(key)
+            h.combine(answer.missing ? nil : answer.name)
+        }
         for part in [sum(guilds), sum(guildIDs), sum(sets), sum(itemSets), sum(zones), sum(quests),
                      sum(guildStoreLinks), sum(guildStoreAccounts), sum(guildStoreGuilds)] { h.combine(part) }
         return h.finalize()

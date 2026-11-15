@@ -451,3 +451,13 @@ EsoMacMinion_Data =
     #expect(CompanionPerf(samples: [], loads: []).medianFPS == nil)
     #expect(CompanionData.snapshot(SVDocument.parse(Data(schema1.utf8)))?.perf == nil)
 }
+
+@Test func theNamesFingerprintChangesWhenACompanionAnswerIsRenamed() {
+    func fingerprint(_ name: String) -> Int {
+        var names = SVNameIndex()
+        names.finish(roster: nil, addons: nil, answers: ["zone:3": CompanionAnswer(key: "zone:3", name: name, quality: nil, set: nil, icon: nil)])
+        return names.fingerprint
+    }
+    #expect(fingerprint("Glenumbra") == fingerprint("Glenumbra"))
+    #expect(fingerprint("Glenumbra") != fingerprint("Stormhaven"))
+}
