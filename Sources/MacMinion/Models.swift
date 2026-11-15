@@ -882,10 +882,12 @@ final class AppModel {
     }
 
     private func updateGameRunning() {
-        let running = NSWorkspace.shared.runningApplications.contains { app in
-            let name = (app.localizedName ?? "").lowercased(), id = (app.bundleIdentifier ?? "").lowercased()
-            return name.contains("elder scrolls") || name == "eso" || name.hasPrefix("eso64") || id.contains("zenimax")
+        let apps = NSWorkspace.shared.runningApplications.map {
+            (localizedName: $0.localizedName ?? "", bundleIdentifier: $0.bundleIdentifier ?? "")
         }
+        // Wine/CrossOver: eso64.exe may not appear as an NSRunningApplication; scan command lines.
+        let wine = ProcessCommandLines.all()
+        let running = GameRunningMatcher.isGameRunning(macApps: apps, wineCommandLines: wine)
         if running != gameProcessRunning { gameProcessRunning = running }
     }
 
