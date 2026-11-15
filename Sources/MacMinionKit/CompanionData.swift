@@ -174,52 +174,79 @@ public enum CompanionData {
 
     public static func snapshot(_ doc: SVDocument, file: String = fileName) -> CompanionSnapshot? {
         guard let root = doc[variable]?.table else { return nil }
-        var schema: Int?
-        var written: Date?
-        var env: CompanionEnv?
+        // Collect every $AccountWide so written/env/layouts come from the newest logout, not file order.
+        var blocks: [(stamp: Int, server: String, account: String, wide: LuaTable)] = []
+        for server in root.entries {
+            for account in server.value.table?.entries ?? [] {
+                guard let wide = account.value.table?["$AccountWide"]?.table else { continue }
+                blocks.append((int(wide["written"]) ?? 0, server.key.description, account.key.description, wide))
+            }
+        }
+        guard !blocks.isEmpty else { return nil }
+
+        let newestFirst = blocks.sorted { $0.stamp > $1.stamp }
+        let best = newestFirst[0]
+        let schema = int(best.wide["schema"]) ?? newestFirst.compactMap { int($0.wide["schema"]) }.first
+        let written = best.stamp > 0 ? Date(timeIntervalSince1970: TimeInterval(best.stamp)) : nil
+        let env = parseEnv(best.wide["env"]?.table)
+            ?? newestFirst.lazy.compactMap { parseEnv($0.wide["env"]?.table) }.first
+
         var characters: [String: CompanionCharacter] = [:]
         var addons: [String: CompanionAddonState] = [:]
-        var errors: [CompanionError] = []
         var guilds: [Int64: CompanionGuild] = [:]
         var enabledBy: [String: CompanionEnabled] = [:]
         var addonsStamp = Int.min
         var layouts: [String: CompanionSVLayout] = [:]
         var layoutScan: CompanionLayoutScan?
         var requested: [String] = []
+        var mergedErrors: [String: CompanionError] = [:]
 
-        for server in root.entries {
-            for account in server.value.table?.entries ?? [] {
-                guard let wide = account.value.table?["$AccountWide"]?.table else { continue }
-                if schema == nil { schema = int(wide["schema"]) }
-                if written == nil, let stamp = int(wide["written"]) {
-                    written = Date(timeIntervalSince1970: TimeInterval(stamp))
+        for block in newestFirst {
+            let wide = block.wide
+            for (id, character) in parseCharacters(wide["characters"]?.table, server: block.server, account: block.account) {
+                if characters[id] == nil { characters[id] = character }
+            }
+            // The addon list is the same on every megaserver; newer companions keep it only in the block
+            // written last. For older files with a list in every block, take the newest block's.
+            if let list = wide["addons"]?.table, block.stamp >= addonsStamp {
+                addons = parseAddons(list)
+                addonsStamp = block.stamp
+            }
+            for error in parseErrors(wide["errors"]?.table) {
+                let key = "\(error.addon ?? "")\u{1F}\(error.message)"
+                if let old = mergedErrors[key] {
+                    let newerAt = (error.at ?? .distantPast) >= (old.at ?? .distantPast)
+                    mergedErrors[key] = CompanionError(
+                        addon: error.addon ?? old.addon,
+                        at: newerAt ? error.at : old.at,
+                        count: old.count + error.count,
+                        character: newerAt ? (error.character ?? old.character) : (old.character ?? error.character),
+                        message: error.message
+                    )
+                } else {
+                    mergedErrors[key] = error
                 }
-                if env == nil { env = parseEnv(wide["env"]?.table) }
-                for (id, character) in parseCharacters(wide["characters"]?.table, server: server.key.description,
-                                                       account: account.key.description) {
-                    characters[id] = character
-                }
-                // The addon list is the same on every megaserver; newer companions keep it only in the block
-                // written last. For older files with a list in every block, take the newest block's.
-                if let list = wide["addons"]?.table {
-                    let stamp = int(wide["written"]) ?? 0
-                    if stamp >= addonsStamp { addons = parseAddons(list); addonsStamp = stamp }
-                }
-                if errors.isEmpty { errors = parseErrors(wide["errors"]?.table) }
-                for (id, guild) in parseGuilds(wide["guilds"]?.table) { guilds[id] = guild }
-                for (id, row) in parseEnabledBy(wide["enabledBy"]?.table) {
-                    if let old = enabledBy[id], (old.at ?? .distantPast) > (row.at ?? .distantPast) { continue }
-                    enabledBy[id] = row
-                }
-                let layoutTable = wide["layouts"]?.table
-                for (name, layout) in parseLayouts(layoutTable?["sv"]?.table) where layouts[name] == nil { layouts[name] = layout }
-                if layoutScan == nil { layoutScan = parseLayoutScan(layoutTable?["scanned"]?.table) }
-                if requested.isEmpty {
-                    requested = (wide["lookups"]?.table?["requests"]?.table?["svGlobals"]?.table?.entries ?? []).compactMap(\.value.string)
-                }
+            }
+            for (id, guild) in parseGuilds(wide["guilds"]?.table) where guilds[id] == nil { guilds[id] = guild }
+            for (id, row) in parseEnabledBy(wide["enabledBy"]?.table) {
+                if let old = enabledBy[id], (old.at ?? .distantPast) > (row.at ?? .distantPast) { continue }
+                enabledBy[id] = row
+            }
+            let layoutTable = wide["layouts"]?.table
+            // Newest block first: keep its rows, fill gaps from older blocks.
+            for (name, layout) in parseLayouts(layoutTable?["sv"]?.table) where layouts[name] == nil {
+                layouts[name] = layout
+            }
+            if layoutScan == nil { layoutScan = parseLayoutScan(layoutTable?["scanned"]?.table) }
+            if requested.isEmpty {
+                requested = (wide["lookups"]?.table?["requests"]?.table?["svGlobals"]?.table?.entries ?? [])
+                    .compactMap(\.value.string)
             }
         }
 
+        let errors = mergedErrors.values.sorted {
+            ($0.at ?? .distantPast) > ($1.at ?? .distantPast)
+        }
         let known = schema == nil || schema == knownSchema
         var snapshot = CompanionSnapshot(file: file, schema: schema, schemaKnown: known, written: written, env: env,
                                          characters: characters, addons: addons, errors: errors, guilds: guilds,

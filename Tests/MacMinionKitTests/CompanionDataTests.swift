@@ -127,3 +127,61 @@ EsoMacMinion_Data =
     #expect(read.problems.contains { $0.kind == .luaError })
     #expect(read.snapshot?.env?.gameVersion == "12.1.6")
 }
+
+/// The file lists EU first (older), then NA (newer). Snapshot must use the newest written, not file order.
+private let multiBlockOlderFirst = """
+EsoMacMinion_Data =
+{
+    ["EU Megaserver"] = { ["@SOLAEGIS"] = { ["$AccountWide"] = {
+        ["schema"] = 1, ["written"] = 1794663262,
+        ["env"] = { ["apiVersion"] = 101051, ["gameVersion"] = "12.1.5", ["server"] = "EU Megaserver", ["companionVersion"] = "0.1.0" },
+        ["characters"] = {
+            ["8796093036412335"] = { ["name"] = "MasisiEU", ["class"] = 3, ["level"] = 50 },
+        },
+        ["addons"] = { ["OldList"] = { ["title"] = "Old", ["outOfDate"] = true } },
+        ["errors"] = {
+            [1] = { ["addon"] = "SharedAddon", ["at"] = 1794663262, ["count"] = 2, ["message"] = "shared boom" },
+            [2] = { ["addon"] = "EUOnly", ["at"] = 1794663200, ["count"] = 1, ["message"] = "eu only" },
+        },
+        ["layouts"] = {
+            ["scanned"] = { ["at"] = 1794663262, ["requested"] = 3, ["found"] = 1, ["missing"] = { [1] = "OldMissing" } },
+            ["sv"] = {
+                ["OnlyInEU"] = { ["ctor"] = "NewAccountWide", ["addon"] = "EUAddon" },
+                ["SharedSV"] = { ["ctor"] = "New", ["addon"] = "OldShared" },
+            },
+        },
+    } } },
+    ["NA Megaserver"] = { ["@SOLAEGIS"] = { ["$AccountWide"] = {
+        ["schema"] = 1, ["written"] = 1794706243,
+        ["env"] = { ["apiVersion"] = 101051, ["gameVersion"] = "12.1.6", ["server"] = "NA Megaserver", ["companionVersion"] = "0.1.0" },
+        ["characters"] = {
+            ["8796093036412999"] = { ["name"] = "MasisiNA", ["class"] = 1, ["level"] = 50 },
+        },
+        ["addons"] = { ["NewList"] = { ["title"] = "New", ["outOfDate"] = false } },
+        ["errors"] = {
+            [1] = { ["addon"] = "SharedAddon", ["at"] = 1794706243, ["count"] = 3, ["message"] = "shared boom" },
+        },
+        ["layouts"] = {
+            ["scanned"] = { ["at"] = 1794706243, ["requested"] = 10, ["found"] = 8, ["missing"] = { [1] = "NewMissing" } },
+            ["sv"] = {
+                ["SharedSV"] = { ["ctor"] = "NewAccountWide", ["addon"] = "NewShared" },
+                ["OnlyInNA"] = { ["ctor"] = "New", ["addon"] = "NAAddon" },
+            },
+        },
+    } } },
+}
+"""
+
+@Test func companionSnapshotPrefersNewestAccountWideBlock() throws {
+    let snap = try #require(CompanionData.snapshot(SVDocument.parse(Data(multiBlockOlderFirst.utf8))))
+    #expect(snap.written == Date(timeIntervalSince1970: 1_794_706_243))
+    #expect(snap.env?.server == "NA Megaserver")
+    #expect(snap.env?.gameVersion == "12.1.6")
+    #expect(snap.layoutScan?.requested == 10 && snap.layoutScan?.missing == ["NewMissing"])
+    #expect(snap.addons["NewList"] != nil && snap.addons["OldList"] == nil)
+    #expect(snap.layouts["SharedSV"]?.addon == "NewShared")
+    #expect(snap.layouts["OnlyInNA"] != nil && snap.layouts["OnlyInEU"] != nil)
+    let shared = try #require(snap.errors.first { $0.addon == "SharedAddon" })
+    #expect(shared.count == 5 && shared.at == Date(timeIntervalSince1970: 1_794_706_243))
+    #expect(snap.errors.contains { $0.addon == "EUOnly" })
+}
