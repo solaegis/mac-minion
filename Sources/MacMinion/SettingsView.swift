@@ -346,6 +346,11 @@ struct AISettings: View {
         switch prefs.aiProvider {
         case .off:
             EmptyView()
+        case .apple:
+            Section("Apple Intelligence") {
+                LabeledContent("Status", value: AppleIntelligence.statusMessage)
+                testRow
+            }
         case .ollama:
             Section("Ollama") {
                 TextField("Server", text: $prefs.ollamaURL, prompt: Text(AIConfig.defaultOllamaURL.absoluteString))
@@ -399,6 +404,7 @@ struct AISettings: View {
     private var footer: String {
         switch model.prefs.aiProvider {
         case .off: String(localized: "Summaries of addon changelogs. Nothing is sent anywhere while this is off.")
+        case .apple: String(localized: "Changelogs stay on this Mac. Requires Apple Intelligence.")
         case .ollama: String(localized: "Changelogs stay on this Mac. Ollama must be running.")
         case .claude: String(localized: "Addon names and changelog text are sent to Anthropic, and nowhere else.")
         case .openai: String(localized: "Addon names and changelog text are sent to OpenAI, and nowhere else.")

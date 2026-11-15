@@ -4,6 +4,7 @@ What changed in each MacMinion release. The newest is first.
 
 ## Unreleased
 
+- Optional AI via Apple Intelligence on this Mac (Foundation Models): no API key, first-launch default when available; Ollama, Claude, and OpenAI stay as choices.
 - Guard every Lua SavedVariables write: re-parse before replace, refuse edits that change unexpected keys, refuse if the file changed since it was read, and keep one `*.lua.macminion.bak` beside the file. Companion request writes and Compare Clone share this path; refusals show on the Game Folder banner.
 - Detect Elder Scrolls Online under CrossOver/Wine via `eso64.exe` on the process command line (not Steam or the Bethesda launcher alone), so MacMinion does not write companion requests while the game is up.
 - Companion `lookups.requests` updates re-check that the spliced file still parses and that only those request paths changed (regression coverage for the 2026-11-14 EsoMacMinion.lua corruption report).

@@ -49,6 +49,9 @@ enum SelfTest {
             await app(model)
             await appearance(model)
             await undo(model)
+            // An open Clean Up alert refuses NSApp.terminate; clear it and let SwiftUI drop the sheet.
+            model.gameFolder.pendingTrash = nil
+            try? await Task.sleep(for: .milliseconds(200))
             print(failures == 0 ? "SELFTEST PASS \(count) checks" : "SELFTEST FAIL \(failures) of \(count) checks")
             finish(code: failures == 0 ? 0 : 1)
         }
@@ -60,11 +63,13 @@ enum SelfTest {
         print(ok ? "PASS \(name)" : "FAIL \(name)\(detail.isEmpty ? "" : ": \(detail)")")
     }
 
-    /// Quits through NSApp.terminate, never exit(), and closes sheets first:
-    /// an open sheet refuses terminate, and the run would wait forever.
+    /// Quits through NSApp.terminate, and closes sheets first: an open sheet refuses
+    /// terminate. SwiftUI `.alert` is not always an `attachedSheet`, so fall back to
+    /// `exit` if terminate does not tear the process down.
     static func finish(code: Int32) {
         exitCode = code
         for window in NSApp.windows { if let sheet = window.attachedSheet { window.endSheet(sheet) } }
         NSApp.terminate(nil)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { exit(code) }
     }
 }

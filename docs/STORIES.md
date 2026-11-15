@@ -124,7 +124,7 @@ Acceptance:
 - [unit] A refusal or HTTP error shows its reason; an unconfigured provider says what to set instead of sending anything.
 - [snap] The "What's New" card sits under the facts and names the model that wrote it.
 - [manual] A live Ollama summary of a real ESOUI changelog reads correctly.
-UX: Provider choices read "Off", "Ollama (on this Mac)", "Claude", "OpenAI". AI is off until chosen.
+UX: Provider choices read "Off", "Apple Intelligence (on this Mac)", "Ollama (on this Mac)", "Claude", "OpenAI". On first launch, Apple Intelligence is selected when the system model is available; otherwise AI stays off until chosen. Existing saved providers are left alone.
 Status: done
 
 ### S-014 Settings for updates, the app, and AI
@@ -244,6 +244,17 @@ Acceptance:
 - [snap] Settings > AI with OpenAI shows Status, API Key, Remove Key, Save to Keychain, Model with a list, and Test Connection.
 - [manual] With real keys: tokens stream into What's New, a wrong key shows Invalid key, and Ollama still summarizes offline.
 UX: Status reads "No key configured", "Not tested", "Connected", "Invalid key", or "Rate limited".
+Status: done
+
+### S-028 Use Apple Intelligence on this Mac
+As the user, I pick Apple Intelligence in Settings > AI (or get it on first launch when the system model is available), see whether it is ready, and test the connection; changelogs stay on this Mac with no API key.
+Screens: settings-ai, settings-ai-apple
+Depends: S-013
+Acceptance:
+- [unit] When Apple Intelligence is unavailable, `AIConfig.problem` names the reason; when available, requests go through Foundation Models (not HTTP).
+- [self] With Apple Intelligence forced off, summarizing explains that System Settings must enable it; `aiSource` reads "Apple Intelligence".
+- [snap] Settings > AI with Apple Intelligence shows Status and Test Connection.
+- [manual] With Apple Intelligence on, a changelog summary streams into What's New.
 Status: done
 
 ### S-011 App icon and empty states

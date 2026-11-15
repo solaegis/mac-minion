@@ -13,7 +13,8 @@ let package = Package(
         // Rules and data logic with no SwiftUI, so tests run without the app.
         .target(
             name: "MacMinionKit",
-            resources: [.process("Resources")]
+            resources: [.process("Resources")],
+            linkerSettings: [.linkedFramework("FoundationModels")]
         ),
         .executableTarget(
             name: "MacMinion",

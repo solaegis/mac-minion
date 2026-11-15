@@ -144,10 +144,28 @@ private func body(_ r: URLRequest) throws -> [String: Any] {
     #expect(AIConfig(provider: .ollama).problem == "Choose an Ollama model in Settings.")
     #expect(AIConfig(provider: .ollama, ollamaModel: "m").problem == nil)
     #expect(AIConfig(provider: .off).llm == nil)
+    #expect(AIConfig(provider: .apple).llm == nil)
+    #expect(AIConfig(provider: .apple).model == "Apple Intelligence")
     #expect(AIConfig(provider: .openai, openAIKey: "k").model == "gpt-6-astra")
     #expect(AIConfig(provider: .claude, claudeKey: "k").model == "claude-opus-5-5")
     #expect(KeychainStore.account(for: .claude) == "claude-api-key", "saved Claude keys carry over")
     #expect(KeychainStore.account(for: .openai) == "openai-api-key")
+}
+
+@Test func appleIntelligenceReportsAvailability() {
+    let previous = AppleIntelligence.statusOverride
+    defer { AppleIntelligence.statusOverride = previous }
+    AppleIntelligence.statusOverride = .available
+    #expect(AIConfig(provider: .apple).problem == nil)
+    #expect(AppleIntelligence.isAvailable)
+    #expect(AppleIntelligence.statusMessage == "Available")
+    AppleIntelligence.statusOverride = .appleIntelligenceNotEnabled
+    #expect(AIConfig(provider: .apple).problem == "Turn on Apple Intelligence in System Settings.")
+    #expect(!AppleIntelligence.isAvailable)
+    AppleIntelligence.statusOverride = .deviceNotEligible
+    #expect(AIConfig(provider: .apple).problem == "This Mac doesn't support Apple Intelligence.")
+    AppleIntelligence.statusOverride = .modelNotReady
+    #expect(AIConfig(provider: .apple).problem == "Apple Intelligence isn't ready yet. Try again in a moment.")
 }
 
 @Test func retryBacksOffOnlyOnRateLimitsAndOutages() async throws {
@@ -221,5 +239,11 @@ func liveOpenAI() async throws {
 @Test(.enabled(if: env["MACMINION_LIVE_OLLAMA_MODEL"] != nil))
 func liveOllama() async throws {
     let config = AIConfig(provider: .ollama, ollamaModel: env["MACMINION_LIVE_OLLAMA_MODEL"] ?? "")
+    #expect(try await !AIClient(config: config).complete(system: "Answer in five words or fewer.", prompt: "Say hello.").isEmpty)
+}
+
+@Test(.enabled(if: env["MACMINION_LIVE_APPLE"] != nil && AppleIntelligence.isAvailable))
+func liveAppleIntelligence() async throws {
+    let config = AIConfig(provider: .apple)
     #expect(try await !AIClient(config: config).complete(system: "Answer in five words or fewer.", prompt: "Say hello.").isEmpty)
 }

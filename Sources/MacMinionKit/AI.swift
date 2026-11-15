@@ -2,13 +2,14 @@ import Foundation
 
 /// Where AI requests go. Off sends nothing anywhere.
 public enum AIProvider: String, CaseIterable, Codable, Sendable, Identifiable {
-    case off, ollama, claude, openai
+    case off, apple, ollama, claude, openai
 
     public var id: String { rawValue }
 
     public var title: String {
         switch self {
         case .off: String(localized: "Off", bundle: .module)
+        case .apple: String(localized: "Apple Intelligence (on this Mac)", bundle: .module)
         case .ollama: String(localized: "Ollama (on this Mac)", bundle: .module)
         case .claude: "Claude"
         case .openai: "OpenAI"
@@ -39,10 +40,10 @@ public struct AIConfig: Sendable, Equatable {
 
     public static let defaultOllamaURL = URL(string: "http://localhost:11434")!
 
-    /// The selected provider's adapter, or nil when AI is off.
+    /// The selected provider's HTTP adapter, or nil when AI is off or uses Apple Intelligence.
     public var llm: (any LLMProvider)? {
         switch provider {
-        case .off: nil
+        case .off, .apple: nil
         case .ollama: OllamaProvider(base: ollamaURL)
         case .claude: AnthropicProvider(key: claudeKey)
         case .openai: OpenAIProvider(key: openAIKey)
@@ -53,6 +54,7 @@ public struct AIConfig: Sendable, Equatable {
     public var model: String {
         switch provider {
         case .off: ""
+        case .apple: AppleIntelligence.displayName
         case .ollama: ollamaModel
         case .claude: claudeModel
         case .openai: openAIModel
@@ -63,6 +65,7 @@ public struct AIConfig: Sendable, Equatable {
     public var problem: String? {
         switch provider {
         case .off: String(localized: "AI is turned off in Settings.", bundle: .module)
+        case .apple: AppleIntelligence.unavailableReason
         case .ollama: ollamaModel.isEmpty ? String(localized: "Choose an Ollama model in Settings.", bundle: .module) : nil
         case .claude: claudeKey.isEmpty ? String(localized: "Add a Claude API key in Settings.", bundle: .module) : claudeModel.isEmpty ? String(localized: "Choose a Claude model in Settings.", bundle: .module) : nil
         case .openai: openAIKey.isEmpty ? String(localized: "Add an OpenAI API key in Settings.", bundle: .module) : openAIModel.isEmpty ? String(localized: "Choose an OpenAI model in Settings.", bundle: .module) : nil
@@ -167,8 +170,8 @@ public enum ConnectionStatus: Equatable, Sendable {
     }
 }
 
-/// One request, one answer, through the provider in `config`. Ollama runs on this Mac; Claude goes to
-/// api.anthropic.com; OpenAI to api.openai.com. Nothing else is sent anywhere.
+/// One request, one answer, through the provider in `config`. Apple Intelligence and Ollama run on
+/// this Mac; Claude goes to api.anthropic.com; OpenAI to api.openai.com. Nothing else is sent anywhere.
 public struct AIClient: Sendable {
     public let config: AIConfig
     let session: URLSession
@@ -189,6 +192,9 @@ public struct AIClient: Sendable {
     /// connection busy, so a slow local model never trips the request timeout.
     public func stream(system: String, prompt: String, onText: @Sendable (String) async -> Void) async throws -> String {
         if let problem = config.problem { throw AIError.notConfigured(problem) }
+        if config.provider == .apple {
+            return try await AppleIntelligence.stream(system: system, prompt: prompt, onText: onText)
+        }
         guard let llm = config.llm else { throw AIError.notConfigured(String(localized: "AI is turned off in Settings.", bundle: .module)) }
         var text = ""
         for try await event in llm.streamChat(messages: [ChatMessage(.user, prompt)], model: config.model, system: system,

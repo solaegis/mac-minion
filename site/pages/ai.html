@@ -1,7 +1,7 @@
 <!-- title: AI -->
 <!-- description: Optional AI in MacMinion: changelog summaries, addon suggestions, plain-words search, ratings, and choosing an Ollama model. -->
 <h1>AI</h1>
-<p class="lead">Optional, and off until you pick a provider. Use Ollama on your Mac, so nothing leaves it, or Claude or OpenAI with your own API key.</p>
+<p class="lead">Optional. On first launch MacMinion picks Apple Intelligence when it is available; otherwise AI stays off until you choose a provider. Use Apple Intelligence or Ollama on your Mac, so nothing leaves it, or Claude or OpenAI with your own API key.</p>
 
 <!-- shot: settings-ai | Settings > AI with Ollama: the model recommended for this Mac, and a speed benchmark. -->
 
@@ -9,6 +9,7 @@
 <table>
   <tr><th>Provider</th><th>What's needed</th><th>Where your data goes</th></tr>
   <tr><td>Off</td><td>Nothing</td><td>Nowhere. AI features are hidden.</td></tr>
+  <tr><td>Apple Intelligence (on this Mac)</td><td>Apple Intelligence enabled in System Settings. No key. Default on first launch when available.</td><td>Stays on your Mac.</td></tr>
   <tr><td>Ollama (on this Mac)</td><td><a href="https://ollama.com">Ollama</a> running, and a chat model. Server defaults to <code>http://localhost:11434</code>.</td><td>Stays on your Mac.</td></tr>
   <tr><td>Claude</td><td>An API key from <a href="https://console.anthropic.com">console.anthropic.com</a>, kept in your login Keychain. Model <code>claude-opus-5-5</code> by default.</td><td>Addon names, descriptions, and changelog text go to Anthropic, and nowhere else.</td></tr>
   <tr><td>OpenAI</td><td>An API key from <a href="https://platform.openai.com">platform.openai.com</a>, kept in your login Keychain. Model <code>gpt-6-astra</code> by default.</td><td>Addon names, descriptions, and changelog text go to OpenAI, and nowhere else.</td></tr>
@@ -16,6 +17,7 @@
 <p>Set it up in Settings &gt; AI, then press <strong>Test Connection</strong>. MacMinion sends no telemetry.</p>
 
 <!-- shot: settings-ai-openai | Settings > AI with OpenAI: the key's status, Save to Keychain, and the model. -->
+<!-- shot: settings-ai-apple | Settings > AI with Apple Intelligence: status and Test Connection. -->
 
 <h2 id="keys">API keys and models</h2>
 <ul>

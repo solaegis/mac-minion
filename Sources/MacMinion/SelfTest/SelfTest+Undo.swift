@@ -112,14 +112,15 @@ extension SelfTest {
         let harvest = saved.appending(path: "HarvestMap.lua")
         let original = try? Data(contentsOf: harvest)
         if let newest = model.backups.first(where: { $0.kind == .snapshot && $0.zip != nil }), let original {
-            let changed = Data("HarvestMap_SavedVars = { changed }".utf8)
+            // Valid Lua: Undo/Redo write through SavedVariablesWrite, which refuses broken text.
+            let changed = Data("HarvestMap_SavedVars =\n{\n    [\"changed\"] = true,\n}\n".utf8)
             try? changed.write(to: harvest)
             await step { await model.restoreFile("HarvestMap.lua", from: newest) }
             check("Restore This File puts the backup's copy back", (try? Data(contentsOf: harvest)) == original, model.backupError ?? "")
             check("Undo names Restore File", manager.undoActionName == String(localized: "Restore File"), manager.undoActionName)
             await undo()
             check("Undo of Restore This File puts back what was there", (try? Data(contentsOf: harvest)) == changed)
-            let newer = Data("HarvestMap_SavedVars = { the game wrote this }".utf8)
+            let newer = Data("HarvestMap_SavedVars =\n{\n    [\"theGameWroteThis\"] = true,\n}\n".utf8)
             try? newer.write(to: harvest)
             model.undoFailure = nil
             await redo()

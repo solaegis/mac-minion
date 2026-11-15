@@ -254,7 +254,13 @@ final class Preferences {
         groupLibraries = d.object(forKey: "layout.groupLibraries") as? Bool ?? true
         featurePopular = d.object(forKey: "layout.featurePopular") as? Bool ?? true
         showThumbnails = d.object(forKey: "layout.thumbnails") as? Bool ?? true
-        aiProvider = AIProvider(rawValue: d.string(forKey: "ai.provider") ?? "") ?? .off
+        // First launch only: prefer Apple Intelligence when the system model is ready.
+        // Test/snapshot suites keep ephemeral prefs on Off. Existing saved values (including Off) stay.
+        if Self.persists, d.object(forKey: "ai.provider") == nil {
+            aiProvider = AppleIntelligence.isAvailable ? .apple : .off
+        } else {
+            aiProvider = AIProvider(rawValue: d.string(forKey: "ai.provider") ?? "") ?? .off
+        }
         ollamaURL = d.string(forKey: "ai.ollama.url") ?? AIConfig.defaultOllamaURL.absoluteString
         ollamaModel = d.string(forKey: "ai.ollama.model") ?? ""
         claudeModel = d.string(forKey: "ai.claude.model") ?? AnthropicProvider.defaultModelID
@@ -281,7 +287,7 @@ final class Preferences {
         switch provider {
         case .claude: claudeKey
         case .openai: openAIKey
-        case .off, .ollama: ""
+        case .off, .apple, .ollama: ""
         }
     }
 
@@ -304,7 +310,7 @@ final class Preferences {
         switch provider {
         case .claude: claudeKey = key
         case .openai: openAIKey = key
-        case .off, .ollama: break
+        case .off, .apple, .ollama: break
         }
     }
 

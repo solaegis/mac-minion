@@ -730,7 +730,12 @@ final class AppModel {
     }
 
     /// Changelog characters sent per addon. Local models get less, so the prompt fits their context window.
-    private var changelogLimit: Int { prefs.aiProvider == .ollama ? 12_000 : 60_000 }
+    private var changelogLimit: Int {
+        switch prefs.aiProvider {
+        case .ollama, .apple: 12_000
+        case .off, .claude, .openai: 60_000
+        }
+    }
 
     /// Who writes the summaries, for the card and the CLI.
     var aiSource: String {
@@ -738,6 +743,7 @@ final class AppModel {
         case .claude: AnthropicProvider.title(for: prefs.claudeModel)
         case .openai: String(localized: "\(OpenAIProvider.title(for: prefs.openAIModel)) on OpenAI")
         case .ollama: String(localized: "\(prefs.ollamaModel) on Ollama")
+        case .apple: AppleIntelligence.displayName
         case .off: String(localized: "the assistant")
         }
     }

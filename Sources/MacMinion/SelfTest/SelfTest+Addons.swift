@@ -102,6 +102,17 @@ extension SelfTest {
         model.prefs.ollamaModel = ""
         await model.summarize(7)
         check("Ollama without a model asks for one", model.summaryErrors[7] == "Choose an Ollama model in Settings.")
+
+        // Apple Intelligence: unavailable status explains itself; naming stays stable.
+        let appleBefore = AppleIntelligence.statusOverride
+        AppleIntelligence.statusOverride = .appleIntelligenceNotEnabled
+        model.prefs.aiProvider = .apple
+        await model.summarize(7)
+        check("Apple Intelligence when off asks to enable it",
+              model.summaryErrors[7] == "Turn on Apple Intelligence in System Settings.")
+        check("Apple summaries name the model", model.aiSource == "Apple Intelligence")
+        AppleIntelligence.statusOverride = appleBefore
+
         check("settings stay in memory in test runs", Preferences().aiProvider == .off)
     }
 

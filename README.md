@@ -29,7 +29,7 @@ MacMinion runs on this Mac only. There is no account and no server of its own. I
 - Checks ESOUI for updates once a day by default (Settings → Updates)
 - **Game Folder** for SavedVariables and the game's settings files: Characters (compare and clone settings), Inspector, Problems with Clean Up, and Game Settings forms with hover help on curated keys
 - UI in English, German, French, Spanish, or Russian (follows the Mac by default; override in Settings → Appearance)
-- Optional AI, via Ollama on this Mac, Claude, or OpenAI:
+- Optional AI, via Apple Intelligence or Ollama on this Mac, Claude, or OpenAI:
   - changelog summaries for one addon or every pending update
   - **Recommended for You** on the Overview: addons that would add something to the ones you have
   - a search bar on the Overview that finds addons from a description in your own words
@@ -98,7 +98,7 @@ Turn off Minion’s auto-update so the two apps do not both write to AddOns.
 
 ## Privacy
 
-State lives in `~/Library/Application Support/MacMinion/` (install records and a cached catalog). MacMinion has no account. It goes online only for public ESOUI feeds (`https://api.mmoui.com`) and addon zip downloads. AI stays off until you pick a provider in Settings → AI. With Ollama, prompts stay on your Mac (or go to the Ollama server you set). With Claude or OpenAI, addon names, descriptions, and changelog text are sent to that provider only: to `api.anthropic.com` or `api.openai.com`, never anywhere else. There is no telemetry. API keys are kept in your login Keychain, never in preferences, logs, or error messages.
+State lives in `~/Library/Application Support/MacMinion/` (install records and a cached catalog). MacMinion has no account. It goes online only for public ESOUI feeds (`https://api.mmoui.com`) and addon zip downloads. On first launch, Settings → AI defaults to Apple Intelligence when the system model is available; otherwise AI stays off until you pick a provider. With Apple Intelligence or Ollama, prompts stay on your Mac (or go to the Ollama server you set). With Claude or OpenAI, addon names, descriptions, and changelog text are sent to that provider only: to `api.anthropic.com` or `api.openai.com`, never anywhere else. There is no telemetry. API keys are kept in your login Keychain, never in preferences, logs, or error messages.
 
 ## AI providers
 
@@ -106,6 +106,7 @@ Pick one in Settings → AI. Each keeps its own model and key, so switching back
 
 | Provider | Setup | Model |
 | --- | --- | --- |
+| Apple Intelligence (on this Mac) | Turn on Apple Intelligence in System Settings. No key. Chosen automatically on first launch when available. | System on-device model |
 | Ollama (on this Mac) | Install [Ollama](https://ollama.com) and pull a chat model. No key. The server defaults to `http://localhost:11434`; change it in Settings. | Chosen from the models on your server; MacMinion recommends one for this Mac. |
 | Claude | Create a key at [console.anthropic.com](https://console.anthropic.com), paste it, and press **Save to Keychain**. | `claude-opus-5-5` by default |
 | OpenAI | Create a key at [platform.openai.com](https://platform.openai.com), paste it, and press **Save to Keychain**. | `gpt-6-astra` by default |
@@ -115,7 +116,7 @@ Pick one in Settings → AI. Each keeps its own model and key, so switching back
 - Keys are Keychain items for service `com.solaegis.macminion`, accounts `claude-api-key` and `openai-api-key`, readable only while your Mac is unlocked. Keychain Access shows them as "MacMinion Claude API key" and "MacMinion OpenAI API key".
 - Model IDs change often. The defaults were current on 2026-10-28 and may need updating. Type any ID in the Model field, or press the list button (refresh fetches what your key can use; the last list is kept for offline use).
 - Claude uses the Messages API (`anthropic-version: 2026-10-21`); OpenAI uses Chat Completions (`/v1/chat/completions`), not the Responses API.
-- MacMinion is not sandboxed, so no network entitlement is needed. If it is ever sandboxed, it needs `com.apple.security.network.client` for all three providers, Ollama on localhost included.
+- MacMinion is not sandboxed, so no network entitlement is needed. If it is ever sandboxed, it needs `com.apple.security.network.client` for the cloud providers and for Ollama on localhost; Apple Intelligence stays on-device.
 - Known limitations: no tool or function calling (MacMinion only asks for text), and one prompt per request rather than a chat history.
 
 ## Command line
