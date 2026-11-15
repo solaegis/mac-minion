@@ -12,8 +12,9 @@ public struct Installer: Sendable {
         self.session = session
     }
 
-    /// Installs and returns the record to save.
-    public func install(_ details: AddonDetails) async throws -> InstallRecord {
+    /// Installs and returns the record to save. With `stash`, the folders it replaces are kept there (for undo)
+    /// instead of being deleted.
+    public func install(_ details: AddonDetails, stash: URL? = nil) async throws -> InstallRecord {
         let work = FileManager.default.temporaryDirectory.appending(path: "MacMinion-\(UUID().uuidString)", directoryHint: .isDirectory)
         try FileManager.default.createDirectory(at: work, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: work) }
@@ -45,7 +46,7 @@ public struct Installer: Sendable {
         }.sorted()
         guard !dirs.isEmpty else { throw InstallError.empty }
 
-        try swap(dirs, from: unpacked, backup: work.appending(path: "old", directoryHint: .isDirectory))
+        try swap(dirs, from: unpacked, backup: stash ?? work.appending(path: "old", directoryHint: .isDirectory))
         return InstallRecord(id: details.id, version: details.version, md5: md5, dirs: dirs)
     }
 
@@ -72,14 +73,17 @@ public struct Installer: Sendable {
         }
     }
 
-    /// Moves the addon's folders to the Trash. SavedVariables stay.
-    public func remove(_ dirs: [String]) throws {
+    /// Moves the addon's folders to the Trash and says where each went. SavedVariables stay.
+    @discardableResult
+    public func remove(_ dirs: [String]) throws -> [TrashedItem] {
+        var trashed: [TrashedItem] = []
         for dir in dirs {
             let url = addons.appending(path: dir)
             if FileManager.default.fileExists(atPath: url.path) {
-                try FileManager.default.trashItem(at: url, resultingItemURL: nil)
+                trashed.append(try TrashMove.trash(url))
             }
         }
+        return trashed
     }
 
     public static func md5(_ data: Data) -> String {

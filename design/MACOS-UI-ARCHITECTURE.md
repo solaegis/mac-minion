@@ -153,10 +153,23 @@ Rules:
 
 ### Undo
 
-- Changes people make to their data register with the window's `UndoManager`, so Edit > Undo and
-  `Command-Z` work. Game Settings' Save and Compare's Copy already do (`GameSettingsView.swift`); every new
-  edit must too. Name the action ("Undo Save Game
+- Changes people make to their data register with the main window's `UndoManager`, so Edit > Undo and
+  `Command-Z` work. Register through `MainUndo.register(_:)` with a `Reversible` (helpers in
+  `Undo/UndoSupport.swift`), or `AppModel.registerUndo` for an in-memory toggle; never take the manager from a
+  view's environment or the key window. Every new edit must register. Name the action ("Undo Save Game
   Settings"). [undo and redo]
+- Undoable today: Install/Update Addon, Update All, Install Libraries, Remove Addon, Move Folder to Trash,
+  Clean Up, Move Backup to Trash, Restore Backup (SavedVariables and settings, plus the addons it installed
+  or removed), Restore File, Save Game Settings, a setting's edit, Revert Game Settings, Copy Settings, Ignore
+  Updates, ratings, and Customize Overview.
+- Not undoable, by design: navigation, selection, filters, and search (view state, not data); Settings
+  window preferences (a Mac app's settings are changed back, not undone); Back Up Now (adds, loses nothing);
+  restoring a first backup's AddOns folders (the safety copy doesn't hold AddOns); changes made with the
+  `macminion` command (no window).
+- An undo that touches files is refused while ESO runs, and when a file changed since, so nothing the game
+  wrote is lost. A refusal shows an alert ("Couldn't Undo Remove Addon") and drops that action.
+- Undo of an install never downloads: the folders it replaced wait in `undo/` in the store, which is emptied
+  at launch, like the undo stack.
 - Show the result of an undo: select or scroll to what changed.
 
 ---

@@ -455,7 +455,7 @@ struct InspectorCommands: View {
         // Files > Game Settings (S-062).
         let settingsKind = model.sidebar == .gameFolder && model.gameFolder.tab == .gameSettings ? model.gameFolder.gameSettingsKind : nil
         Button("Save Game Settings") {
-            if let settingsKind { Task { await model.gameFolder.saveGameSettings(settingsKind, undoManager: NSApp.keyWindow?.undoManager) } }
+            if let settingsKind { Task { await model.gameFolder.saveGameSettings(settingsKind) } }
         }
             .keyboardShortcut("s", modifiers: .command)
             .disabled(settingsKind.map { model.gameFolder.gameSettingsEdits($0) == 0 } ?? true || model.gameIsRunning)

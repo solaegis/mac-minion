@@ -1,5 +1,16 @@
 # Fix log
 
+## 2026-11-14 — File undo could overwrite newer files and claimed success when it failed
+
+Found in the undo review. Edit › Undo for Save Game Settings and Copy Settings wrote the old bytes with
+`try?` and always said "Undid …", and never checked whether ESO or another app had written the file since,
+so an undo after the game ran threw away the game's changes. The Inspector's Save also registered with the
+key window's undo manager, which is the Settings window's when that is in front. Undo now goes through
+`FileSnapshot.write(_:expecting:)`, which writes only when every file still holds what the action wrote and
+reports why not, and every action registers with the main window's manager (`MainUndo`).
+
+Rule: An undo restores only what it can prove is still its own; otherwise it says so and changes nothing.
+
 ## 2026-11-09 — Self-test failed while ESO was open
 
 Found during the Backup Restore refactor. `gameIsRunning` was

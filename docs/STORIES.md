@@ -666,6 +666,14 @@ Acceptance:
 - [self] From Masisi › WritWorthy, Compare With Alpha Top opens a scoped compare; Back returns to character-in-addon; scoped Clone ops are only WritWorthy's differences; cloning clears those and leaves HarvestMap's differences.
 - [snap] Masisi beside Alpha Top in WritWorthy only.
 
+### S-067 Undo every change to addons, files, and backups
+As the user, Edit › Undo (⌘Z) and Redo (⇧⌘Z) work for every change MacMinion makes to my addons and files: installing, updating (one undo for Update All), removing an addon or a folder, Clean Up, moving a backup to the Trash, restoring a backup or one file, and each setting I change or revert in Game Settings. An undo never downloads, never overwrites a file the game changed since, and is refused while ESO runs; when it can't run, an alert says why. After an undo, the page shows what came back.
+Depends: S-062, S-026, S-027
+Acceptance:
+- [unit] File snapshots write back only when no file changed since; Trash items come back and go again, refusing when something is in the way or gone; folder exchange swaps an update back and forth and checks before moving; the installer keeps replaced folders in its stash.
+- [self] Install, update, remove, folder removal, Clean Up, backup deletion, Restore File, Restore Backup, a setting's edit, and Revert each undo and redo; Clean Up's undo is refused while ESO runs; Redo of Restore File refuses after the file changed.
+Status: done
+
 ## Dropped
 - WoW / WoWInterface support: ESO only.
 - Login, account registration, cloud backup, SavedVariables sync: account and premium features.

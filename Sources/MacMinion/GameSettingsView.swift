@@ -6,8 +6,6 @@ import SwiftUI
 /// edited the way its value reads (S-062). Edits are a draft until Save.
 struct GameSettingsView: View {
     @Environment(AppModel.self) private var model
-    /// The window's, so Edit › Undo puts back what Save wrote.
-    @Environment(\.undoManager) private var undoManager
     // The filter stays in this bar, not the toolbar (rule 36): a second `.searchable` beside Installed's puts two
     // search fields in the toolbar for a moment when pages switch, and NSToolbar throws (see BrowsePage).
     @State private var search = ""
@@ -35,7 +33,7 @@ struct GameSettingsView: View {
                 Button("Revert") { model.gameFolder.revertGameSettings(kind) }
                     .disabled(edits == 0)
                     .help("Drop the edits to this file (Option-Command-Z)")
-                Button("Save") { Task { await model.gameFolder.saveGameSettings(kind, undoManager: undoManager) } }
+                Button("Save") { Task { await model.gameFolder.saveGameSettings(kind) } }
                     .buttonStyle(.borderedProminent)
                     .disabled(edits == 0 || model.gameIsRunning || model.backupBusy != nil)
                     .help(model.gameIsRunning ? String(localized: "Quit Elder Scrolls Online first")
@@ -141,7 +139,7 @@ private struct GameSettingRow: View {
         }
     }
 
-    private func set(_ new: String) { model.gameFolder.setGameSetting(field, in: kind, to: new) }
+    private func set(_ new: String, undoable: Bool = true) { model.gameFolder.setGameSetting(field, in: kind, to: new, undoable: undoable) }
 
     private func copy(_ text: String) {
         NSPasteboard.general.clearContents()
@@ -188,7 +186,7 @@ private struct GameSettingRow: View {
             .labelsHidden()
             .fixedSize()
         case .text:
-            TextField(field.key, text: Binding(get: { value }, set: { set($0) }))
+            TextField(field.key, text: Binding(get: { value }, set: { set($0, undoable: false) }))
                 .labelsHidden()
                 .frame(maxWidth: 280)
         }

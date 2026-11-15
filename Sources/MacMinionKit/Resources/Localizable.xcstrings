@@ -1,6 +1,30 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    "%@ changed since, so nothing was put back." : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "%@ hat sich seitdem geändert, daher wurde nichts zurückgelegt." } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "%@ cambió desde entonces, así que no se devolvió nada." } },
+        "fr" : { "stringUnit" : { "state" : "translated", "value" : "%@ a changé depuis, rien n’a donc été remis." } },
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "%@ с тех пор изменился, поэтому ничего не возвращено." } }
+      }
+    },
+    "%@ is in the way, so nothing was put back." : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "%@ ist im Weg, daher wurde nichts zurückgelegt." } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "%@ está en medio, así que no se devolvió nada." } },
+        "fr" : { "stringUnit" : { "state" : "translated", "value" : "%@ est dans le passage, rien n’a donc été remis." } },
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "%@ мешает, поэтому ничего не возвращено." } }
+      }
+    },
+    "%@ is no longer there to put back." : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "%@ ist nicht mehr da und kann nicht zurückgelegt werden." } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "%@ ya no está para devolverlo." } },
+        "fr" : { "stringUnit" : { "state" : "translated", "value" : "%@ n’est plus là pour être remis." } },
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "%@ больше нет, вернуть нечего." } }
+      }
+    },
     "Default" : {
       "comment" : "The folder in the Inspector's settings outline for the Default profile, which every megaserver uses.",
       "localizations" : {

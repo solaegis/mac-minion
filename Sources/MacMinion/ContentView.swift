@@ -46,6 +46,12 @@ struct ContentView: View {
         } message: { folder in
             Text("The folder \(folder.folder) goes to the Trash. It isn't on ESOUI, so MacMinion can't reinstall it. Saved settings stay.")
         }
+        .alert(model.undoFailure?.title ?? "", isPresented: Binding(get: { model.undoFailure != nil }, set: { if !$0 { model.undoFailure = nil } }),
+               presenting: model.undoFailure) { _ in
+            Button("OK", role: .cancel) {}
+        } message: { failure in
+            Text(failure.message)
+        }
         .sheet(item: $model.addonImagePreview) { preview in
             PreviewImageSheet(name: preview.name, url: preview.url)
         }

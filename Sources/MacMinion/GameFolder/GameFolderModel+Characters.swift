@@ -117,13 +117,13 @@ extension GameFolderModel {
 
     /// Writes `from`'s values for these settings into `to`'s place in each addon's file (S-060). ESO must be
     /// closed: it writes its own copy when it quits. Backs up first, once per pair of characters a run.
-    func copySettings(_ rows: [(file: String, key: String)], from: String, to: String, undoManager: UndoManager? = nil) async {
+    func copySettings(_ rows: [(file: String, key: String)], from: String, to: String) async {
         let ops = rows.map { SettingsMatrix.CloneOp(file: $0.file, key: $0.key, from: from, to: to) }
-        await applyCloneOps(ops, undoManager: undoManager)
+        await applyCloneOps(ops)
     }
 
     /// Applies Compare Clone ops (copy and/or key removal) after backup (S-060).
-    func applyCloneOps(_ ops: [SettingsMatrix.CloneOp], undoManager: UndoManager? = nil) async {
+    func applyCloneOps(_ ops: [SettingsMatrix.CloneOp]) async {
         message = nil
         errorMessage = nil
         guard !app.gameIsRunning else {
@@ -149,7 +149,7 @@ extension GameFolderModel {
         if let last = edits.failures.last {
             errorMessage = String(localized: "\(last.file) wasn't changed: \(last.why)")
         }
-        registerFileUndo(before: edits.before, after: edits.after, name: String(localized: "Copy Settings"), undoManager: undoManager)
+        registerFileUndo(before: edits.before, after: edits.after, name: String(localized: "Copy Settings"))
         let copied = edits.changed
         let deleted = byFile.values.flatMap { $0 }.filter(\.removes).count
         if copied > 0 {

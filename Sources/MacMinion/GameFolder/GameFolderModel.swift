@@ -185,6 +185,8 @@ final class GameFolderModel {
     var gameSettings: [GameSettingsFile.Kind: GameSettingsFile] = [:]
     var gameSettingsDrafts: [GameSettingsFile.Kind: [Int: String]] = [:]
     var gameSettingsKind: GameSettingsFile.Kind = .user
+    /// The field whose edits Edit › Undo takes back as one, while it's the newest undo.
+    var draftUndoKey: String?
 
     // MARK: Files (GameFolderModel+Files.swift)
 

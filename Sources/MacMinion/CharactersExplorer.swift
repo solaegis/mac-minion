@@ -723,8 +723,6 @@ private struct CompareCharacters: View {
     /// When set, only this addon's SavedVariables file (S-066).
     var file: String? = nil
     @State private var onlyDifferences = true
-    /// The window's, so Edit › Undo puts back what a copy wrote.
-    @Environment(\.undoManager) private var undoManager
 
     private func other(_ id: String) -> String { id == a ? b : a }
     private func name(_ id: String) -> String { model.gameFolder.compareName(id, other: other(id)) }
@@ -794,7 +792,7 @@ private struct CompareCharacters: View {
         )) {
             Button("Back Up and Clone") {
                 let ops = model.gameFolder.selectedCloneOps()
-                Task { await model.gameFolder.applyCloneOps(ops, undoManager: undoManager) }
+                Task { await model.gameFolder.applyCloneOps(ops) }
             }
             Button("Cancel", role: .cancel) {}
         } message: {

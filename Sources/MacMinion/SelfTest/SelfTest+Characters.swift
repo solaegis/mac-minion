@@ -234,7 +234,8 @@ extension SelfTest {
             let undo = UndoManager()
             undo.groupsByEvent = false
             undo.beginUndoGrouping()
-            await model.gameFolder.saveGameSettings(.user, undoManager: undo)
+            MainUndo.override = undo
+            await model.gameFolder.saveGameSettings(.user)
             undo.endUndoGrouping()
             let savedData = (try? Data(contentsOf: userURL)) ?? Data()
             let saved = String(decoding: savedData, as: UTF8.self)
@@ -244,10 +245,13 @@ extension SelfTest {
             // Rule 43: Edit › Undo puts the file back as it was, and Redo writes the save again.
             check("Undo names the save", undo.canUndo && undo.undoActionName == String(localized: "Save Game Settings"), undo.undoActionName)
             undo.undo()
+            await MainUndo.settle()
             check("Undo after Save puts the file back byte for byte", (try? Data(contentsOf: userURL)) == userBefore)
             undo.redo()
+            await MainUndo.settle()
             check("Redo writes the save again", (try? Data(contentsOf: userURL)) == savedData)
             try? userBefore.write(to: userURL)
+            MainUndo.override = nil
         } else {
             check("the sample UserSettings.txt reads", false)
         }

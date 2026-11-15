@@ -56,12 +56,23 @@ extension GameFolderModel {
             errorMessage = String(localized: "Nothing was moved. \(backupError)")
             return
         }
-        var moved = 0
+        var trashed: [TrashedItem] = []
         for url in request.urls {
-            do { try FileManager.default.trashItem(at: url, resultingItemURL: nil); moved += 1 }
+            do { trashed.append(try TrashMove.trash(url)) }
             catch { errorMessage = String(localized: "Couldn't move \(url.lastPathComponent) to the Trash: \(error.localizedDescription)") }
         }
+        let moved = trashed.count
         if moved > 0 {
+            MainUndo.register(.trash(String(localized: "Clean Up"), items: trashed,
+                                     refuse: { [weak self] in self?.app.gameIsRunning == true ? .gameRunning : nil }) { [weak self] undone in
+                guard let self else { return }
+                message = undone ? String(localized: "Put \(moved) items back from the Trash.") : String(localized: "Moved \(moved) items to the Trash again.")
+                errorMessage = nil
+                await scan()
+                await load()
+                app.open(.gameFolder)
+                tab = .problems
+            })
             let items = String(localized: "\(moved) items")
             message = String(localized: "Backed up, then moved \(items) (\(request.bytes.formatted(.byteCount(style: .file)))) to the Trash.")
         }

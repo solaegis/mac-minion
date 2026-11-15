@@ -48,6 +48,7 @@ enum SelfTest {
             await tidy(model)
             await app(model)
             await appearance(model)
+            await undo(model)
             print(failures == 0 ? "SELFTEST PASS \(count) checks" : "SELFTEST FAIL \(failures) of \(count) checks")
             finish(code: failures == 0 ? 0 : 1)
         }

@@ -168,6 +168,8 @@ final class AppModel {
     var errors: [Int: String] = [:]
     private(set) var batch: (done: Int, total: Int)?
     var pendingRemoval: InstalledAddon?
+    /// An undo or redo that couldn't run, shown as an alert.
+    var undoFailure: UndoFailure?
     /// A folder not on ESOUI, waiting for the user to confirm its removal.
     var pendingFolderRemoval: UnmatchedFolder?
 
@@ -214,6 +216,8 @@ final class AppModel {
         }
         state = Store.loadState()
         watchGame()
+        UndoStash.clear()
+        MainUndo.onFailure = { [weak self] title, why in self?.undoFailure = UndoFailure(title: title, message: why) }
     }
 
     // MARK: Derived lists
@@ -466,8 +470,11 @@ final class AppModel {
     /// Installs or updates one addon. Errors are kept per addon.
     /// Installs the latest release, or `version` from the ESOUI archive. An older version is pinned:
     /// its updates are ignored until the player installs the latest again.
-    func install(_ id: Int, version: ArchivedVersion? = nil) async {
-        guard !busy.contains(id) else { return }
+    /// Registers Undo, which puts back the folders it replaced, unless `registeringUndo` is false; then the
+    /// caller registers the returned change with others as one.
+    @discardableResult
+    func install(_ id: Int, version: ArchivedVersion? = nil, registeringUndo: Bool = true) async -> Reversible? {
+        guard !busy.contains(id) else { return nil }
         busy.insert(id)
         errors[id] = nil
         defer { busy.remove(id) }
@@ -480,16 +487,52 @@ final class AppModel {
             } ?? latest
             let previous = state.records[id] ?? installed(id)?.record
             let previousVersion = previous?.version ?? installed(id)?.installedVersion
-            var record = try await Installer(addons: addonsFolder).install(info)
+            let stash = UndoStash.make()
+            var record = try await Installer(addons: addonsFolder).install(info, stash: stash.old)
             record.ignored = older != nil || (version == nil ? previous?.ignored ?? false : false)
+            let saved = state.records[id]
             state.records[id] = record
-            state.record([HistoryEvent(date: .now, addonID: id, name: catalogAddon(id)?.name ?? "Addon \(id)", version: info.version,
-                                       previousVersion: previousVersion, kind: previous == nil ? .install : .update)])
+            let event = HistoryEvent(date: .now, addonID: id, name: catalogAddon(id)?.name ?? "Addon \(id)", version: info.version,
+                                     previousVersion: previousVersion, kind: previous == nil ? .install : .update)
+            state.record([event])
             save()
             await rescan()
+            let change = installChange(id: id, before: saved, after: record, oldDirs: FolderExchange.folders(in: stash.old),
+                                       stash: stash, event: event,
+                                       name: previous == nil ? String(localized: "Install Addon") : String(localized: "Update Addon"))
+            if registeringUndo { MainUndo.register(change) }
+            return change
         } catch {
             errors[id] = error.localizedDescription
+            return nil
         }
+    }
+
+    /// Undo swaps the installed folders for the ones the install replaced (none for a first install), and
+    /// puts back the record and history; Redo swaps them again. No download either way.
+    private func installChange(id: Int, before: InstallRecord?, after: InstallRecord, oldDirs: [String],
+                               stash: (old: URL, new: URL), event: HistoryEvent, name: String) -> Reversible {
+        let addons = addonsFolder
+        return Reversible(name: name, undo: { [weak self] in
+            try FolderExchange.exchange(in: addons, takeOut: after.dirs, to: stash.new, putIn: oldDirs, from: stash.old)
+            guard let self else { return }
+            state.records[id] = before
+            state.history.removeAll { $0.id == event.id }
+            await afterAddonUndo(id)
+        }, redo: { [weak self] in
+            try FolderExchange.exchange(in: addons, takeOut: oldDirs, to: stash.old, putIn: after.dirs, from: stash.new)
+            guard let self else { return }
+            state.records[id] = after
+            state.record([event])
+            await afterAddonUndo(id)
+        })
+    }
+
+    /// Saves, reads AddOns again, and shows the addon an undo or redo changed.
+    private func afterAddonUndo(_ id: Int) async {
+        save()
+        await rescan()
+        if installed(id) != nil, sidebar != .findMore { open(.installed, selecting: id) }
     }
 
     /// Updates every addon with an update, as many at a time as Settings allows.
@@ -498,22 +541,26 @@ final class AppModel {
         guard batch == nil, !ids.isEmpty else { return }
         batch = (0, ids.count)
         defer { batch = nil }
-        await withTaskGroup(of: Void.self) { group in
+        var changes: [Reversible] = []
+        await withTaskGroup(of: Reversible?.self) { group in
             var next = 0
             for _ in 0..<min(prefs.concurrentUpdates, ids.count) {
                 let id = ids[next]
                 next += 1
-                group.addTask { await self.install(id) }
+                group.addTask { await self.install(id, registeringUndo: false) }
             }
-            while await group.next() != nil {
+            while let change = await group.next() {
                 batch?.done += 1
+                if let change { changes.append(change) }
                 if next < ids.count {
                     let id = ids[next]
                     next += 1
-                    group.addTask { await self.install(id) }
+                    group.addTask { await self.install(id, registeringUndo: false) }
                 }
             }
         }
+        // One Edit › Undo for the whole run.
+        if let all = Reversible.group(String(localized: "Update All"), changes) { MainUndo.register(all) }
     }
 
     /// Installs the given missing libraries, or all of them, one after another.
@@ -521,7 +568,11 @@ final class AppModel {
         guard !installingLibraries else { return }
         installingLibraries = true
         defer { installingLibraries = false }
-        for library in libraries ?? missingLibraries { await install(library.addon.id) }
+        var changes: [Reversible] = []
+        for library in libraries ?? missingLibraries {
+            if let change = await install(library.addon.id, registeringUndo: false) { changes.append(change) }
+        }
+        if let all = Reversible.group(String(localized: "Install Libraries"), changes) { MainUndo.register(all) }
     }
 
     func setIgnored(_ id: Int, _ ignored: Bool) {
@@ -536,9 +587,14 @@ final class AppModel {
     /// Moves a folder that isn't on ESOUI to the Trash.
     func removeFolder(_ folder: UnmatchedFolder) async {
         do {
-            try Installer(addons: addonsFolder).remove([folder.folder])
+            let trashed = try Installer(addons: addonsFolder).remove([folder.folder])
             if selection == .folder(folder.folder) { selection = nil }
             await rescan()
+            MainUndo.register(.trash(String(localized: "Move Folder to Trash"), items: trashed) { [weak self] undone in
+                guard let self else { return }
+                await rescan()
+                if undone { open(.installed); selection = .folder(folder.folder) }
+            })
         } catch {
             scanError = String(localized: "Couldn't move \(folder.folder) to the Trash: \(error.localizedDescription)")
         }
@@ -590,16 +646,36 @@ final class AppModel {
         }.reduce(0) { $0 + $1.count } ?? 0
     }
 
-    func remove(_ addon: InstalledAddon) async {
+    /// Registers Undo, which takes the folders back out of the Trash, unless `registeringUndo` is false; then
+    /// the caller registers the returned change with others as one.
+    @discardableResult
+    func remove(_ addon: InstalledAddon, registeringUndo: Bool = true) async -> Reversible? {
         do {
-            try Installer(addons: addonsFolder).remove(addon.record.dirs)
-            state.records[addon.id] = nil
-            state.record([HistoryEvent(date: .now, addonID: addon.id, name: addon.catalog.name, version: addon.installedVersion, kind: .remove)])
-            if selection == .addon(addon.id), sidebar != .findMore { selection = nil }
+            let trashed = try Installer(addons: addonsFolder).remove(addon.record.dirs)
+            let id = addon.id, saved = state.records[id]
+            state.records[id] = nil
+            let event = HistoryEvent(date: .now, addonID: id, name: addon.catalog.name, version: addon.installedVersion, kind: .remove)
+            state.record([event])
+            if selection == .addon(id), sidebar != .findMore { selection = nil }
             save()
             await rescan()
+            let change = Reversible.trash(String(localized: "Remove Addon"), items: trashed) { [weak self] undone in
+                guard let self else { return }
+                if undone {
+                    state.records[id] = saved
+                    state.history.removeAll { $0.id == event.id }
+                } else {
+                    state.records[id] = nil
+                    state.record([event])
+                    if selection == .addon(id), sidebar != .findMore { selection = nil }
+                }
+                await afterAddonUndo(id)
+            }
+            if registeringUndo { MainUndo.register(change) }
+            return change
         } catch {
             errors[addon.id] = error.localizedDescription
+            return nil
         }
     }
 
@@ -758,8 +834,14 @@ final class AppModel {
     }
 
     func deleteBackup(_ backup: Backup) {
-        trash(backup)
+        let trashed = [backup.zip, backup.addonList].compactMap { $0 }.compactMap { try? TrashMove.trash($0) }
         loadBackups()
+        guard !trashed.isEmpty else { return }
+        MainUndo.register(.trash(String(localized: "Move Backup to Trash"), items: trashed) { [weak self] _ in
+            guard let self else { return }
+            loadBackups()
+            open(.backups)
+        })
     }
 
     private func trash(_ backup: Backup) {
@@ -840,9 +922,17 @@ final class AppModel {
         do {
             // Without files to put back, this only saves what's there.
             let scope: BackupRestore.Scope = if options.files, let zip = backup.zip { .everything(from: zip) } else { .saveOnly }
-            let restoredFiles = try await backupRestore.run(scope, addonIDs: installed.map(\.id)) {
+            let result = try await backupRestore.run(scope, addonIDs: installed.map(\.id)) {
                 await MainActor.run { self.backupBusy = restoring }
-            }.restored
+            }
+            let restoredFiles = result.restored
+            var changes: [Reversible] = []
+            // A snapshot holds SavedVariables and settings, which the safety copy holds too. An initial backup's
+            // AddOns folders aren't in the safety copy, so that part of a restore can't be undone.
+            if restoredFiles > 0, backup.kind == .snapshot, let zip = backup.zip,
+               let safety = MinionBackup.list(backupDir: result.safety, gameID: "before-restore").first?.zip {
+                changes.append(restoreFilesChange(zip: zip, safety: safety))
+            }
             await rescan()
             let list = Set(backup.addonIDs)
             var installedCount = 0, removed = 0
@@ -850,16 +940,17 @@ final class AppModel {
                 let missing = list.filter { installed($0) == nil && catalogAddon($0) != nil }.sorted()
                 for (n, id) in missing.enumerated() {
                     backupBusy = String(localized: "Installing \(n + 1) of \(missing.count)…")
-                    await install(id)
+                    if let change = await install(id, registeringUndo: false) { changes.append(change) }
                     if errors[id] == nil { installedCount += 1 }
                 }
             }
             if !list.isEmpty, options.removeOthers {
                 for addon in installed where !list.contains(addon.id) {
-                    await remove(addon)
+                    if let change = await remove(addon, registeringUndo: false) { changes.append(change) }
                     removed += 1
                 }
             }
+            if let all = Reversible.group(String(localized: "Restore Backup"), changes) { MainUndo.register(all) }
             let parts = [restoredFiles > 0 ? String(localized: "\(restoredFiles) files restored") : nil,
                          installedCount > 0 ? String(localized: "\(installedCount) addons installed") : nil,
                          removed > 0 ? String(localized: "\(removed) moved to the Trash") : nil].compactMap { $0 }
@@ -868,6 +959,35 @@ final class AppModel {
             backupError = Self.restoreErrorText(error)
         }
         loadBackups()
+    }
+
+    /// Undo puts back the files from the copy saved just before the restore; Redo restores the backup's files
+    /// again. Each saves what is there first, like any restore. Files the restore added stay.
+    private func restoreFilesChange(zip: URL, safety: URL) -> Reversible {
+        let latestSafety = UndoBox(safety)
+        func run(_ from: @escaping @MainActor () -> URL, undoing: Bool) -> @MainActor () async throws -> Void {
+            { [weak self] in
+                guard let self else { return }
+                guard !gameIsRunning else { throw UndoProblem.gameRunning }
+                do throws(BackupRestore.Failure) {
+                    let result = try await backupRestore.run(.everything(from: from()), addonIDs: installed.map(\.id))
+                    if !undoing, let saved = MinionBackup.list(backupDir: result.safety, gameID: "before-restore").first?.zip {
+                        latestSafety.value = saved
+                    }
+                } catch {
+                    throw UndoProblem.other(Self.restoreErrorText(error))
+                }
+                backupMessage = undoing ? String(localized: "Your files are back as they were before the restore.")
+                    : String(localized: "The backup's files are restored again.")
+                loadBackups()
+                await rescan()
+                await gameFolder.scan()
+                await gameFolder.load()
+            }
+        }
+        return Reversible(name: String(localized: "Restore Backup"),
+                          undo: run({ latestSafety.value }, undoing: true),
+                          redo: run({ zip }, undoing: false))
     }
 
     /// Opens Backups on one SavedVariables file: which backups hold it, and a button to put back just that file.
@@ -898,9 +1018,20 @@ final class AppModel {
         backupMessage = nil
         defer { backupBusy = nil }
         let restoring = String(localized: "Restoring \(name)…")
+        let url = gameFolderURL.appending(path: "SavedVariables/\(name)")
+        let before = try? Data(contentsOf: url)
         do {
             _ = try await backupRestore.run(.file("SavedVariables/\(name)", from: zip), addonIDs: installed.map(\.id)) {
                 await MainActor.run { self.backupBusy = restoring }
+            }
+            if let before, let after = try? Data(contentsOf: url), before != after {
+                MainUndo.register(.files(String(localized: "Restore File"), before: [url: before], after: [url: after],
+                                         gameRunning: { [weak self] in self?.gameIsRunning ?? false }) { [weak self] _ in
+                    guard let self else { return }
+                    loadBackups()
+                    await gameFolder.scan()
+                    await gameFolder.load()
+                })
             }
             backupMessage = String(localized: "\(name) is back from the backup of \(backup.name). Your other files are as they were.")
             backupFocus = nil
@@ -1160,11 +1291,17 @@ extension AppModel {
     /// Edit › Undo for a change in the main window (a rating, Ignore Updates, the Overview's layout). The
     /// handler makes the opposite change through the same function, which registers Redo in turn.
     func registerUndo(_ name: String, _ undo: @escaping @MainActor (AppModel) -> Void) {
-        guard let undoManager = NSApplication.shared.windows.first(where: { $0.identifier?.rawValue.hasPrefix("main") == true })?.undoManager
-                ?? NSApplication.shared.mainWindow?.undoManager else { return }
+        guard let undoManager = MainUndo.manager else { return }
         undoManager.registerUndo(withTarget: self) { model in
             MainActor.assumeIsolated { undo(model) }
         }
         undoManager.setActionName(name)
     }
+}
+
+/// An undo or redo that couldn't run, for the main window's alert.
+struct UndoFailure: Identifiable {
+    let id = UUID()
+    let title: String
+    let message: String
 }

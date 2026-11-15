@@ -33,8 +33,8 @@ extension SelfTest {
         check("Restore can remove addons not on the list", model.installed(695) == nil)
         // Two installs at once: neither one's rescan may drop the other's record.
         if let logger = model.installed(2275) { await model.remove(logger) }
-        async let guildStore: Void = model.install(695)
-        async let debugLogger: Void = model.install(2275)
+        async let guildStore = model.install(695)
+        async let debugLogger = model.install(2275)
         _ = await (guildStore, debugLogger)
         check("two installs at once both keep their version", model.installed(695)?.record.version != nil
               && model.installed(2275)?.record.version != nil, "\(model.errors)")
