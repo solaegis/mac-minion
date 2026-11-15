@@ -252,6 +252,7 @@ public enum CompanionData {
         var requested: [String] = []
         var answers: [String: CompanionAnswer] = [:]
         var sessions: [CompanionSession] = []
+        var seenSessions: Set<String> = []
         var mergedErrors: [String: CompanionError] = [:]
 
         for block in newestFirst {
@@ -308,8 +309,10 @@ public enum CompanionData {
             for (key, answer) in parseAnswers(wide["lookups"]?.table?["answers"]?.table) where answers[key] == nil {
                 answers[key] = answer
             }
-            if sessions.isEmpty {
-                sessions = parseSessions(wide["sessions"]?.table)
+            // Every megaserver keeps its own logins: take them all, once each, newest block's row first.
+            for session in parseSessions(wide["sessions"]?.table) {
+                let key = "\(session.character ?? "")\u{1F}\(session.loginAt?.timeIntervalSince1970 ?? -1)"
+                if seenSessions.insert(key).inserted { sessions.append(session) }
             }
         }
 
@@ -325,7 +328,7 @@ public enum CompanionData {
         snapshot.layoutScan = layoutScan
         snapshot.requestedSvGlobals = requested
         snapshot.answers = answers
-        snapshot.sessions = sessions
+        snapshot.sessions = sessions.sorted { ($0.loginAt ?? .distantPast) < ($1.loginAt ?? .distantPast) }
         snapshot.savedAt = savedAt ?? written
         return snapshot
     }

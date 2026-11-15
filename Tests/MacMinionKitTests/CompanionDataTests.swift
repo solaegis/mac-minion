@@ -369,3 +369,30 @@ EsoMacMinion_Data =
         #expect(problem.message.contains(message))
     }
 }
+
+@Test func companionSessionsComeFromEveryBlockOnceEach() throws {
+    let login = companionTestStamp - 7200
+    let lua = """
+    EsoMacMinion_Data =
+    {
+        ["NA Megaserver"] = { ["@SOLAEGIS"] = { ["$AccountWide"] = {
+            ["schema"] = 1, ["written"] = \(companionTestStamp),
+            ["sessions"] = {
+                [1] = { ["character"] = "1", ["loginAt"] = \(login), ["logoutAt"] = \(login + 3600) },
+                [2] = { ["character"] = "2", ["loginAt"] = \(companionTestStamp - 600), ["logoutAt"] = \(companionTestStamp) },
+            },
+        } } },
+        ["EU Megaserver"] = { ["@SOLAEGIS"] = { ["$AccountWide"] = {
+            ["schema"] = 1, ["written"] = \(companionTestStamp - 86400),
+            ["sessions"] = {
+                [1] = { ["character"] = "1", ["loginAt"] = \(login), ["logoutAt"] = \(login + 60) },
+                [2] = { ["character"] = "3", ["loginAt"] = \(companionTestStamp - 90000), ["logoutAt"] = \(companionTestStamp - 86400) },
+            },
+        } } },
+    }
+    """
+    let snap = try #require(CompanionData.snapshot(SVDocument.parse(Data(lua.utf8))))
+    #expect(snap.sessions.map(\.character) == ["3", "1", "2"])
+    // The duplicate keeps the newest block's row.
+    #expect(CompanionData.playedTime(characterID: "1", in: snap) == 3600)
+}
