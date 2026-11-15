@@ -11,6 +11,8 @@ public struct Manifest: Sendable, Hashable {
     public var optionalDependsOn: [String] = []
     /// Lua variables the game saves to `SavedVariables/<manifest name>.lua`.
     public var savedVariables: [String] = []
+    /// `## AddOnVersion:`, the integer the game reports as GetAddOnVersion.
+    public var addOnVersion: Int?
 
     public init(title: String? = nil, version: String? = nil, author: String? = nil, isLibrary: Bool = false) {
         self.title = title; self.version = version; self.author = author; self.isLibrary = isLibrary
@@ -32,6 +34,7 @@ public struct Manifest: Sendable, Hashable {
             case "dependson": m.dependsOn = names(value)
             case "optionaldependson": m.optionalDependsOn = names(value)
             case "savedvariables": m.savedVariables = names(value)
+            case "addonversion": m.addOnVersion = Int(value.prefix { $0.isNumber })
             default: break
             }
         }

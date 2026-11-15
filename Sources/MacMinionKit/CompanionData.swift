@@ -360,8 +360,10 @@ public enum CompanionData {
         return lag >= 0 && lag < errorSessionWindow
     }
 
-    /// Load failures, out-of-date addons, and recent Lua errors.
-    public static func problems(from snapshot: CompanionSnapshot, now: Date = .now) -> [SVProblem] {
+    /// Load failures, out-of-date addons, and recent Lua errors. `installedVersions` is each installed
+    /// manifest's `## AddOnVersion:` by lowercased folder name.
+    public static func problems(from snapshot: CompanionSnapshot, installedVersions: [String: Int] = [:],
+                                now: Date = .now) -> [SVProblem] {
         var out: [SVProblem] = []
         let file = snapshot.file
         if !snapshot.schemaKnown {
@@ -388,7 +390,7 @@ public enum CompanionData {
             }
         }
         for (index, error) in snapshot.errors.enumerated() where isRecentError(error, now: now) {
-            if isFixedSinceUpdate(error, addons: snapshot.addons) { continue }
+            if isFixedSinceUpdate(error, installed: installedVersions, addons: snapshot.addons) { continue }
             let name = error.addon ?? String(localized: "An addon", bundle: .module)
             let times = error.count == 1 ? String(localized: "once", bundle: .module) : String(localized: "\(error.count) times", bundle: .module)
             let when: String = {
@@ -411,11 +413,13 @@ public enum CompanionData {
         return out
     }
 
-    /// True when GetAddOnVersion now is higher than the version that threw the error (fixed by an update).
-    public static func isFixedSinceUpdate(_ error: CompanionError, addons: [String: CompanionAddonState]) -> Bool {
+    /// True when the installed addon is newer than the version that threw the error (fixed by an update).
+    /// The manifest on disk wins: an update installed since the last login isn't in the companion's list yet.
+    public static func isFixedSinceUpdate(_ error: CompanionError, installed: [String: Int] = [:],
+                                          addons: [String: CompanionAddonState]) -> Bool {
         guard let folder = error.addon, let then = error.addonVersion,
-              let installed = addons[folder]?.addOnVersion else { return false }
-        return installed > then
+              let now = installed[folder.lowercased()] ?? addons[folder]?.addOnVersion else { return false }
+        return now > then
     }
 
     /// First line of a Lua error string (before stack / Locals), trimmed.

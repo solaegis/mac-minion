@@ -51,17 +51,22 @@ public struct SVFolderRead: Sendable {
 
     /// `declarations`: each addon's declared variables by lowercased folder name, for the problem checks.
     /// `manifests`: every installed addon's name, variables, and dependencies, for the graph (`AddonIndex.manifests`).
+    /// `installedVersions`: each installed manifest's `## AddOnVersion:` (`AddonIndex.versions`), to hide Lua
+    /// errors an update has fixed.
     public static func read(_ files: [URL], addons: URL?, declarations: [String: [String]],
                             manifests: [String: (addon: String, variables: [String], dependsOn: [String])] = [:],
+                            installedVersions: [String: Int] = [:],
                             answerCache: [String: CompanionAnswer] = [:],
                             report: @escaping @Sendable (String, Double) async -> Void = { _, _ in }) async -> SVFolderRead {
-        await read(files, addons: addons, declarations: declarations, manifests: manifests, cache: Cache(),
+        await read(files, addons: addons, declarations: declarations, manifests: manifests,
+                   installedVersions: installedVersions, cache: Cache(),
                    answerCache: answerCache, report: report).read
     }
 
     /// The same read, reusing what `cache` has for files whose size and date are unchanged; returns the new cache.
     public static func read(_ files: [URL], addons: URL?, declarations: [String: [String]],
-                            manifests: [String: (addon: String, variables: [String], dependsOn: [String])] = [:], cache old: Cache,
+                            manifests: [String: (addon: String, variables: [String], dependsOn: [String])] = [:],
+                            installedVersions: [String: Int] = [:], cache old: Cache,
                             answerCache: [String: CompanionAnswer] = [:],
                             report: @escaping @Sendable (String, Double) async -> Void = { _, _ in }) async -> (read: SVFolderRead, cache: Cache) {
         var cache = Cache()
@@ -111,7 +116,7 @@ public struct SVFolderRead: Sendable {
                      guilds: snapshot.map { Dictionary($0.guilds.map { ($0.key, $0.value.name) }, uniquingKeysWith: { _, n in n }) } ?? [:],
                      answers: CompanionAnswerCache.merge(file: snapshot?.answers ?? [:], cache: answerCache))
         var problems = readFiles.flatMap { cache.first[$0]!.problems }
-        if let snapshot { problems += CompanionData.problems(from: snapshot) }
+        if let snapshot { problems += CompanionData.problems(from: snapshot, installedVersions: installedVersions) }
         let usage = SVUsage.finish(tally, names: names)
         problems += SVProblems.unknownCharacters(usage)
         problems = SVProblems.inDisplayOrder(problems)

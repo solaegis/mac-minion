@@ -396,3 +396,23 @@ EsoMacMinion_Data =
     // The duplicate keeps the newest block's row.
     #expect(CompanionData.playedTime(characterID: "1", in: snap) == 3600)
 }
+
+@Test func luaErrorsFixedByAnUpdateInstalledSinceTheLastLoginAreHidden() throws {
+    let lua = """
+    EsoMacMinion_Data =
+    {
+        ["NA Megaserver"] = { ["@SOLAEGIS"] = { ["$AccountWide"] = {
+            ["schema"] = 1, ["written"] = \(companionTestStamp),
+            ["addons"] = { ["Boom"] = { ["addOnVersion"] = 4 } },
+            ["errors"] = {
+                [1] = { ["addon"] = "Boom", ["at"] = \(companionTestStamp), ["addonVersion"] = 4, ["count"] = 1, ["message"] = "boom" },
+            },
+        } } },
+    }
+    """
+    let snap = try #require(CompanionData.snapshot(SVDocument.parse(Data(lua.utf8))))
+    #expect(CompanionData.problems(from: snap, now: companionTestNow).contains { $0.kind == .luaError })
+    #expect(!CompanionData.problems(from: snap, installedVersions: ["boom": 5], now: companionTestNow).contains { $0.kind == .luaError })
+    #expect(CompanionData.problems(from: snap, installedVersions: ["boom": 4], now: companionTestNow).contains { $0.kind == .luaError })
+    #expect(Manifest.parse("## Title: Boom\n## AddOnVersion: 5\n").addOnVersion == 5)
+}

@@ -164,6 +164,8 @@ public enum SavedVariablesAudit {
         /// Every addon with a manifest, by lowercased folder name: its name, the variables it declares, and
         /// its `## DependsOn:` folders, as `SVGraph.Input.addons` takes them.
         public var manifests: [String: (addon: String, variables: [String], dependsOn: [String])] = [:]
+        /// Each addon's `## AddOnVersion:`, by lowercased folder name, when its manifest has one.
+        public var versions: [String: Int] = [:]
     }
 
     /// Addons up to three folders deep, as the game loads them: one walk for everything the read uses.
@@ -179,6 +181,7 @@ public enum SavedVariablesAudit {
                 if let manifest = Manifest.read(folder: url) {
                     index.topFolders[name.lowercased()] = owner
                     index.manifests[name.lowercased()] = (name, manifest.savedVariables, manifest.dependsOn)
+                    if let version = manifest.addOnVersion { index.versions[name.lowercased()] = version }
                     if !manifest.savedVariables.isEmpty { index.savers[name.lowercased()] = (url, name, manifest.savedVariables) }
                 }
                 walk(url, level + 1, owner)

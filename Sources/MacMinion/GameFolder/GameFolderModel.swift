@@ -260,7 +260,8 @@ final class GameFolderModel {
                 }
             }
             let (read, newCache) = await SVFolderRead.read(files, addons: addons, declarations: declarations,
-                                                           manifests: addonIndex.manifests, cache: cache,
+                                                           manifests: addonIndex.manifests,
+                                                           installedVersions: addonIndex.versions, cache: cache,
                                                            answerCache: answerCache, report: report)
             return (read, newCache, addonIndex, companionWriteError)
         }.value
