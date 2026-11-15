@@ -241,6 +241,10 @@ final class GameFolderModel {
         // The companion reads the globals it's asked for at the next login. Ask only while ESO is closed:
         // the game rewrites its SavedVariables when it saves.
         let mayAskCompanion = !app.gameIsRunning
+        let priorNames = names
+        let priorRefs = references
+        let answerCache = CompanionAnswerCache.merge(file: lastRead?.names.companionAnswers ?? [:],
+                                                    cache: CompanionAnswerCache.load(from: Store.directory))
         let (read, newCache, addonIndex, companionWriteError) = await Task.detached {
             let addonIndex = SavedVariablesAudit.index(addons)
             let declarations = addonIndex.savers.mapValues(\.variables)
@@ -249,19 +253,22 @@ final class GameFolderModel {
                 do {
                     let globals = CompanionRequests.svGlobals(from: declarations)
                     let panels = CompanionRequests.lamPanels(from: Array(addonIndex.savers.keys))
-                    _ = try CompanionRequests.write(svGlobals: globals, lamPanels: panels, savedVariables: folder)
+                    let nameIDs = CompanionRequests.unmetNameIDs(references: priorRefs, names: priorNames, answers: answerCache)
+                    _ = try CompanionRequests.write(svGlobals: globals, lamPanels: panels, nameIDs: nameIDs, savedVariables: folder)
                 } catch {
                     companionWriteError = (error as? SavedVariablesWrite.Refusal)?.description ?? error.localizedDescription
                 }
             }
             let (read, newCache) = await SVFolderRead.read(files, addons: addons, declarations: declarations,
-                                                           manifests: addonIndex.manifests, cache: cache, report: report)
+                                                           manifests: addonIndex.manifests, cache: cache,
+                                                           answerCache: answerCache, report: report)
             return (read, newCache, addonIndex, companionWriteError)
         }.value
         // Each part is stamped with the size and date its file had when read, so keeping it is safe even if
         // the files changed again since: those files are read again next time.
         readCache = newCache
         retainParsedDocuments(files)
+        CompanionAnswerCache.save(read.names.companionAnswers, to: Store.directory)
         // The files changed while reading: the caller reads again.
         guard started == generation else { return }
         if let companionWriteError {

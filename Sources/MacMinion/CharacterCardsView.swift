@@ -75,6 +75,12 @@ func characterTarget(_ bucket: SVUsage.Bucket) -> SVTarget {
         if !who.isEmpty { parts.append(who) }
         if let cp = roster.champion, cp > 0 { parts.append("CP \(cp.formatted())") }
     }
+    if let snap = model.companionSnapshot {
+        let played = CompanionData.playedTime(characterID: bucket.id, in: snap)
+        if played > 0 {
+            parts.append(Duration.seconds(played).formatted(.units(allowed: [.hours, .minutes], width: .abbreviated)))
+        }
+    }
     return parts.isEmpty ? "Server not saved" : parts.joined(separator: " · ")
 }
 

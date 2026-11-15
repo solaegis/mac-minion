@@ -238,3 +238,53 @@ EsoMacMinion_Data =
     #expect(problems.contains { $0.kind == .luaError && $0.message.contains("Recent") && !$0.message.contains("last session") })
     #expect(!problems.contains { $0.message.contains("Ancient") })
 }
+
+@Test func companionSnapshotParsesAnswersSessionsSavedAtAndEnvCounts() throws {
+    let lua = """
+    EsoMacMinion_Data =
+    {
+        ["NA Megaserver"] = { ["@SOLAEGIS"] = { ["$AccountWide"] = {
+            ["schema"] = 1, ["written"] = \(companionTestStamp), ["savedAt"] = \(companionTestStamp + 10),
+            ["env"] = { ["server"] = "NA Megaserver", ["addonsTotal"] = 100, ["addonsLoaded"] = 80,
+                        ["addonsDisabled"] = 15, ["loadOutOfDateAddOns"] = true },
+            ["lookups"] = { ["answers"] = {
+                ["zone:3"] = { ["name"] = "Glenumbra" },
+                ["item:96175"] = { ["name"] = "Ring of the Wild Hunt", ["quality"] = 5, ["set"] = 576 },
+            } },
+            ["sessions"] = {
+                [1] = { ["character"] = "8796093036412335", ["loginAt"] = \(companionTestStamp - 3600),
+                        ["logoutAt"] = \(companionTestStamp), ["zoneId"] = 3 },
+            },
+            ["addons"] = { ["Boom"] = { ["addOnVersion"] = 5 } },
+            ["errors"] = {
+                [1] = { ["addon"] = "Boom", ["at"] = \(companionTestStamp), ["addonVersion"] = 4,
+                        ["count"] = 1, ["message"] = "old boom" },
+                [2] = { ["addon"] = "Boom", ["at"] = \(companionTestStamp), ["addonVersion"] = 5,
+                        ["count"] = 1, ["message"] = "current boom" },
+            },
+        } } },
+    }
+    """
+    let snap = try #require(CompanionData.snapshot(SVDocument.parse(Data(lua.utf8))))
+    #expect(snap.savedAt == Date(timeIntervalSince1970: TimeInterval(companionTestStamp + 10)))
+    #expect(snap.env?.addonsTotal == 100 && snap.env?.addonsLoaded == 80)
+    #expect(snap.env?.loadOutOfDateAddOns == true)
+    #expect(snap.answers["zone:3"]?.name == "Glenumbra")
+    #expect(snap.answers["item:96175"]?.set == 576)
+    #expect(snap.sessions.count == 1)
+    #expect(CompanionData.playedTime(characterID: "8796093036412335", in: snap) == 3600)
+    #expect(snap.addons["Boom"]?.addOnVersion == 5)
+    let problems = CompanionData.problems(from: snap, now: companionTestNow)
+    #expect(!problems.contains { $0.message.contains("old boom") })
+    #expect(problems.contains { $0.message.contains("current boom") })
+}
+
+@Test func companionAnswersRankAboveLibraryNamesInTheIndex() {
+    var names = SVNameIndex()
+    names.zones[3] = "LibZone Glenumbra"
+    names.finish(roster: nil, addons: nil, answers: ["zone:3": CompanionAnswer(key: "zone:3", name: "Companion Glenumbra",
+                                                                               quality: nil, set: nil, icon: nil)])
+    let named = names.name(forValue: .integer(3), key: .string("zoneId"), at: [.string("File")])
+    #expect(named?.title == "Companion Glenumbra")
+    #expect(named?.source.contains("Companion") == true)
+}

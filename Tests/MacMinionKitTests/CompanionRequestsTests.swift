@@ -62,6 +62,18 @@ EsoMacMinion_Data =
     if case .integer(let id)? = item { #expect(id == 96175) } else { Issue.record("item request lost") }
 }
 
+@Test func writesNameIDRequestsWhenProvided() throws {
+    let updated = try #require(CompanionRequests.apply(svGlobals: [], lamPanels: [],
+                                                       nameIDs: ["zone": [3, 1318], "item": [96175]],
+                                                       to: Data(noLookups.utf8)))
+    let eu = try #require(SVDocument.parse(updated)[CompanionData.variable]?.table?["EU Megaserver"]?.table?["@SOLAEGIS"]?.table?["$AccountWide"]?.table)
+    let zones = (eu["lookups"]?.table?["requests"]?.table?["zone"]?.table?.entries ?? []).compactMap { entry -> Int? in
+        if case .integer(let n) = entry.value { return Int(n) }
+        return nil
+    }
+    #expect(zones == [3, 1318])
+}
+
 @Test func readsCharacterNamesAddonFoldersEnabledByAndLayouts() throws {
     let text = """
     EsoMacMinion_Data = { ["NA Megaserver"] = { ["@SOLAEGIS"] = { ["$AccountWide"] = {

@@ -152,7 +152,7 @@ public struct ItemLink: Sendable, Equatable {
 
 /// A name for an ID, and where it came from.
 public struct SVName: Sendable, Equatable {
-    public enum Kind: String, Sendable { case character, account, guild, item, set, zone, map, quest, achievement }
+    public enum Kind: String, Sendable { case character, account, guild, item, set, zone, map, quest, achievement, collectible }
 
     /// The title of a character ID no file names. Views compare against this, so it is said in one place.
     public static let unknownCharacter = String(localized: "Unknown character", bundle: .module)
@@ -198,6 +198,8 @@ public struct SVNameIndex: Sendable {
     public var itemSets: [Int: Int] = [:]
     public var zones: [Int: String] = [:]
     public var quests: [Int: String] = [:]
+    /// Companion lookup answers keyed `kind:id` (rank above LibSets / LibZone / LibQuestData).
+    public var companionAnswers: [String: CompanionAnswer] = [:]
     /// LibGuildStore stores sales with numbers in place of links, accounts, and guilds.
     public var guildStoreLinks: [Int64: String] = [:]
     public var guildStoreAccounts: [Int64: String] = [:]
@@ -210,14 +212,16 @@ public struct SVNameIndex: Sendable {
     public init() {}
 
     /// Builds the index from parsed files (keyed by file name) and the libraries in `addons`.
-    public static func build(documents: [String: SVDocument], addons: URL?) -> SVNameIndex {
+    public static func build(documents: [String: SVDocument], addons: URL?,
+                             answerCache: [String: CompanionAnswer] = [:]) -> SVNameIndex {
         var index = SVNameIndex()
         for (file, doc) in documents.sorted(by: { $0.key < $1.key }) { index.merge(collect(file: file, document: doc)) }
         let companion = documents.first { CompanionData.isCompanionFile($0.key) }
         let snapshot = companion.flatMap { CompanionData.snapshot($0.value, file: $0.key) }
         index.finish(roster: snapshot?.characters ?? companion.map { CompanionData.roster($0.value) },
                      addons: addons,
-                     guilds: snapshot.map { Dictionary($0.guilds.map { ($0.key, $0.value.name) }, uniquingKeysWith: { _, n in n }) } ?? [:])
+                     guilds: snapshot.map { Dictionary($0.guilds.map { ($0.key, $0.value.name) }, uniquingKeysWith: { _, n in n }) } ?? [:],
+                     answers: CompanionAnswerCache.merge(file: snapshot?.answers ?? [:], cache: answerCache))
         return index
     }
 
@@ -248,18 +252,21 @@ public struct SVNameIndex: Sendable {
         var h = Hasher()
         h.combine(sum(characters.mapValues { $0.name }))
         h.combine(ownAccounts)
+        h.combine(companionAnswers.count)
         for part in [sum(guilds), sum(guildIDs), sum(sets), sum(itemSets), sum(zones), sum(quests),
                      sum(guildStoreLinks), sum(guildStoreAccounts), sum(guildStoreGuilds)] { h.combine(part) }
         return h.finalize()
     }
 
-    /// After every file: the companion's roster, the libraries' names, and guild IDs by name.
+    /// After every file: the companion's roster, answers, the libraries' names, and guild IDs by name.
     public mutating func finish(roster: [String: CompanionCharacter]?, addons: URL?,
-                                guilds companionGuilds: [Int64: String] = [:]) {
+                                guilds companionGuilds: [Int64: String] = [:],
+                                answers: [String: CompanionAnswer] = [:]) {
         overriding = []
         // The companion's roster is the game's own list: its names win.
         for (id, c) in roster ?? [:] { characters[id] = (c.name, String(localized: "MacMinion Companion", bundle: .module)) }
         for (id, name) in companionGuilds { guilds[id] = name }
+        companionAnswers = answers
         if let addons { loadLibraries(addons) }
         guildIDs = Dictionary(guilds.map { ($1, $0) }, uniquingKeysWith: min)
     }
@@ -392,18 +399,24 @@ public struct SVNameIndex: Sendable {
             let id = Int(n)
             switch keyName {
             case "zoneId", "zoneID", "zone":
+                if let named = companionName(kind: "zone", id: id, as: .zone) { return named }
                 return zones[id].map { SVName(title: $0, kind: .zone, source: "LibZone", uesp: Self.search($0), id: String(n)) }
             case "questId", "questID":
+                if let named = companionName(kind: "quest", id: id, as: .quest) { return named }
                 return quests[id].map { SVName(title: $0, kind: .quest, source: "LibQuestData", uesp: Self.search("Online:\($0)"), id: String(n)) }
             case "setId", "setID":
+                if let named = companionName(kind: "set", id: id, as: .set) { return named }
                 return sets[id].map { SVName(title: $0, kind: .set, source: "LibSets", uesp: Self.search("Online:\($0)"), id: String(n)) }
             case "itemId", "itemID":
                 return itemName(id: id, link: nil)
             case "guildId", "guildID":
                 return guilds[n].map { SVName(title: $0, kind: .guild, source: String(localized: "guild tables in SavedVariables", bundle: .module), id: String(n)) }
             case "achievementId", "achievementID":
+                if let named = companionName(kind: "achievement", id: id, as: .achievement) { return named }
                 return SVName(title: "Achievement \(id)", kind: .achievement, source: String(localized: "the key name", bundle: .module),
                               uesp: Self.search(String(localized: "Online achievement \(id)", bundle: .module)))
+            case "collectibleId", "collectibleID":
+                return companionName(kind: "collectible", id: id, as: .collectible)
             case "mapId", "mapID":
                 return SVName(title: "Map \(id)", kind: .map, source: String(localized: "the key name", bundle: .module))
             default:
@@ -441,11 +454,23 @@ public struct SVNameIndex: Sendable {
     }
 
     func itemName(id: Int, link: ItemLink?) -> SVName? {
+        if let answer = companionAnswers["item:\(id)"], let name = answer.name, !name.isEmpty {
+            let setTitle = answer.set.flatMap { sets[$0] } ?? answer.set.map { "set \($0)" }
+            return SVName(title: Self.cleanItemName(name), kind: .item, detail: setTitle.map { "\($0) set" },
+                          source: String(localized: "MacMinion Companion", bundle: .module),
+                          uesp: URL(string: "https://esoitem.uesp.net/itemLink.php?itemid=\(id)"), id: String(id))
+        }
         let set = itemSets[id].flatMap { sets[$0] }
         let title = link.flatMap { $0.name.isEmpty ? nil : Self.cleanItemName($0.name) } ?? "Item \(id)"
         return SVName(title: title, kind: .item, detail: set.map { "\($0) set" },
                       source: set == nil ? String(localized: "the item ID", bundle: .module) : "LibSets",
                       uesp: URL(string: "https://esoitem.uesp.net/itemLink.php?itemid=\(id)"), id: String(id))
+    }
+
+    func companionName(kind: String, id: Int, as nameKind: SVName.Kind) -> SVName? {
+        guard let name = companionAnswers["\(kind):\(id)"]?.name, !name.isEmpty else { return nil }
+        return SVName(title: name, kind: nameKind, source: String(localized: "MacMinion Companion", bundle: .module),
+                      uesp: Self.search(name), id: String(id))
     }
 
     /// ESO writes some names with a gender suffix: "Masisi^Fx" -> "Masisi".

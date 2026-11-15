@@ -42,6 +42,31 @@ public struct CompanionEnv: Sendable, Equatable {
     public let server: String?
     public let language: String?
     public let companionVersion: String?
+    public var addonsTotal: Int? = nil
+    public var addonsLoaded: Int? = nil
+    public var addonsDisabled: Int? = nil
+    /// From AddOnManager:GetLoadOutOfDateAddOns (the old allow-out-of-date CVar/UI is gone).
+    public var loadOutOfDateAddOns: Bool? = nil
+}
+
+public struct CompanionAnswer: Sendable, Equatable {
+    public let key: String
+    public let name: String?
+    public let quality: Int?
+    public let set: Int?
+    public let icon: String?
+}
+
+public struct CompanionSession: Sendable, Equatable {
+    public let character: String?
+    public let loginAt: Date?
+    public let logoutAt: Date?
+    public let zoneId: Int?
+
+    public var played: TimeInterval? {
+        guard let loginAt, let logoutAt, logoutAt >= loginAt else { return nil }
+        return logoutAt.timeIntervalSince(loginAt)
+    }
 }
 
 public struct CompanionAddonState: Sendable, Equatable, Identifiable {
@@ -55,6 +80,8 @@ public struct CompanionAddonState: Sendable, Equatable, Identifiable {
     public let isLibrary: Bool
     public let missing: [String]
     public let loadMs: Int?
+    /// Numeric AddOnManager:GetAddOnVersion when the companion recorded it.
+    public var addOnVersion: Int? = nil
     /// The folder the game loaded it from when it isn't the usual `user:/AddOns/<name>/`, like
     /// `user:/AddOns/CharacterKnowledge/LibCharacterKnowledge/`. Nil means the usual folder.
     public var rootPath: String? = nil
@@ -71,6 +98,7 @@ public struct CompanionError: Sendable, Equatable {
     public var firstAt: Date? = nil
     public var lastAt: Date? = nil
     public var session: Date? = nil
+    public var addonVersion: Int? = nil
     public let count: Int
     public let character: String?
     public let message: String
@@ -144,6 +172,11 @@ public struct CompanionSnapshot: Sendable, Equatable {
     public var layoutScan: CompanionLayoutScan? = nil
     /// The globals MacMinion last asked the companion to read.
     public var requestedSvGlobals: [String] = []
+    /// Name lookup answers keyed `kind:id`.
+    public var answers: [String: CompanionAnswer] = [:]
+    public var sessions: [CompanionSession] = []
+    /// Last deactivate stamp from the companion (fresher than `written` for "log in once").
+    public var savedAt: Date? = nil
 }
 
 public enum CompanionData {
@@ -198,6 +231,8 @@ public enum CompanionData {
         let written = best.stamp > 0 ? Date(timeIntervalSince1970: TimeInterval(best.stamp)) : nil
         let env = parseEnv(best.wide["env"]?.table)
             ?? newestFirst.lazy.compactMap { parseEnv($0.wide["env"]?.table) }.first
+        let savedAt = date(best.wide["savedAt"])
+            ?? newestFirst.lazy.compactMap { date($0.wide["savedAt"]) }.first
 
         var characters: [String: CompanionCharacter] = [:]
         var addons: [String: CompanionAddonState] = [:]
@@ -207,6 +242,8 @@ public enum CompanionData {
         var layouts: [String: CompanionSVLayout] = [:]
         var layoutScan: CompanionLayoutScan?
         var requested: [String] = []
+        var answers: [String: CompanionAnswer] = [:]
+        var sessions: [CompanionSession] = []
         var mergedErrors: [String: CompanionError] = [:]
 
         for block in newestFirst {
@@ -222,7 +259,7 @@ public enum CompanionData {
             }
             for error in parseErrors(wide["errors"]?.table) {
                 let key = "\(error.addon ?? "")\u{1F}\(error.message)"
-                    if let old = mergedErrors[key] {
+                if let old = mergedErrors[key] {
                     let newerAt = (error.lastAt ?? error.at ?? .distantPast) >= (old.lastAt ?? old.at ?? .distantPast)
                     var merged = CompanionError(
                         addon: error.addon ?? old.addon,
@@ -236,6 +273,7 @@ public enum CompanionData {
                     let lasts = [old.lastAt, old.at, error.lastAt, error.at].compactMap { $0 }
                     merged.lastAt = lasts.max()
                     merged.session = newerAt ? (error.session ?? old.session) : (old.session ?? error.session)
+                    merged.addonVersion = newerAt ? (error.addonVersion ?? old.addonVersion) : (old.addonVersion ?? error.addonVersion)
                     mergedErrors[key] = merged
                 } else {
                     mergedErrors[key] = error
@@ -256,6 +294,12 @@ public enum CompanionData {
                 requested = (wide["lookups"]?.table?["requests"]?.table?["svGlobals"]?.table?.entries ?? [])
                     .compactMap(\.value.string)
             }
+            for (key, answer) in parseAnswers(wide["lookups"]?.table?["answers"]?.table) where answers[key] == nil {
+                answers[key] = answer
+            }
+            if sessions.isEmpty {
+                sessions = parseSessions(wide["sessions"]?.table)
+            }
         }
 
         let errors = mergedErrors.values.sorted {
@@ -269,7 +313,15 @@ public enum CompanionData {
         snapshot.layouts = layouts
         snapshot.layoutScan = layoutScan
         snapshot.requestedSvGlobals = requested
+        snapshot.answers = answers
+        snapshot.sessions = sessions
+        snapshot.savedAt = savedAt ?? written
         return snapshot
+    }
+
+    /// Total time played across companion sessions for one character ID.
+    public static func playedTime(characterID: String, in snapshot: CompanionSnapshot) -> TimeInterval {
+        snapshot.sessions.filter { $0.character == characterID }.compactMap(\.played).reduce(0, +)
     }
 
     /// Lua errors older than this are omitted from Problems (still present on the snapshot).
@@ -322,13 +374,14 @@ public enum CompanionData {
             }
         }
         for (index, error) in snapshot.errors.enumerated() where isRecentError(error, now: now) {
+            if isFixedSinceUpdate(error, addons: snapshot.addons) { continue }
             let name = error.addon ?? String(localized: "An addon", bundle: .module)
             let times = error.count == 1 ? String(localized: "once", bundle: .module) : String(localized: "\(error.count) times", bundle: .module)
             let when: String = {
                 if isSameSession(error, written: snapshot.written) {
                     return String(localized: "last session", bundle: .module)
                 }
-                guard let at = error.at else { return String(localized: "last session", bundle: .module) }
+                guard let at = error.lastAt ?? error.at else { return String(localized: "last session", bundle: .module) }
                 return at.formatted(.relative(presentation: .named, unitsStyle: .spellOut))
             }()
             let headline = errorFirstLine(error.message)
@@ -343,6 +396,13 @@ public enum CompanionData {
         return out
     }
 
+    /// True when GetAddOnVersion now is higher than the version that threw the error (fixed by an update).
+    public static func isFixedSinceUpdate(_ error: CompanionError, addons: [String: CompanionAddonState]) -> Bool {
+        guard let folder = error.addon, let then = error.addonVersion,
+              let installed = addons[folder]?.addOnVersion else { return false }
+        return installed > then
+    }
+
     /// First line of a Lua error string (before stack / Locals), trimmed.
     public static func errorFirstLine(_ message: String) -> String {
         let line = message.split(whereSeparator: \.isNewline).first.map(String.init) ?? message
@@ -353,9 +413,14 @@ public enum CompanionData {
 
     private static func parseEnv(_ table: LuaTable?) -> CompanionEnv? {
         guard let table else { return nil }
-        return CompanionEnv(apiVersion: int(table["apiVersion"]), gameVersion: table["gameVersion"]?.string,
-                            server: table["server"]?.string, language: table["language"]?.string,
-                            companionVersion: table["companionVersion"]?.string)
+        var env = CompanionEnv(apiVersion: int(table["apiVersion"]), gameVersion: table["gameVersion"]?.string,
+                               server: table["server"]?.string, language: table["language"]?.string,
+                               companionVersion: table["companionVersion"]?.string)
+        env.addonsTotal = int(table["addonsTotal"])
+        env.addonsLoaded = int(table["addonsLoaded"])
+        env.addonsDisabled = int(table["addonsDisabled"])
+        env.loadOutOfDateAddOns = bool(table["loadOutOfDateAddOns"])
+        return env
     }
 
     private static func parseCharacters(_ table: LuaTable?, server: String, account: String) -> [String: CompanionCharacter] {
@@ -391,6 +456,7 @@ public enum CompanionData {
                                             enabled: bool(c["enabled"]) ?? true, state: c["state"]?.string ?? "loaded",
                                             outOfDate: bool(c["outOfDate"]) ?? false, isLibrary: bool(c["isLibrary"]) ?? false,
                                             missing: missing, loadMs: int(c["loadMs"]),
+                                            addOnVersion: int(c["addOnVersion"]),
                                             rootPath: c["rootPath"]?.string, copies: copies)
         }
         return out
@@ -404,7 +470,26 @@ public enum CompanionData {
             error.firstAt = date(c["firstAt"])
             error.lastAt = date(c["lastAt"])
             error.session = date(c["session"])
+            error.addonVersion = int(c["addonVersion"])
             return error
+        }
+    }
+
+    private static func parseAnswers(_ table: LuaTable?) -> [String: CompanionAnswer] {
+        var out: [String: CompanionAnswer] = [:]
+        for entry in table?.entries ?? [] {
+            guard case .string(let key) = entry.key, let c = entry.value.table else { continue }
+            out[key] = CompanionAnswer(key: key, name: c["name"]?.string, quality: int(c["quality"]),
+                                       set: int(c["set"]), icon: c["icon"]?.string)
+        }
+        return out
+    }
+
+    private static func parseSessions(_ table: LuaTable?) -> [CompanionSession] {
+        (table?.entries ?? []).compactMap { entry in
+            guard let c = entry.value.table else { return nil }
+            return CompanionSession(character: text(c["character"]), loginAt: date(c["loginAt"]),
+                                    logoutAt: date(c["logoutAt"]), zoneId: int(c["zoneId"]))
         }
     }
 

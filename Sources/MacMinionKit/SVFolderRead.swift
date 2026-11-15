@@ -53,13 +53,16 @@ public struct SVFolderRead: Sendable {
     /// `manifests`: every installed addon's name, variables, and dependencies, for the graph (`AddonIndex.manifests`).
     public static func read(_ files: [URL], addons: URL?, declarations: [String: [String]],
                             manifests: [String: (addon: String, variables: [String], dependsOn: [String])] = [:],
+                            answerCache: [String: CompanionAnswer] = [:],
                             report: @escaping @Sendable (String, Double) async -> Void = { _, _ in }) async -> SVFolderRead {
-        await read(files, addons: addons, declarations: declarations, manifests: manifests, cache: Cache(), report: report).read
+        await read(files, addons: addons, declarations: declarations, manifests: manifests, cache: Cache(),
+                   answerCache: answerCache, report: report).read
     }
 
     /// The same read, reusing what `cache` has for files whose size and date are unchanged; returns the new cache.
     public static func read(_ files: [URL], addons: URL?, declarations: [String: [String]],
                             manifests: [String: (addon: String, variables: [String], dependsOn: [String])] = [:], cache old: Cache,
+                            answerCache: [String: CompanionAnswer] = [:],
                             report: @escaping @Sendable (String, Double) async -> Void = { _, _ in }) async -> (read: SVFolderRead, cache: Cache) {
         var cache = Cache()
         cache.declarations = declarations
@@ -104,7 +107,9 @@ public struct SVFolderRead: Sendable {
             ($0.written ?? .distantPast) < ($1.written ?? .distantPast)
         }
         let roster = snapshot?.characters ?? readFiles.lazy.compactMap { cache.first[$0]?.roster }.first
-        names.finish(roster: roster, addons: addons, guilds: snapshot.map { Dictionary($0.guilds.map { ($0.key, $0.value.name) }, uniquingKeysWith: { _, n in n }) } ?? [:])
+        names.finish(roster: roster, addons: addons,
+                     guilds: snapshot.map { Dictionary($0.guilds.map { ($0.key, $0.value.name) }, uniquingKeysWith: { _, n in n }) } ?? [:],
+                     answers: CompanionAnswerCache.merge(file: snapshot?.answers ?? [:], cache: answerCache))
         var problems = readFiles.flatMap { cache.first[$0]!.problems }
         if let snapshot { problems += CompanionData.problems(from: snapshot) }
         let usage = SVUsage.finish(tally, names: names)

@@ -377,9 +377,24 @@ private struct Builder {
             : one ? String(localized: "No update yet.", bundle: .module) : String(localized: "None has an update yet.", bundle: .module)
         let heading = folders.count == 1 ? String(localized: "\(title(ofAddon: folders[0])) is out of date", bundle: .module)
             : String(localized: "\(folders.count) addons are out of date", bundle: .module)
+        let impact: String = {
+            switch context.companion?.env?.loadOutOfDateAddOns {
+            case true?:
+                return one
+                    ? String(localized: "It loads because out-of-date add-ons are allowed, and can break after a game update.", bundle: .module)
+                    : String(localized: "They load because out-of-date add-ons are allowed, and can break after a game update.", bundle: .module)
+            case false?:
+                return one
+                    ? String(localized: "It won't load until you allow out-of-date add-ons or update it.", bundle: .module)
+                    : String(localized: "They won't load until you allow out-of-date add-ons or update them.", bundle: .module)
+            case nil:
+                return one
+                    ? String(localized: "It loads only while out-of-date addons are allowed, and can break after a game update.", bundle: .module)
+                    : String(localized: "They load only while out-of-date addons are allowed, and can break after a game update.", bundle: .module)
+            }
+        }()
         add(.outOfDateAddons, key: folders.map(Self.key).joined(separator: "+"), title: heading,
-            impact: one ? String(localized: "It loads only while out-of-date addons are allowed, and can break after a game update.", bundle: .module)
-                : String(localized: "They load only while out-of-date addons are allowed, and can break after a game update.", bundle: .module),
+            impact: impact,
             summary: summary, affected: folders.map { .addon(title(ofAddon: $0)) },
             action: !ready.isEmpty ? .update(folders: ready) : .showAddon(folder: folders[0]),
             indices: merged.flatMap(\.indices), folders: folders)

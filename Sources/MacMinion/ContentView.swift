@@ -493,8 +493,8 @@ struct CompanionRow: View {
     private var subtitle: String {
         var parts = ["solaegis"]
         if let version = model.companionManifest?.version { parts.append(version) }
-        if let written = model.companionSnapshot?.written {
-            parts.append(String(localized: "as of \(written.formatted(.relative(presentation: .named)))"))
+        if let when = model.companionSnapshot?.savedAt ?? model.companionSnapshot?.written {
+            parts.append(String(localized: "as of \(when.formatted(.relative(presentation: .named)))"))
         } else {
             parts.append(String(localized: "log in once to write a snapshot"))
         }
@@ -674,12 +674,15 @@ struct CompanionDetail: View {
                 LabeledContent("Folder", value: CompanionData.folderName)
                 LabeledContent("Author", value: model.companionManifest?.author ?? "solaegis")
                 if let version = model.companionManifest?.version { LabeledContent("Version", value: version) }
-                if let written = model.companionSnapshot?.written {
-                    LabeledContent("Last snapshot", value: written.formatted(date: .abbreviated, time: .shortened))
+                if let when = model.companionSnapshot?.savedAt ?? model.companionSnapshot?.written {
+                    LabeledContent("Last snapshot", value: when.formatted(date: .abbreviated, time: .shortened))
                 }
                 if let env = model.companionSnapshot?.env {
                     if let game = env.gameVersion { LabeledContent("Game version", value: game) }
                     if let server = env.server { LabeledContent("Server", value: server) }
+                    if let total = env.addonsTotal, let loaded = env.addonsLoaded {
+                        LabeledContent("Addons loaded", value: String(localized: "\(loaded) of \(total)"))
+                    }
                 }
                 if let snap = model.companionSnapshot {
                     LabeledContent("Characters", value: snap.characters.count.formatted())

@@ -177,7 +177,7 @@ extension SVNameIndex {
         case .set: return sets[n]
         case .zone: return zones[n]
         case .quest: return quests[n]
-        case .achievement, .map: return nil
+        case .achievement, .map, .collectible: return companionAnswers["\(target.kind.rawValue):\(target.id)"]?.name
         }
     }
 }

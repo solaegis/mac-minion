@@ -56,6 +56,10 @@ Each section lists the ESO API calls it relies on. **Verify each in the client b
 | `gameVersion` | `GetESOVersionString()` | Match ESOUI's "compatible with" field exactly |
 | `server`, `language` | `GetWorldName()`, `GetCVar("language.2")` | Show which server the snapshot is from |
 | `companionVersion` | the manifest | Offer an update when MacMinion ships a newer one |
+| `addonsTotal` / `addonsLoaded` / `addonsDisabled` | AddOnManager counts | Overview and Health copy |
+| `loadOutOfDateAddOns` | `AddOnManager:GetLoadOutOfDateAddOns()` | Out-of-date finding impact (the old allow-out-of-date CVar is gone) |
+
+Top-level `savedAt` is set on deactivate (logout / reload); prefer it over `written` for freshness.
 
 ### 2. Characters (`characters`), refreshed at every login
 
@@ -93,13 +97,14 @@ Rows keep only what the running game knows, and leave out defaults. Title, versi
 ### 4. Lua errors (`errors`), as they happen
 
 ```lua
-[1] = { addon = "WizardsWardrobe", at = 1793288692, count = 12, character = "8796093036412335",
+[1] = { addon = "WizardsWardrobe", at = 1793288692, firstAt = 1793288600, lastAt = 1793288692,
+        session = 1793288500, addonVersion = 42, count = 12, character = "8796093036412335",
         message = "user:/AddOns/WizardsWardrobe/ui.lua:212: attempt to index a nil value" },
 ```
 
-From `EVENT_LUA_ERROR`. The addon is taken from the `user:/AddOns/<name>/` path in the message. Repeats of the same message add to `count` instead of a new row. At most 50 rows, newest kept; messages cut at 500 characters.
+From `EVENT_LUA_ERROR`. The addon is taken from the `user:/AddOns/<name>/` path in the message. Repeats of the same message add to `count` instead of a new row. Rows keep `firstAt` / `lastAt` / `session` (login stamp) and `addonVersion` (`GetAddOnVersion` at the error). At most 50 rows, newest kept; messages cut at 500 characters; older than 14 days pruned at login.
 
-MacMinion merges `errors` across every `$AccountWide` block (dedupe by addon + message). Problems only lists errors from the last seven days; ones from the latest companion logout say "last session", older ones get a relative date. The headline uses the first line of the message; the full stack stays as detail when the row is expanded.
+MacMinion merges `errors` across every `$AccountWide` block (dedupe by addon + message). Problems only lists errors from the last seven days; hides ones whose installed `addOnVersion` is newer than `addonVersion` (“fixed since you updated”). Ones from the latest companion logout say "last session", older ones get a relative date. The headline uses the first line of the message; the full stack stays as detail when the row is expanded.
 
 **Unlocks:** Problems gains "WizardsWardrobe threw 12 errors last session", with the message and a link to the addon's ESOUI comments, and the error count shows on its Installed row. This is the most useful thing a player can't easily see today.
 
@@ -142,11 +147,19 @@ From `GetItemLinkName()`, `GetItemLinkQuality()`, `GetItemLinkSetInfo()` (built 
 
 **Unlocks:** item names, quality colors, and icons everywhere in the Inspector, with no network at all.
 
-### 8. Account snapshot (`account`), optional, off by default
+### 8. Sessions (`sessions`), ring of recent logins
+
+```lua
+[1] = { character = "8796093036412335", loginAt = 1793288000, logoutAt = 1793288692, zoneId = 3 },
+```
+
+Up to 50 rows. MacMinion sums `logoutAt - loginAt` per character for time played on character cards.
+
+### 9. Account snapshot (`account`), optional, off by default
 
 Gold, Alliance Points, Tel Var, and Writ Vouchers per character, and bank and bag space used. `GetCurrentMoney()`, `GetCurrencyAmount()`, `GetNumBagUsedSlots()`, `GetBagUseableSize()`. For an Overview card; it's a setting because some players don't want it recorded.
 
-### 9. Layouts (`layouts`), the globals MacMinion asks for, plus constructor calls when captured
+### 10. Layouts (`layouts`), the globals MacMinion asks for, plus constructor calls when captured
 
 What files cannot tell: which addon called which `ZO_SavedVars` constructor, and which LibAddonMenu controls exist (types, names, `reference` only).
 

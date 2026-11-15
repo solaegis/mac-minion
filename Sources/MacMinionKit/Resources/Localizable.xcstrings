@@ -8831,6 +8831,118 @@
           }
         }
       }
+    },
+    "It loads because out-of-date add-ons are allowed, and can break after a game update.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Es lädt, weil veraltete Add-ons erlaubt sind, und kann nach einem Spiel-Update kaputtgehen."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Se carga porque se permiten add-ons desactualizados y puede romperse tras una actualización del juego."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Il se charge parce que les add-ons obsolètes sont autorisés et peut casser après une mise à jour du jeu."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Он загружается, потому что разрешены устаревшие аддоны, и может сломаться после обновления игры."
+          }
+        }
+      }
+    },
+    "They load because out-of-date add-ons are allowed, and can break after a game update.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sie laden, weil veraltete Add-ons erlaubt sind, und können nach einem Spiel-Update kaputtgehen."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Se cargan porque se permiten add-ons desactualizados y pueden romperse tras una actualización del juego."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ils se chargent parce que les add-ons obsolètes sont autorisés et peuvent casser après une mise à jour du jeu."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Они загружаются, потому что разрешены устаревшие аддоны, и могут сломаться после обновления игры."
+          }
+        }
+      }
+    },
+    "It won't load until you allow out-of-date add-ons or update it.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Es lädt nicht, bis du veraltete Add-ons erlaubst oder es aktualisierst."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No se cargará hasta que permitas add-ons desactualizados o lo actualices."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Il ne se chargera pas tant que vous n’autorisez pas les add-ons obsolètes ou ne le mettez pas à jour."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Он не загрузится, пока вы не разрешите устаревшие аддоны или не обновите его."
+          }
+        }
+      }
+    },
+    "They won't load until you allow out-of-date add-ons or update them.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sie laden nicht, bis du veraltete Add-ons erlaubst oder sie aktualisierst."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No se cargarán hasta que permitas add-ons desactualizados o los actualices."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ils ne se chargeront pas tant que vous n’autorisez pas les add-ons obsolètes ou ne les mettez pas à jour."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Они не загрузятся, пока вы не разрешите устаревшие аддоны или не обновите их."
+          }
+        }
+      }
     }
   },
   "version": "1.0"

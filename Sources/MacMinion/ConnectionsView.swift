@@ -332,6 +332,7 @@ extension SVName.Kind {
         case .zone, .map: "map.fill"
         case .quest: "flag.fill"
         case .achievement: "trophy.fill"
+        case .collectible: "star.fill"
         }
     }
 

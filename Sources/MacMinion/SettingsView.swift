@@ -108,8 +108,8 @@ struct GeneralSettings: View {
         Section {
             if model.companionInstalled {
                 LabeledContent("Installed", value: model.companionManifest?.version ?? CompanionData.displayName)
-                if let written = model.companionSnapshot?.written {
-                    LabeledContent("Last snapshot", value: written.formatted(.relative(presentation: .named)))
+                if let when = model.companionSnapshot?.savedAt ?? model.companionSnapshot?.written {
+                    LabeledContent("Last snapshot", value: when.formatted(.relative(presentation: .named)))
                 } else {
                     LabeledContent("Last snapshot", value: String(localized: "Log in once to write one"))
                 }
