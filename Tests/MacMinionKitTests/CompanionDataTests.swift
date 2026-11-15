@@ -288,3 +288,46 @@ EsoMacMinion_Data =
     #expect(named?.title == "Companion Glenumbra")
     #expect(named?.source.contains("Companion") == true)
 }
+
+@Test func missingAnswersStopTheAskButNeverNameAnything() throws {
+    let lua = """
+    EsoMacMinion_Data =
+    {
+        ["NA Megaserver"] = { ["@SOLAEGIS"] = { ["$AccountWide"] = {
+            ["schema"] = 1, ["written"] = \(companionTestStamp),
+            ["lookups"] = { ["answers"] = {
+                ["zone:3"] = { ["missing"] = true, ["at"] = \(companionTestStamp) },
+                ["item:96175"] = { ["missing"] = true, ["at"] = \(companionTestStamp) },
+                ["quest:7"] = { ["name"] = "A Quest" },
+            } },
+        } } },
+    }
+    """
+    let snap = try #require(CompanionData.snapshot(SVDocument.parse(Data(lua.utf8))))
+    let zone = try #require(snap.answers["zone:3"])
+    #expect(zone.missing && zone.name == nil && zone.at == Date(timeIntervalSince1970: TimeInterval(companionTestStamp)))
+
+    // Answered at all, named or missing: not asked again.
+    let refs = SVReferenceIndex.merging(files: ["A.lua"], parts: [[
+        SVTarget(.zone, "3"): [SVHit(file: 0, offset: 0)], SVTarget(.item, "96175"): [SVHit(file: 0, offset: 1)],
+        SVTarget(.quest, "7"): [SVHit(file: 0, offset: 2)], SVTarget(.quest, "8"): [SVHit(file: 0, offset: 3)],
+    ]])
+    let asks = CompanionRequests.unmetNameIDs(references: refs, names: nil, answers: snap.answers)
+    #expect(asks["zone"] == [] && asks["item"] == [] && asks["quest"] == [8])
+
+    // The cache keeps missing rows.
+    let store = FileManager.default.temporaryDirectory.appending(path: "answers-\(UUID().uuidString)")
+    defer { try? FileManager.default.removeItem(at: store) }
+    CompanionAnswerCache.save(snap.answers, to: store)
+    let cached = CompanionAnswerCache.load(from: store)
+    #expect(cached["zone:3"]?.missing == true && cached["quest:7"]?.missing == false)
+
+    // A missing answer doesn't hide the library's name or name an item.
+    var names = SVNameIndex()
+    names.zones[3] = "LibZone Glenumbra"
+    names.finish(roster: nil, addons: nil, answers: cached)
+    #expect(names.name(forValue: .integer(3), key: .string("zoneId"), at: [.string("File")])?.title == "LibZone Glenumbra")
+    #expect(names.companionName(kind: "zone", id: 3, as: .zone) == nil)
+    #expect(names.itemName(id: 96175, link: nil)?.source != "MacMinion Companion")
+    #expect(names.title(for: SVTarget(.achievement, "3")) == nil)
+}

@@ -55,6 +55,10 @@ public struct CompanionAnswer: Sendable, Equatable {
     public let quality: Int?
     public let set: Int?
     public let icon: String?
+    /// The companion looked this ID up and the game had nothing for it (`{ missing = true }`).
+    public var missing: Bool = false
+    /// When the companion answered.
+    public var at: Date? = nil
 }
 
 public struct CompanionSession: Sendable, Equatable {
@@ -479,8 +483,9 @@ public enum CompanionData {
         var out: [String: CompanionAnswer] = [:]
         for entry in table?.entries ?? [] {
             guard case .string(let key) = entry.key, let c = entry.value.table else { continue }
-            out[key] = CompanionAnswer(key: key, name: c["name"]?.string, quality: int(c["quality"]),
-                                       set: int(c["set"]), icon: c["icon"]?.string)
+            let missing = bool(c["missing"]) ?? false
+            out[key] = CompanionAnswer(key: key, name: missing ? nil : c["name"]?.string, quality: int(c["quality"]),
+                                       set: int(c["set"]), icon: c["icon"]?.string, missing: missing, at: date(c["at"]))
         }
         return out
     }

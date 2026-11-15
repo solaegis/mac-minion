@@ -454,7 +454,7 @@ public struct SVNameIndex: Sendable {
     }
 
     func itemName(id: Int, link: ItemLink?) -> SVName? {
-        if let answer = companionAnswers["item:\(id)"], let name = answer.name, !name.isEmpty {
+        if let answer = companionAnswers["item:\(id)"], !answer.missing, let name = answer.name, !name.isEmpty {
             let setTitle = answer.set.flatMap { sets[$0] } ?? answer.set.map { "set \($0)" }
             return SVName(title: Self.cleanItemName(name), kind: .item, detail: setTitle.map { "\($0) set" },
                           source: String(localized: "MacMinion Companion", bundle: .module),
@@ -468,7 +468,8 @@ public struct SVNameIndex: Sendable {
     }
 
     func companionName(kind: String, id: Int, as nameKind: SVName.Kind) -> SVName? {
-        guard let name = companionAnswers["\(kind):\(id)"]?.name, !name.isEmpty else { return nil }
+        guard let answer = companionAnswers["\(kind):\(id)"], !answer.missing,
+              let name = answer.name, !name.isEmpty else { return nil }
         return SVName(title: name, kind: nameKind, source: String(localized: "MacMinion Companion", bundle: .module),
                       uesp: Self.search(name), id: String(id))
     }

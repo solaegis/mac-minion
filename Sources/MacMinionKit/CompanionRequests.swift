@@ -35,7 +35,8 @@ public enum CompanionRequests {
         for target in references.hits.keys {
             let kind = target.kind.rawValue
             guard nameKinds.contains(kind), let id = Int(target.id) else { continue }
-            if answers["\(kind):\(id)"]?.name != nil { continue }
+            // Answered at all, named or missing: asking again would get the same answer.
+            if answers["\(kind):\(id)"] != nil { continue }
             if named(kind: kind, id: id, names: names) { continue }
             sets[kind, default: []].insert(id)
         }

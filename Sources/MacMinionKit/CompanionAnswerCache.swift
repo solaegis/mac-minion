@@ -12,12 +12,19 @@ public enum CompanionAnswerCache {
         let url = url(in: store)
         guard let data = try? Data(contentsOf: url),
               let decoded = try? JSONDecoder().decode([String: Cached].self, from: data) else { return [:] }
-        return decoded.mapValues { CompanionAnswer(key: $0.key, name: $0.name, quality: $0.quality, set: $0.set, icon: $0.icon) }
+        return decoded.mapValues {
+            CompanionAnswer(key: $0.key, name: $0.name, quality: $0.quality, set: $0.set, icon: $0.icon,
+                            missing: $0.missing ?? false, at: $0.at)
+        }
     }
 
     public static func save(_ answers: [String: CompanionAnswer], to store: URL) {
         guard !answers.isEmpty else { return }
-        let encoded = answers.mapValues { Cached(key: $0.key, name: $0.name, quality: $0.quality, set: $0.set, icon: $0.icon) }
+        // Missing rows are kept too, so the companion isn't asked about the same ID again.
+        let encoded = answers.mapValues {
+            Cached(key: $0.key, name: $0.name, quality: $0.quality, set: $0.set, icon: $0.icon,
+                   missing: $0.missing ? true : nil, at: $0.at)
+        }
         guard let data = try? JSONEncoder().encode(encoded) else { return }
         try? FileManager.default.createDirectory(at: store, withIntermediateDirectories: true)
         try? data.write(to: url(in: store), options: .atomic)
@@ -36,5 +43,7 @@ public enum CompanionAnswerCache {
         var quality: Int?
         var set: Int?
         var icon: String?
+        var missing: Bool?
+        var at: Date?
     }
 }
