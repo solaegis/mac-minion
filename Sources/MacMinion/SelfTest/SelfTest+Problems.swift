@@ -26,6 +26,11 @@ extension SelfTest {
               !problems.contains { $0.file == CompanionData.fileName && $0.kind == .luaError && $0.message.contains("StaleAddon") })
         check("an addon that didn't load is a problem",
               problem(CompanionData.fileName, .didntLoad)?.message.contains("LibLazyCrafting") == true)
+        // Companion performance: median frame rate and latency, latest Lua memory, median and slowest load.
+        let perf = model.companionSnapshot?.perf
+        check("the companion's performance samples are read", perf?.samples.count == 3 && perf?.loads.count == 3
+              && perf?.medianFPS == 87 && perf?.medianLatency == 66 && perf?.latestLuaKB == 418560
+              && perf?.medianLoad == 14.2 && perf?.slowestLoad == 31.5, "\(String(describing: perf))")
         // S-052 Health in plain words: one finding per cause, every raw problem in exactly one.
         let findings = model.gameFolder.healthFindings
         @MainActor func finding(with problem: SVProblem?) -> HealthFinding? {

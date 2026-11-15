@@ -471,6 +471,21 @@ enum SeedData {
                         {
                             ["761817"] = { ["name"] = "Alphabet Mafia", ["members"] = 437, ["server"] = "NA Megaserver" },
                         },
+                        ["perf"] =
+                        {
+                            ["samples"] =
+                            {
+                                [1] = { ["at"] = \(companionStamp - 180), ["fps"] = 58, ["ms"] = 74, ["luaKB"] = 401220, ["zoneId"] = 3 },
+                                [2] = { ["at"] = \(companionStamp - 120), ["fps"] = 92, ["ms"] = 61, ["luaKB"] = 412004, ["zoneId"] = 3 },
+                                [3] = { ["at"] = \(companionStamp - 60), ["fps"] = 87, ["ms"] = 66, ["luaKB"] = 418560, ["zoneId"] = 3 },
+                            },
+                            ["loads"] =
+                            {
+                                [1] = { ["at"] = \(companionStamp - 900), ["seconds"] = 14.2, ["zoneId"] = 3 },
+                                [2] = { ["at"] = \(companionStamp - 600), ["seconds"] = 9.8, ["zoneId"] = 1 },
+                                [3] = { ["at"] = \(companionStamp - 300), ["seconds"] = 31.5, ["zoneId"] = 3 },
+                            },
+                        },
                         ["enabledBy"] =
                         {
                             ["8796093036412335"] = { ["at"] = \(companionStamp), ["disabled"] = { } },

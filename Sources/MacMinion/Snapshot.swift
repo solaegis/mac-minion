@@ -87,6 +87,12 @@ enum Snapshot {
                         try? await Task.sleep(for: .seconds(1.2))
                         await capture(to: "\(dir)/installed-\(layout == .grid ? "list" : "grid")-\(mode).png")
                         model.prefs.installedLayout = layout
+                        // The companion's own detail: what it last wrote, with its performance numbers.
+                        if model.companionInstalled {
+                            model.selection = .folder(CompanionData.folderName)
+                            try? await Task.sleep(for: .seconds(1.2))
+                            await capture(to: "\(dir)/installed-companion-\(mode).png")
+                        }
                     }
                     // Backups helping put back one damaged file, as Problems' Restore from Backup opens it.
                     if page == .backups {

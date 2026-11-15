@@ -690,6 +690,7 @@ struct CompanionDetail: View {
                     if !snap.errors.isEmpty {
                         LabeledContent("Lua errors", value: snap.errors.reduce(0) { $0 + $1.count }.formatted())
                     }
+                    if let perf = snap.perf { perfRows(perf) }
                 }
             } footer: {
                 Text("MacMinion's in-game companion. After you log in, it writes the roster, which addons loaded, and Lua errors.")
@@ -698,6 +699,25 @@ struct CompanionDetail: View {
             Button("Show in Finder") { model.showInFinder(CompanionData.folderName) }
         }
         .formStyle(.grouped)
+    }
+
+    /// Medians over the companion's samples, so one hitch doesn't stand for the whole session.
+    @ViewBuilder
+    private func perfRows(_ perf: CompanionPerf) -> some View {
+        if let fps = perf.medianFPS {
+            LabeledContent("Frame rate", value: String(localized: "\(Int(fps.rounded())) fps median"))
+        }
+        if let ms = perf.medianLatency {
+            LabeledContent("Latency", value: String(localized: "\(Int(ms.rounded())) ms median"))
+        }
+        if let kb = perf.latestLuaKB {
+            LabeledContent("Lua memory", value: Measurement(value: Double(kb), unit: UnitInformationStorage.kibibytes)
+                .formatted(.byteCount(style: .memory)))
+        }
+        if let median = perf.medianLoad, let slowest = perf.slowestLoad {
+            let format = FloatingPointFormatStyle<Double>.number.precision(.fractionLength(1))
+            LabeledContent("Load screens", value: String(localized: "\(median.formatted(format)) s median, \(slowest.formatted(format)) s slowest"))
+        }
     }
 }
 

@@ -158,6 +158,48 @@ public struct CompanionLayoutScan: Sendable, Equatable {
     public let missing: [String]
 }
 
+/// Frame rate, latency, Lua memory, and load-screen times the companion sampled (`perf`).
+public struct CompanionPerf: Sendable, Equatable {
+    public struct Sample: Sendable, Equatable {
+        public let at: Date?
+        public let fps: Int?
+        /// Latency in milliseconds.
+        public let ms: Int?
+        /// Lua memory in KB (`collectgarbage("count")`).
+        public let luaKB: Int?
+        public let zoneId: Int?
+    }
+
+    public struct Load: Sendable, Equatable {
+        public let at: Date?
+        public let seconds: Double
+        public let zoneId: Int?
+    }
+
+    /// Oldest first.
+    public var samples: [Sample] = []
+    /// Oldest first.
+    public var loads: [Load] = []
+
+    public init(samples: [Sample] = [], loads: [Load] = []) {
+        self.samples = samples
+        self.loads = loads
+    }
+
+    public var medianFPS: Double? { Self.median(samples.compactMap(\.fps).map(Double.init)) }
+    public var medianLatency: Double? { Self.median(samples.compactMap(\.ms).map(Double.init)) }
+    /// Lua memory at the newest sample that has it, in KB.
+    public var latestLuaKB: Int? { samples.last { $0.luaKB != nil }?.luaKB }
+    public var medianLoad: Double? { Self.median(loads.map(\.seconds)) }
+    public var slowestLoad: Double? { loads.map(\.seconds).max() }
+
+    static func median(_ values: [Double]) -> Double? {
+        guard !values.isEmpty else { return nil }
+        let sorted = values.sorted(), mid = sorted.count / 2
+        return sorted.count.isMultiple(of: 2) ? (sorted[mid - 1] + sorted[mid]) / 2 : sorted[mid]
+    }
+}
+
 /// One login's worth of what only the running game knows.
 public struct CompanionSnapshot: Sendable, Equatable {
     public let file: String
@@ -184,6 +226,8 @@ public struct CompanionSnapshot: Sendable, Equatable {
     public var sessions: [CompanionSession] = []
     /// Last deactivate stamp from the companion (fresher than `written` for "log in once").
     public var savedAt: Date? = nil
+    /// Performance samples and load times from every block; nil when there are none.
+    public var perf: CompanionPerf? = nil
 }
 
 public enum CompanionData {
@@ -253,6 +297,8 @@ public enum CompanionData {
         var answers: [String: CompanionAnswer] = [:]
         var sessions: [CompanionSession] = []
         var seenSessions: Set<String> = []
+        var perf = CompanionPerf()
+        var seenSamples: Set<String> = [], seenLoads: Set<String> = []
         var mergedErrors: [String: CompanionError] = [:]
 
         for block in newestFirst {
@@ -314,6 +360,15 @@ public enum CompanionData {
                 let key = "\(session.character ?? "")\u{1F}\(session.loginAt?.timeIntervalSince1970 ?? -1)"
                 if seenSessions.insert(key).inserted { sessions.append(session) }
             }
+            let perfTable = wide["perf"]?.table
+            for sample in parseSamples(perfTable?["samples"]?.table) {
+                let key = "\(sample.at?.timeIntervalSince1970 ?? -1)\u{1F}\(sample.zoneId ?? -1)"
+                if seenSamples.insert(key).inserted { perf.samples.append(sample) }
+            }
+            for load in parseLoads(perfTable?["loads"]?.table) {
+                let key = "\(load.at?.timeIntervalSince1970 ?? -1)\u{1F}\(load.zoneId ?? -1)"
+                if seenLoads.insert(key).inserted { perf.loads.append(load) }
+            }
         }
 
         let errors = mergedErrors.values.sorted {
@@ -330,6 +385,11 @@ public enum CompanionData {
         snapshot.answers = answers
         snapshot.sessions = sessions.sorted { ($0.loginAt ?? .distantPast) < ($1.loginAt ?? .distantPast) }
         snapshot.savedAt = savedAt ?? written
+        if !perf.samples.isEmpty || !perf.loads.isEmpty {
+            perf.samples.sort { ($0.at ?? .distantPast) < ($1.at ?? .distantPast) }
+            perf.loads.sort { ($0.at ?? .distantPast) < ($1.at ?? .distantPast) }
+            snapshot.perf = perf
+        }
         return snapshot
     }
 
@@ -511,6 +571,29 @@ public enum CompanionData {
             guard let c = entry.value.table else { return nil }
             return CompanionSession(character: text(c["character"]), loginAt: date(c["loginAt"]),
                                     logoutAt: date(c["logoutAt"]), zoneId: int(c["zoneId"]))
+        }
+    }
+
+    private static func parseSamples(_ table: LuaTable?) -> [CompanionPerf.Sample] {
+        (table?.entries ?? []).compactMap { entry in
+            guard let c = entry.value.table else { return nil }
+            return CompanionPerf.Sample(at: date(c["at"]), fps: int(c["fps"]), ms: int(c["ms"]),
+                                        luaKB: int(c["luaKB"]), zoneId: int(c["zoneId"]))
+        }
+    }
+
+    private static func parseLoads(_ table: LuaTable?) -> [CompanionPerf.Load] {
+        (table?.entries ?? []).compactMap { entry in
+            guard let c = entry.value.table, let seconds = number(c["seconds"]), seconds >= 0 else { return nil }
+            return CompanionPerf.Load(at: date(c["at"]), seconds: seconds, zoneId: int(c["zoneId"]))
+        }
+    }
+
+    private static func number(_ value: LuaValue?) -> Double? {
+        switch value {
+        case .integer(let n)?: Double(n)
+        case .number(let d)?: d
+        default: nil
         }
     }
 

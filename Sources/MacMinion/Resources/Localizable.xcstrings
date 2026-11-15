@@ -849,6 +849,34 @@
         }
       }
     },
+    "%@ s median, %@ s slowest": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ s Median, %@ s am langsamsten"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ s de mediana, %@ s la más lenta"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ s en médiane, %@ s au plus lent"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "медиана %@ с, самая долгая %@ с"
+          }
+        }
+      }
+    },
     "%@ this month": {
       "localizations": {
         "de": {
@@ -2431,6 +2459,34 @@
         }
       }
     },
+    "%lld fps median": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld fps Median"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld fps de mediana"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld i/s en médiane"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "медиана %lld кадр/с"
+          }
+        }
+      }
+    },
     "%lld in 26 weeks": {
       "localizations": {
         "de": {
@@ -2645,6 +2701,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "В Корзину перемещено: %lld"
+          }
+        }
+      }
+    },
+    "%lld ms median": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld ms Median"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld ms de mediana"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld ms en médiane"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "медиана %lld мс"
           }
         }
       }
@@ -10459,6 +10543,34 @@
         }
       }
     },
+    "Frame rate": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bildrate"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fotogramas por segundo"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fréquence d’images"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Частота кадров"
+          }
+        }
+      }
+    },
     "From %@": {
       "localizations": {
         "de": {
@@ -12385,6 +12497,34 @@
         }
       }
     },
+    "Latency": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Latenz"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Latencia"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Latence"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Задержка"
+          }
+        }
+      }
+    },
     "Later": {
       "localizations": {
         "de": {
@@ -12693,6 +12833,34 @@
         }
       }
     },
+    "Load screens": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ladebildschirme"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pantallas de carga"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Écrans de chargement"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Экраны загрузки"
+          }
+        }
+      }
+    },
     "Loading versions…": {
       "localizations": {
         "de": {
@@ -12829,6 +12997,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "Ошибки Lua"
+          }
+        }
+      }
+    },
+    "Lua memory": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lua-Speicher"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Memoria de Lua"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mémoire Lua"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Память Lua"
           }
         }
       }

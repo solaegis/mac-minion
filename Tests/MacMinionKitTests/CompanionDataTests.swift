@@ -416,3 +416,38 @@ EsoMacMinion_Data =
     #expect(CompanionData.problems(from: snap, installedVersions: ["boom": 4], now: companionTestNow).contains { $0.kind == .luaError })
     #expect(Manifest.parse("## Title: Boom\n## AddOnVersion: 5\n").addOnVersion == 5)
 }
+
+@Test func companionPerfReadsSamplesAndLoadsFromEveryBlock() throws {
+    let s = companionTestStamp
+    let lua = """
+    EsoMacMinion_Data =
+    {
+        ["NA Megaserver"] = { ["@SOLAEGIS"] = { ["$AccountWide"] = {
+            ["schema"] = 1, ["written"] = \(s),
+            ["perf"] = {
+                ["samples"] = {
+                    [1] = { ["at"] = \(s - 120), ["fps"] = 60, ["ms"] = 80, ["luaKB"] = 400000, ["zoneId"] = 3 },
+                    [2] = { ["at"] = \(s - 60), ["fps"] = 90, ["ms"] = 40, ["luaKB"] = 420000, ["zoneId"] = 3 },
+                },
+                ["loads"] = { [1] = { ["at"] = \(s - 200), ["seconds"] = 14.5, ["zoneId"] = 3 } },
+            },
+        } } },
+        ["EU Megaserver"] = { ["@SOLAEGIS"] = { ["$AccountWide"] = {
+            ["schema"] = 1, ["written"] = \(s - 86400),
+            ["perf"] = {
+                ["samples"] = { [1] = { ["at"] = \(s - 86500), ["fps"] = 30, ["ms"] = 120, ["luaKB"] = 380000, ["zoneId"] = 1 } },
+                ["loads"] = { [1] = { ["at"] = \(s - 86600), ["seconds"] = 6, ["zoneId"] = 1 },
+                              [2] = { ["at"] = \(s - 86700), ["seconds"] = 30.25, ["zoneId"] = 1 } },
+            },
+        } } },
+    }
+    """
+    let snap = try #require(CompanionData.snapshot(SVDocument.parse(Data(lua.utf8))))
+    let perf = try #require(snap.perf)
+    #expect(perf.samples.count == 3 && perf.loads.count == 3)
+    #expect(perf.medianFPS == 60 && perf.medianLatency == 80)
+    #expect(perf.latestLuaKB == 420000)
+    #expect(perf.medianLoad == 14.5 && perf.slowestLoad == 30.25)
+    #expect(CompanionPerf(samples: [], loads: []).medianFPS == nil)
+    #expect(CompanionData.snapshot(SVDocument.parse(Data(schema1.utf8)))?.perf == nil)
+}
