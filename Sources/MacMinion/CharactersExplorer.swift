@@ -122,7 +122,7 @@ private struct SettingsGridView: View {
     var body: some View {
         ScrollView([.horizontal, .vertical]) {
             VStack(alignment: .leading, spacing: Space.lg) {
-                Text("\(matrix.addons.count) addons keep settings for each of your \(matrix.characterIDs.count) characters. Darker squares hold more settings; outlined ones have settings set differently from your other characters.")
+                Text("\(matrix.gridAddons.count) addons keep settings for each of your \(matrix.characterIDs.count) characters. Darker squares hold more settings; outlined ones have settings set differently from your other characters.")
                     .font(.callout)
                     .gridProbe("explorer-intro", area: "explorer")
                     .foregroundStyle(.secondary)
@@ -171,7 +171,7 @@ private struct SettingsGridView: View {
                             .help("\(model.gameFolder.characterTitle(id)): show their settings across addons")
                         }
                     }
-                    ForEach(model.byName(matrix.addons, file: \.file)) { addon in
+                    ForEach(model.byName(matrix.gridAddons, file: \.file)) { addon in
                         let most = max(1, addon.characters.values.map(\.count).max() ?? 1)
                         GridRow {
                             Button { model.gameFolder.explorerOpen(.addon(addon.file)) } label: {
@@ -406,7 +406,6 @@ private struct CharacterConstellation: View {
             return settings
         case .defaults: return String(localized: "Defaults · \(settings)")
         case .accountWide: return String(localized: "Account-wide · \(settings)")
-        case .loadedOnly: return String(localized: "Loaded · no settings saved")
         }
     }
 
@@ -651,8 +650,6 @@ private struct CharacterInAddon: View {
                             Text("No settings of their own: the addon's defaults.").font(.caption).foregroundStyle(.secondary)
                         case .accountWide:
                             Text("Uses the account-wide settings, over the addon's defaults.").font(.caption).foregroundStyle(.secondary)
-                        case .loadedOnly:
-                            Text("Loads this addon, which keeps no settings for them.").font(.caption).foregroundStyle(.secondary)
                         case .own:
                             EmptyView()
                         }

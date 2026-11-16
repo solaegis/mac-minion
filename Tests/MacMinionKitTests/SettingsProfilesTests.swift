@@ -3,7 +3,7 @@ import Testing
 @testable import MacMinionKit
 
 // AutoResearch's shape: LibSavedVars, one character with a setting of their own, one with only bookkeeping,
-// one on the account-wide settings, and a fourth with no table who loads the addon.
+// one on the account-wide settings, and a fourth with no table, who stays out.
 private let own = "8796093036412335", bare = "8796093011112222", shared = "8798292071293572", none = "8796093079837777"
 private let research = """
 AutoResearch_Account = { ["NA Megaserver"] = { ["@ME"] = { ["$AccountWide"] = { ["bags"] = 2 } } } }
@@ -33,8 +33,7 @@ private func matrix(defaults: Bool = true) -> SettingsMatrix {
     var parser = LiteralParser(text: "bags = 3, shortPrefix = true, maxQuality = ITEM_FUNCTIONAL_QUALITY_ARCANE")
     let table = parser.table(at: [])
     let found = SVDefaults.Found(variable: "AutoResearch_Character", table: table, unresolved: parser.unresolved, libSavedVars: true)
-    let context = SettingsMatrix.ProfileContext(defaults: defaults ? ["AutoResearch.lua": [found]] : [:],
-                                                loads: [none: ["AutoResearch.lua"]])
+    let context = SettingsMatrix.ProfileContext(defaults: defaults ? ["AutoResearch.lua": [found]] : [:])
     return base.applying(context, names: names)
 }
 
@@ -48,8 +47,8 @@ private func value(_ m: SettingsMatrix, _ id: String, _ suffix: String) -> Strin
     #expect(addon?.profile(own) == .own)
     #expect(addon?.profile(bare) == .defaults, "bookkeeping alone is no settings")
     #expect(addon?.profile(shared) == .accountWide)
-    #expect(addon?.profile(none) == .accountWide, "LibSavedVars with no table uses the account-wide settings")
-    #expect(matrix(defaults: false).addon("AutoResearch.lua")?.profile(bare) == .loadedOnly)
+    #expect(addon?.characters[none] == nil, "no table, no place in the addon")
+    #expect(matrix(defaults: false).addon("AutoResearch.lua")?.characters[bare] == nil, "only bookkeeping and no defaults: left out")
 }
 
 @Test func valuesStackDefaultsThenAccountThenOwn() {
@@ -76,8 +75,9 @@ private func value(_ m: SettingsMatrix, _ id: String, _ suffix: String) -> Strin
     #expect(m.target(file: "AutoResearch.lua", key: bags, from: bare, to: own)?.last == .string("bags"))
     #expect(m.target(file: "AutoResearch.lua", key: bags, from: own, to: shared) == nil)
     #expect(m.target(file: "AutoResearch.lua", key: bags, from: own, to: bare)?.prefix(4).last == .string(bare))
-    // Only characters with settings of their own get a grid cell.
+    // Only characters with settings of their own get a grid cell, and the grid lists addons that have one.
     #expect(m.cell("AutoResearch.lua", own) != nil && m.cell("AutoResearch.lua", bare) == nil)
+    #expect(m.gridAddons.contains { $0.file == "AutoResearch.lua" })
 }
 
 private extension LuaValue {

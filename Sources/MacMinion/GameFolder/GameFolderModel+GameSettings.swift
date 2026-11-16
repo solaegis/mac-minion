@@ -12,8 +12,6 @@ extension GameFolderModel {
             }
         }
         gameSettings = files
-        // Who loads what may have changed, and with it the settings each character runs on (S-070).
-        refreshEffectiveMatrix()
     }
 
     /// A field's value with its unsaved edit.

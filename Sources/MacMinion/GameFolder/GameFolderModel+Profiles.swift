@@ -1,7 +1,7 @@
 import Foundation
 import MacMinionKit
 
-/// Default addon profiles and who loads what (S-070): each addon's defaults, from the companion's capture in
+/// Default addon profiles (S-070): each addon's defaults, from the companion's capture in
 /// the game or else the addon's own Lua, and the settings each character runs on.
 extension GameFolderModel {
     /// Each saving addon's defaults, by SavedVariables file: the companion's copy of a variable's defaults
@@ -39,32 +39,9 @@ extension GameFolderModel {
         return (out, cache)
     }
 
-    /// Each character's loaded addons that save, by SavedVariables file: from the companion's record of what
-    /// they turned off, or else their list in AddOnSettings.txt. Characters neither covers are left out.
-    var addonLoads: [String: Set<String>] {
-        guard let base = current?.matrix, let folders = addonFolders else { return [:] }
-        let present = Set(savedVariables.map(\.name))
-        // Folder as the game names it -> its SavedVariables file.
-        let saverFiles = folders.values.reduce(into: [String: String]()) { out, url in
-            let file = url.lastPathComponent + ".lua"
-            if present.contains(file) { out[url.lastPathComponent] = file }
-        }
-        let choices = addOnChoices
-        var loads: [String: Set<String>] = [:]
-        for id in base.characterIDs {
-            if let enabled = app.companionSnapshot?.enabledBy[id] {
-                let off = Set((enabled.disabled + enabled.notLoaded).map { $0.lowercased() })
-                loads[id] = Set(saverFiles.filter { !off.contains($0.key.lowercased()) }.values)
-            } else if let header = addOnHeader(id), let list = choices?.effective(for: header).choices {
-                loads[id] = Set(saverFiles.filter { list[$0.key] == true }.values)
-            }
-        }
-        return loads
-    }
-
-    /// Works the settings each character runs on out again, after a read, a new AddOnSettings.txt, or new defaults.
+    /// Works the settings each character runs on out again, after a read or new defaults.
     func refreshEffectiveMatrix() {
         guard let base = current?.matrix else { effectiveMatrix = nil; return }
-        effectiveMatrix = base.applying(SettingsMatrix.ProfileContext(defaults: addonDefaults, loads: addonLoads), names: names)
+        effectiveMatrix = base.applying(SettingsMatrix.ProfileContext(defaults: addonDefaults), names: names)
     }
 }

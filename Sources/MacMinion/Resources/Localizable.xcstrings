@@ -26765,62 +26765,6 @@
         }
       }
     },
-    "Loaded · no settings saved": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Geladen · keine Einstellungen gespeichert"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Cargado · sin ajustes guardados"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Chargé · aucun réglage enregistré"
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Загружен · настройки не сохранены"
-          }
-        }
-      }
-    },
-    "Loads this addon, which keeps no settings for them.": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Lädt dieses Addon, das für ihn keine Einstellungen speichert."
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Carga este addon, que no guarda ajustes para él."
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Charge cet addon, qui ne garde aucun réglage pour lui."
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Загружает этот аддон, который не хранит для него настроек."
-          }
-        }
-      }
-    },
     "No settings of their own: the addon's defaults.": {
       "localizations": {
         "de": {

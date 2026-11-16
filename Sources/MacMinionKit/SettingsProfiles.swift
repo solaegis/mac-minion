@@ -3,20 +3,17 @@ import Foundation
 // MARK: - Defaults and who loads what (S-070)
 
 extension SettingsMatrix {
-    /// What turns saved settings into the settings each character runs on: each file's defaults, and which
-    /// files each character loads.
+    /// What turns saved settings into the settings each character runs on: each file's defaults. Characters
+    /// who load an addon but have no table in it are left out: they crowded the graph and the grid.
     public struct ProfileContext: Sendable {
         /// SavedVariables file ("AutoResearch.lua") -> its variables' defaults.
         public var defaults: [String: [SVDefaults.Found]]
-        /// Character ID -> the SavedVariables files of the addons they load.
-        public var loads: [String: Set<String>]
 
-        public init(defaults: [String: [SVDefaults.Found]] = [:], loads: [String: Set<String>] = [:]) {
+        public init(defaults: [String: [SVDefaults.Found]] = [:]) {
             self.defaults = defaults
-            self.loads = loads
         }
 
-        public var isEmpty: Bool { defaults.isEmpty && loads.isEmpty }
+        public var isEmpty: Bool { defaults.isEmpty }
     }
 
     /// Keys every addon's table carries that aren't settings: ZO_SavedVars' version and name, and
@@ -35,17 +32,11 @@ extension SettingsMatrix {
     }
 
     /// Each character's settings as the addon runs them: its defaults, then LibSavedVars' account-wide
-    /// settings for a character who uses them, then the character's own. Characters who load an addon join
-    /// it even with no table of their own; only characters this matrix already knows are added.
+    /// settings for a character who uses them, then the character's own. Only characters with a table in the
+    /// file are in it; one whose table holds only bookkeeping, with no defaults known, is left out.
     public func applying(_ context: ProfileContext, names: SVNameIndex?) -> SettingsMatrix {
-        guard !context.isEmpty else { return self }
-        let known = Set(characterIDs)
-        var loaders: [String: Set<String>] = [:]
-        for (id, files) in context.loads where known.contains(id) {
-            for file in files { loaders[file, default: []].insert(id) }
-        }
         let byFile = Dictionary((addons + others).map { ($0.file, $0) }, uniquingKeysWith: { a, _ in a })
-        let files = Set(addons.map(\.file)).union(loaders.keys)
+        let files = Set(addons.map(\.file))
         var result: [Addon] = []
         for file in files {
             let base = byFile[file]
@@ -65,8 +56,7 @@ extension SettingsMatrix {
             let raw = base?.characters ?? [:]
             let libSavedVars = found.contains(where: \.libSavedVars)
                 || raw.values.contains { Self.accountSwitch($0) != nil }
-            let ids = Set(raw.keys).union(loaders[file] ?? [])
-            guard !ids.isEmpty else { continue }
+            let ids = Set(raw.keys)
             var characters: [String: [String: Setting]] = [:]
             var own: [String: [String: Setting]] = [:]
             var profiles: [String: Profile] = [:]
@@ -75,8 +65,9 @@ extension SettingsMatrix {
                 let table = raw[id]
                 let mine = (table ?? [:]).filter { !Self.isBookkeeping($0.value) }
                 // LibSavedVars: no table, or the switch on, means the account-wide settings (LSV_Data.lua).
-                let accountActive = libSavedVars
-                    && (table == nil || Self.accountSwitch(table) == true)
+                let accountActive = libSavedVars && Self.accountSwitch(table) == true
+                // Only bookkeeping, and nothing known to run on: nothing to show.
+                if !accountActive, mine.isEmpty, defaults.isEmpty { continue }
                 let account = accountActive ? accountTable(base, for: id) : [:]
                 var settings = defaults
                 var from: [String: ValueSource] = defaults.mapValues { _ in .defaults }
@@ -87,12 +78,13 @@ extension SettingsMatrix {
                 own[id] = mine
                 characters[id] = settings
                 sources[id] = from
-                profiles[id] = accountActive ? .accountWide : !mine.isEmpty ? .own : !defaults.isEmpty ? .defaults : .loadedOnly
+                profiles[id] = accountActive ? .accountWide : !mine.isEmpty ? .own : .defaults
             }
             result.append(Addon(file: file, shared: base?.shared ?? 0, characters: characters, own: own, profiles: profiles,
                                 defaults: defaults, unresolvedDefaults: unresolved, sources: sources,
                                 accountTables: base?.accountTables ?? [:], tablePaths: base?.tablePaths ?? [:]))
         }
+        result.removeAll { $0.characters.isEmpty }
         return SettingsMatrix(addons: result.sorted { $0.file.localizedStandardCompare($1.file) == .orderedAscending },
                               characterIDs: characterIDs, accounts: accounts, homes: homes, others: others)
     }

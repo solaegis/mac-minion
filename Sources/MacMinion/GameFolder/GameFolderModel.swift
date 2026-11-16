@@ -291,7 +291,7 @@ final class GameFolderModel {
         lastRead = SavedVariablesRead(read, topFolders: addonIndex.topFolders, addonFolders: addonIndex.savers.mapValues(\.url))
         addonDefaults = defaults.defaults
         readIsCurrent = true
-        loadGameSettings()
+        refreshEffectiveMatrix()
     }
 
     /// Drops cached trees whose size or date no longer match the files on disk.

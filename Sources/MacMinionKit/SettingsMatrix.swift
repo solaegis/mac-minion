@@ -121,8 +121,6 @@ public struct SettingsMatrix: Sendable {
         case accountWide
         /// No settings of their own: the addon's defaults.
         case defaults
-        /// They load the addon, which keeps nothing for them, and its defaults aren't known.
-        case loadedOnly
     }
 
     /// Where one of a character's values comes from.
@@ -177,6 +175,10 @@ public struct SettingsMatrix: Sendable {
     public static let unknownServer = String(localized: "Unknown megaserver", bundle: .module)
 
     public func addon(_ file: String) -> Addon? { addons.first { $0.file == file } }
+
+    /// Addons with settings some character keeps: the grid's rows. One every character runs on defaults or
+    /// account-wide settings has no squares, so it isn't a row.
+    public var gridAddons: [Addon] { addons.filter { addon in addon.characters.keys.contains { addon.profile($0) == .own } } }
 
     /// Settings a character has in each addon, and how many are odd ones out.
     public func cell(_ file: String, _ id: String) -> (settings: Int, odd: Int)? {
