@@ -26,7 +26,7 @@ final class GameFolderModel {
     /// Addons' settings per character (S-054), as each character runs them: defaults, account-wide, then
     /// their own (S-070).
     var matrix: SettingsMatrix? { readIsCurrent ? effectiveMatrix ?? current?.matrix : nil }
-    /// The last read's matrix with defaults and loaded addons applied (`refreshEffectiveMatrix`).
+    /// The last read's matrix with each addon's defaults and account-wide settings applied, worked out with the read.
     var effectiveMatrix: SettingsMatrix?
     /// Each saving addon's defaults, by SavedVariables file (S-070).
     var addonDefaults: [String: [SVDefaults.Found]] = [:]
@@ -254,7 +254,7 @@ final class GameFolderModel {
                                                     cache: CompanionAnswerCache.load(from: Store.directory))
         let defaultsCache = self.defaultsCache
         let fileNames = Set(files.map(\.lastPathComponent))
-        let (read, newCache, addonIndex, companionWriteError, defaults) = await Task.detached {
+        let (read, newCache, addonIndex, companionWriteError, defaults, effective) = await Task.detached {
             let addonIndex = SavedVariablesAudit.index(addons)
             let declarations = addonIndex.savers.mapValues(\.variables)
             var companionWriteError: String?
@@ -272,11 +272,13 @@ final class GameFolderModel {
                                                            manifests: addonIndex.manifests,
                                                            installedVersions: addonIndex.versions, cache: cache,
                                                            answerCache: answerCache, report: report)
-            // Defaults matter only where characters keep tables: the matrix's files, not every addon that saves.
+            // Defaults matter only for files with settings, not every addon that saves.
             let defaults = GameFolderModel.readDefaults(savers: addonIndex.savers,
-                                                        files: fileNames.intersection(read.matrix.addons.map(\.file)),
+                                                        files: fileNames.intersection(read.matrix.settingFiles),
                                                         layouts: read.snapshot?.layouts ?? [:], cache: defaultsCache)
-            return (read, newCache, addonIndex, companionWriteError, defaults)
+            // Off the main thread: every character by every addon, which takes a moment with many of each.
+            let effective = read.matrix.applying(SettingsMatrix.ProfileContext(defaults: defaults.defaults), names: read.names)
+            return (read, newCache, addonIndex, companionWriteError, defaults, effective)
         }.value
         self.defaultsCache = defaults.cache
         // Each part is stamped with the size and date its file had when read, so keeping it is safe even if
@@ -292,8 +294,8 @@ final class GameFolderModel {
         app.companionSnapshot = read.snapshot ?? app.companionSnapshot
         lastRead = SavedVariablesRead(read, topFolders: addonIndex.topFolders, addonFolders: addonIndex.savers.mapValues(\.url))
         addonDefaults = defaults.defaults
+        effectiveMatrix = effective
         readIsCurrent = true
-        refreshEffectiveMatrix()
     }
 
     /// Drops cached trees whose size or date no longer match the files on disk.

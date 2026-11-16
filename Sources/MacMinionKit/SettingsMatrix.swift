@@ -189,8 +189,11 @@ public struct SettingsMatrix: Sendable {
     /// File -> character ID -> cell, worked out once.
     let cells: [String: [String: Cell]]
 
-    /// Files that keep only account-wide settings, for `applying` to add characters who load them.
+    /// Files that keep only account-wide settings, for `applying` to give to each account's characters.
     let others: [Addon]
+
+    /// Every file with settings, per character or account-wide: where defaults matter.
+    public var settingFiles: Set<String> { Set((addons + others).map(\.file)) }
 
     init(addons: [Addon], characterIDs: [String], accounts: [AccountGroup], homes: [String: Home], others: [Addon] = []) {
         self.addons = addons
@@ -357,9 +360,23 @@ public struct SettingsMatrix: Sendable {
                 if level == .accountWide {
                     shared += inner.count
                     if path.count == 3 {
-                        var settings = accountTables["\(path[1].description)|\(path[2].description)"] ?? [:]
-                        flatten(inner, path + [e.key], [], depth: depth, into: &settings)
-                        accountTables["\(path[1].description)|\(path[2].description)"] = settings
+                        let account = path[2].description
+                        // An addon may split its account-wide settings by megaserver (`$AccountWide › EU Megaserver › …`):
+                        // each part belongs to that megaserver's characters.
+                        let byServer = inner.entries.filter { entry in
+                            if case .string(let s) = entry.key { return s.hasSuffix(" Megaserver") && entry.value.table != nil }
+                            return false
+                        }
+                        for entry in byServer {
+                            var settings = accountTables["\(entry.key.description)|\(account)"] ?? [:]
+                            flatten(entry.value.table!, path + [e.key, entry.key], [], depth: depth, into: &settings)
+                            accountTables["\(entry.key.description)|\(account)"] = settings
+                        }
+                        let rest = byServer.isEmpty ? inner : LuaTable(entries: inner.entries.filter { e in !byServer.contains { $0.key == e.key } },
+                                                                       span: inner.span)
+                        var settings = accountTables["\(path[1].description)|\(account)"] ?? [:]
+                        flatten(rest, path + [e.key], [], depth: depth, into: &settings)
+                        accountTables["\(path[1].description)|\(account)"] = settings
                     }
                     continue
                 }

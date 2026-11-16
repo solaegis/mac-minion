@@ -118,7 +118,10 @@ extension GameFolderModel {
     /// When `file` is set, only that addon's differences (S-066).
     func copyAllRows(from: String, to: String, file: String? = nil) -> [(file: String, key: String)] {
         guard let matrix = matrix else { return [] }
-        let shown = matrix.compare(from, to).filter { app.prefs.showAllAddons || !$0.isGame || $0.file == file }
+        let shown = matrix.compare(from, to).filter { c in
+            app.prefs.showAllAddons || c.file == file
+                || (!c.isGame && matrix.addon(c.file).map { $0.profile(from) == .own || $0.profile(to) == .own } == true)
+        }
         let comparisons = file.map { f in shown.filter { $0.file == f } } ?? shown
         return comparisons.flatMap { c in c.differing.map { (c.file, $0.key) } }
             .filter { copyTarget(file: $0.file, key: $0.key, from: from, to: to) != nil }

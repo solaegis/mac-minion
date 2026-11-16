@@ -836,7 +836,9 @@ private struct CompareCharacters: View {
     }
 
     var body: some View {
-        let all = matrix.compare(a, b).filter { model.prefs.showAllAddons || !$0.isGame || $0.file == file }
+        let all = matrix.compare(a, b).filter { c in
+            model.prefs.showAllAddons || c.file == file || (!c.isGame && matrix.addon(c.file).map { $0.profile(a) == .own || $0.profile(b) == .own } == true)
+        }
         let scoped = file.map { f in all.filter { $0.file == f } } ?? all
         let comparisons = model.byName(scoped, file: \.file)
         let differing = comparisons.reduce(0) { $0 + $1.differing.count }

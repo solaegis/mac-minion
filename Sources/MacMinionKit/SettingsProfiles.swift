@@ -31,12 +31,14 @@ extension SettingsMatrix {
         return nil
     }
 
-    /// Each character's settings as the addon runs them: its defaults, then LibSavedVars' account-wide
-    /// settings for a character who uses them, then the character's own. Only characters with a table in the
-    /// file are in it; one whose table holds only bookkeeping, with no defaults known, is left out.
+    /// Each character's settings as the addon runs them: its defaults, then the account-wide settings for a
+    /// character who uses them, then the character's own. A character with no table of their own joins an addon
+    /// whose settings still reach them: its account-wide settings for their account (an addon that keeps only
+    /// those, or LibSavedVars), else its known defaults. One with only bookkeeping and nothing known is left out.
     public func applying(_ context: ProfileContext, names: SVNameIndex?) -> SettingsMatrix {
         let byFile = Dictionary((addons + others).map { ($0.file, $0) }, uniquingKeysWith: { a, _ in a })
-        let files = Set(addons.map(\.file))
+        // The companion's file is MacMinion's record of the game, not settings anyone runs on.
+        let files = Set(byFile.keys).subtracting(CompanionData.fileNames)
         var result: [Addon] = []
         for file in files {
             let base = byFile[file]
@@ -56,7 +58,8 @@ extension SettingsMatrix {
             let raw = base?.characters ?? [:]
             let libSavedVars = found.contains(where: \.libSavedVars)
                 || raw.values.contains { Self.accountSwitch($0) != nil }
-            let ids = Set(raw.keys)
+            let perCharacter = !raw.isEmpty
+            let ids = Set(raw.keys).union(characterIDs)
             var characters: [String: [String: Setting]] = [:]
             var own: [String: [String: Setting]] = [:]
             var profiles: [String: Profile] = [:]
@@ -64,11 +67,15 @@ extension SettingsMatrix {
             for id in ids {
                 let table = raw[id]
                 let mine = (table ?? [:]).filter { !Self.isBookkeeping($0.value) }
-                // LibSavedVars: no table, or the switch on, means the account-wide settings (LSV_Data.lua).
-                let accountActive = libSavedVars && Self.accountSwitch(table) == true
-                // Only bookkeeping, and nothing known to run on: nothing to show.
+                let shared = accountTable(base, for: id)
+                // LibSavedVars' switch on (or, with no table, its fallback), or an addon that keeps only
+                // account-wide settings: the account's settings are this character's.
+                let accountActive = table == nil
+                    ? !shared.isEmpty && (libSavedVars || !perCharacter)
+                    : libSavedVars && Self.accountSwitch(table) == true
+                // Nothing of their own and nothing known to run on: nothing to show.
                 if !accountActive, mine.isEmpty, defaults.isEmpty { continue }
-                let account = accountActive ? accountTable(base, for: id) : [:]
+                let account = accountActive ? shared : [:]
                 var settings = defaults
                 var from: [String: ValueSource] = defaults.mapValues { _ in .defaults }
                 for (key, s) in account { settings[key] = s; from[key] = .account }
@@ -89,13 +96,13 @@ extension SettingsMatrix {
                               characterIDs: characterIDs, accounts: accounts, homes: homes, others: others)
     }
 
-    /// The `$AccountWide` settings a character shares: their megaserver's and account's, or the only ones.
+    /// The `$AccountWide` settings a character shares: their account's, for their megaserver, then the `Default`
+    /// profile's. Nothing when their account isn't known: another account's settings aren't theirs.
     func accountTable(_ addon: Addon?, for id: String) -> [String: Setting] {
-        guard let tables = addon?.accountTables, !tables.isEmpty else { return [:] }
-        if let home = homes[id] {
-            if let t = tables["\(home.server)|\(home.account)"] { return t }
-            if let t = tables["Default|\(home.account)"] { return t }
-        }
-        return tables.count == 1 ? tables.values.first! : [:]
+        guard let tables = addon?.accountTables, !tables.isEmpty, let home = homes[id] else { return [:] }
+        let server = home.server.hasSuffix(" Megaserver") ? home.server : CharacterID.megaserver(ofID: id) ?? home.server
+        var merged = tables["Default|\(home.account)"] ?? [:]
+        merged.merge(tables["\(server)|\(home.account)"] ?? [:]) { _, b in b }
+        return merged
     }
 }

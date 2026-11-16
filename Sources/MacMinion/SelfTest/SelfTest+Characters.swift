@@ -159,7 +159,12 @@ extension SelfTest {
         await model.gameFolder.copySettings(model.gameFolder.copyAllRows(from: alphaKey, to: masisiKey), from: alphaKey, to: masisiKey)
         await model.gameFolder.copySettings(model.gameFolder.copyAllRows(from: masisiKey, to: alphaKey), from: masisiKey, to: alphaKey)
         check("cloning both ways leaves no differences",
-              model.gameFolder.matrix?.compare(masisiKey, alphaKey).allSatisfy { $0.isGame || $0.differing.isEmpty } == true)
+              model.gameFolder.matrix?.compare(masisiKey, alphaKey).allSatisfy { c in
+                  // Copy All leaves out what Compare hides with Show All Addons off: the game's, and addons neither owns.
+                  c.isGame || c.differing.isEmpty
+                      || model.gameFolder.matrix?.addon(c.file).map { $0.profile(masisiKey) != .own && $0.profile(alphaKey) != .own } == true
+              } == true,
+              "\(model.gameFolder.matrix?.compare(masisiKey, alphaKey).filter { !$0.isGame && !$0.differing.isEmpty }.map { "\($0.file): \($0.differing.map(\.key))" } ?? [])")
         // Dustman.lua is damaged on purpose in the sample; every file that read cleanly still does.
         let brokenAfter = model.gameFolder.savedVariables.filter { file in
             guard let before = svBefore[file.url], SVDocument.parse(before).error == nil else { return false }
@@ -234,9 +239,10 @@ extension SelfTest {
         model.prefs.showAllAddons = true
         check("with the checkbox on, Copy All includes the game's differences",
               model.gameFolder.copyAllRows(from: masisiKey, to: alphaKey).contains { $0.file == "ZO_Ingame.lua" })
-        check("an account-wide game file is there to show",
+        check("an account-wide game file reaches each character on the account",
               model.gameFolder.savedVariables.contains { $0.name == "ZO_Pregame.lua" && $0.owner == .game }
-              && matrix?.addon("ZO_Pregame.lua") == nil)
+              && matrix?.addon("ZO_Pregame.lua")?.profile(masisiKey) == .accountWide,
+              "\(String(describing: matrix?.addon("ZO_Pregame.lua")?.profile(masisiKey)))")
         model.prefs.showAllAddons = false
 
         // S-070 Default addon profiles: AutoResearch keeps nothing of Masisi's but bookkeeping, and Alpha Top uses

@@ -41,12 +41,6 @@ extension GameFolderModel {
         }
         return (out, cache)
     }
-
-    /// Works the settings each character runs on out again, after a read or new defaults.
-    func refreshEffectiveMatrix() {
-        guard let base = current?.matrix else { effectiveMatrix = nil; return }
-        effectiveMatrix = base.applying(SettingsMatrix.ProfileContext(defaults: addonDefaults), names: names)
-    }
 }
 
 /// One result slot per addon, written from concurrent reads.

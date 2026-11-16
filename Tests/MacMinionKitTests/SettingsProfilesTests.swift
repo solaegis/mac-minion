@@ -3,7 +3,7 @@ import Testing
 @testable import MacMinionKit
 
 // AutoResearch's shape: LibSavedVars, one character with a setting of their own, one with only bookkeeping,
-// one on the account-wide settings, and a fourth with no table, who stays out.
+// one on the account-wide settings, and a fourth with no table, who gets the account-wide settings.
 private let own = "8796093036412335", bare = "8796093011112222", shared = "8798292071293572", none = "8796093079837777"
 private let research = """
 AutoResearch_Account = { ["NA Megaserver"] = { ["@ME"] = { ["$AccountWide"] = { ["bags"] = 2 } } } }
@@ -47,7 +47,7 @@ private func value(_ m: SettingsMatrix, _ id: String, _ suffix: String) -> Strin
     #expect(addon?.profile(own) == .own)
     #expect(addon?.profile(bare) == .defaults, "bookkeeping alone is no settings")
     #expect(addon?.profile(shared) == .accountWide)
-    #expect(addon?.characters[none] == nil, "no table, no place in the addon")
+    #expect(addon?.profile(none) == .accountWide, "LibSavedVars with no table uses the account-wide settings")
     #expect(matrix(defaults: false).addon("AutoResearch.lua")?.characters[bare] == nil, "only bookkeeping and no defaults: left out")
 }
 
@@ -78,6 +78,32 @@ private func value(_ m: SettingsMatrix, _ id: String, _ suffix: String) -> Strin
     // Only characters with settings of their own get a grid cell, and the grid lists addons that have one.
     #expect(m.cell("AutoResearch.lua", own) != nil && m.cell("AutoResearch.lua", bare) == nil)
     #expect(m.gridAddons.contains { $0.file == "AutoResearch.lua" })
+}
+
+// ESO Combat Lock's shape: everything account-wide, split by megaserver, nothing at the character level.
+@Test func anAddonThatKeepsOnlyAccountWideSettingsReachesEachCharacterOnThatAccount() {
+    let lock = """
+    Lock_SV = { ["Default"] = {
+        ["@ME"] = { ["$AccountWide"] = { ["NA Megaserver"] = { ["emptySlots"] = true }, ["EU Megaserver"] = { ["emptySlots"] = false }, ["shared"] = 7 } },
+        ["@OTHER"] = { ["$AccountWide"] = { ["shared"] = 9 } },
+    } }
+    """
+    var names = SVNameIndex()
+    names.characters[own] = (name: "Masisi", source: "test")
+    names.characters[shared] = (name: "Alpha Top", source: "test")
+    let eu = "8798292000000001"
+    names.characters[eu] = (name: "Velvet Thorn", source: "test")
+    let euFile = #"E_SV = { ["EU Megaserver"] = { ["@ME"] = { ["\#(eu)"] = { ["x"] = 1 } } } }"#
+    let base = SettingsMatrix.build(documents: ["Other.lua": SVDocument.parse(Data(other.utf8)),
+                                                "Eu.lua": SVDocument.parse(Data(euFile.utf8)),
+                                                "Lock.lua": SVDocument.parse(Data(lock.utf8))], names: names)
+    let m = base.applying(.init(), names: names)
+    let addon = m.addon("Lock.lua")
+    #expect(addon?.profile(own) == .accountWide)
+    #expect(addon?.characters[own]?.first { $0.key.hasSuffix("Empty slots") }?.value.text == "true", "NA's part for an NA character")
+    #expect(addon?.characters[eu]?.first { $0.key.hasSuffix("Empty slots") }?.value.text == "false", "EU's part for an EU character")
+    #expect(addon?.characters[own]?.first { $0.key.hasSuffix("Shared") }?.value.text == "7", "their account's, not @OTHER's")
+    #expect(!m.gridAddons.contains { $0.file == "Lock.lua" }, "nobody keeps settings of their own, so no grid row")
 }
 
 private extension LuaValue {
