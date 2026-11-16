@@ -441,7 +441,7 @@ struct InspectorCommands: View {
             .disabled(exploring ? model.gameFolder.explorerPath.count <= 1
                       : !(inspecting && model.gameFolder.inspectorResults == nil && model.gameFolder.inspectorConnections == nil && !model.gameFolder.inspectorFocus.isEmpty))
         // Game Folder's tabs, in toolbar order: Control-Command-1 to 4.
-        Button("Go to Characters") { model.open(.gameFolder); model.gameFolder.tab = .characters; model.gameFolder.explorerReset() }
+        Button("Go to Characters") { model.open(.gameFolder); model.gameFolder.tab = .characters; model.gameFolder.explorerResume() }
             .keyboardShortcut("1", modifiers: [.command, .control])
         Button("Go to Inspector") { model.open(.gameFolder); model.gameFolder.tab = .inspector }
             .keyboardShortcut("2", modifiers: [.command, .control])

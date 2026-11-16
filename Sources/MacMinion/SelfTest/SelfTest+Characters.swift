@@ -360,8 +360,17 @@ extension SelfTest {
         check("a megaserver's graph holds that account's characters on it",
               model.gameFolder.explorerPath == [.grid, .account("@SOLAEGIS"), .server(account: "@SOLAEGIS", server: "NA Megaserver")]
               && naCharacters.contains(masisiKey) && !naCharacters.contains("8798292033334444"))
+        // Back on Characters after the Inspector: the character you were on, not every character.
         model.gameFolder.explorerReset()
-        check("the Characters tab starts at every character", model.gameFolder.explorerPath == [.grid])
+        model.gameFolder.explorerOpen(.character(masisiKey))
+        model.gameFolder.tab = .inspector
+        model.gameFolder.tab = .characters
+        model.gameFolder.explorerResume()
+        check("the Characters tab returns to the last character", model.gameFolder.explorerPath == [.grid, .character(masisiKey)])
+        model.gameFolder.explorerPath = [.grid, .character("8796093000000000"), .characterAddon(id: "8796093000000000", file: "WritWorthy.lua")]
+        model.gameFolder.explorerResume()
+        check("a character that's gone trims the path back", model.gameFolder.explorerPath == [.grid])
+        model.gameFolder.explorerReset()
         model.gameFolder.tab = .characters
     }
 }

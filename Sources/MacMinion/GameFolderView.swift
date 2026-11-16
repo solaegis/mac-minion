@@ -99,7 +99,7 @@ private struct GameFolderTabBar: View {
     var body: some View {
         Picker("View", selection: Binding(get: { model.gameFolder.tab }, set: { tab in
             model.gameFolder.tab = tab
-            if tab == .characters { model.gameFolder.explorerReset() }
+            if tab == .characters { model.gameFolder.explorerResume() }
         })) {
             // Problems counts causes to act on, not raw checks.
             let findings = model.gameFolder.healthFindings.filter(\.isMain).count

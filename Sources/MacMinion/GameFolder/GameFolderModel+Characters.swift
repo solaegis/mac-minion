@@ -21,6 +21,30 @@ extension GameFolderModel {
         explorerPath = [.grid]
     }
 
+    /// Back on the Characters tab after the Inspector or another tab: where you were, trimmed to the deepest
+    /// level that still exists after a rescan (a character or addon file can go away).
+    func explorerResume() {
+        guard let matrix else { return }
+        let ids = Set(matrix.characterIDs), files = Set(matrix.addons.map(\.file))
+        func exists(_ level: ExplorerLevel) -> Bool {
+            switch level {
+            case .grid: true
+            case .character(let id): ids.contains(id)
+            case .addon(let file): files.contains(file)
+            case .characterAddon(let id, let file): ids.contains(id) && files.contains(file)
+            case .setting(let file, _): files.contains(file)
+            case .compare(let a, let b, let file): ids.contains(a) && ids.contains(b) && (file.map(files.contains) ?? true)
+            case .account(let account): matrix.accounts.contains { $0.account == account }
+            case .server(let account, let server):
+                matrix.accounts.first { $0.account == account }?.servers.contains { $0.server == server } == true
+            }
+        }
+        let kept = Array(explorerPath.prefix { exists($0) })
+        guard kept != explorerPath else { return }
+        if comparedCharacters != nil { clearCloneSelection() }
+        explorerPath = kept.isEmpty ? [.grid] : kept
+    }
+
     func clearCloneSelection() {
         cloneSources = [:]
         cloneConfirmPending = false
