@@ -40,12 +40,10 @@ struct ConnectionsView: View {
                             symbol: hood.target.kind.symbol
                         )
                         ForEach(nodes) { node in
-                            Button { Task { await open(node, from: hood.target) } } label: {
-                                NodeLabel(title: title(node), detail: detail(node), color: color(node),
-                                          symbol: symbol(node))
+                            NodeButton(title: title(node), detail: detail(node), color: color(node),
+                                       symbol: symbol(node), hint: help(node)) {
+                                Task { await open(node, from: hood.target) }
                             }
-                            .buttonStyle(.plain)
-                            .help(help(node))
                             .contextMenu {
                                 if case .neighbor(let t, _) = node {
                                     Button("Show Connections") { Task { await model.gameFolder.showConnections(t) } }
@@ -215,7 +213,29 @@ struct NodeLabel: View {
         .background(.background, in: RoundedRectangle(cornerRadius: Radius.chip, style: .continuous))
         .overlay(RoundedRectangle(cornerRadius: Radius.chip, style: .continuous).strokeBorder(color.opacity(0.55)))
         .contentShape(RoundedRectangle(cornerRadius: Radius.chip, style: .continuous))
-        .help("\(title)\n\(detail)")
+    }
+}
+
+/// A clickable graph node. Its tooltip leads with the full name, which the chip may cut short, then the
+/// detail, then what a click does.
+struct NodeButton: View {
+    let title: String
+    let detail: String
+    let color: Color
+    var symbol: String = "circle.fill"
+    var hint: String = ""
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            NodeLabel(title: title, detail: detail, color: color, symbol: symbol)
+        }
+        .buttonStyle(.plain)
+        .help(Self.help(title: title, detail: detail, hint: hint))
+    }
+
+    static func help(title: String, detail: String, hint: String) -> String {
+        [title, detail, hint].filter { !$0.isEmpty }.joined(separator: "\n")
     }
 }
 

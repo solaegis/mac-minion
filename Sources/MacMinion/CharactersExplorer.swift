@@ -378,21 +378,18 @@ private struct CharacterConstellation: View {
     @ViewBuilder private func nodeButton(_ node: Node) -> some View {
         switch node {
         case .addon(let addon):
-            Button { model.gameFolder.explorerOpen(.characterAddon(id: id, file: addon.file)) } label: {
-                NodeLabel(title: model.addonName(addon.file),
-                          detail: detail(addon),
-                          color: color(node),
-                          symbol: addon.isGame ? "gearshape.fill" : "puzzlepiece.extension.fill")
+            let name = model.addonName(addon.file)
+            NodeButton(title: name, detail: detail(addon), color: color(node),
+                       symbol: addon.isGame ? "gearshape.fill" : "puzzlepiece.extension.fill",
+                       hint: String(localized: "Show \(model.gameFolder.characterName(id))'s settings in \(name)")) {
+                model.gameFolder.explorerOpen(.characterAddon(id: id, file: addon.file))
             }
-            .buttonStyle(.plain)
-            .help("Show \(model.gameFolder.characterName(id))'s settings in \(model.addonName(addon.file))")
         case .gameFile(let file):
-            Button { Task { await model.gameFolder.inspect(file) } } label: {
-                NodeLabel(title: model.addonName(file), detail: String(localized: "Account-wide only"),
-                          color: color(node), symbol: "gearshape.fill")
+            NodeButton(title: model.addonName(file), detail: String(localized: "Account-wide only"),
+                       color: color(node), symbol: "gearshape.fill",
+                       hint: String(localized: "Open \(file) in the Inspector: the game keeps nothing in it for this character")) {
+                Task { await model.gameFolder.inspect(file) }
             }
-            .buttonStyle(.plain)
-            .help("Open \(file) in the Inspector: the game keeps nothing in it for this character")
         }
     }
 
@@ -761,12 +758,11 @@ private struct AccountConstellation: View {
                 CenterNode(title: account, kind: String(localized: "Account\n\(String(localized: "\(characters) characters"))"),
                            symbol: "person.2.fill")
                 ForEach(servers) { server in
-                    Button { model.gameFolder.explorerOpen(.server(account: account, server: server.server)) } label: {
-                        NodeLabel(title: server.server, detail: String(localized: "\(server.characters.count) characters"),
-                                  color: Palette.accent, symbol: "globe")
+                    NodeButton(title: server.server, detail: String(localized: "\(server.characters.count) characters"),
+                               color: Palette.accent, symbol: "globe",
+                               hint: String(localized: "Show the characters of \(account) on \(server.server)")) {
+                        model.gameFolder.explorerOpen(.server(account: account, server: server.server))
                     }
-                    .buttonStyle(.plain)
-                    .help("Show the characters of \(account) on \(server.server)")
                 }
             }
         }
@@ -794,11 +790,11 @@ private struct ServerConstellation: View {
             RadialLayout {
                 CenterNode(title: server, kind: "\(account)\n\(String(localized: "\(ids.count) characters"))", symbol: "globe")
                 ForEach(ids, id: \.self) { id in
-                    Button { model.gameFolder.explorerOpen(.character(id)) } label: {
-                        NodeLabel(title: model.gameFolder.characterName(id), detail: characterLine(model, id), color: Palette.accent, symbol: "person.fill")
+                    NodeButton(title: model.gameFolder.characterName(id), detail: characterLine(model, id), color: Palette.accent,
+                               symbol: "person.fill",
+                               hint: String(localized: "\(model.gameFolder.characterTitle(id)): show their settings across addons")) {
+                        model.gameFolder.explorerOpen(.character(id))
                     }
-                    .buttonStyle(.plain)
-                    .help("\(model.gameFolder.characterTitle(id)): show their settings across addons")
                 }
             }
         }
