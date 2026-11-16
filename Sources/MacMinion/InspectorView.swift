@@ -452,7 +452,7 @@ struct InspectorCommands: View {
         Button("Compare Characters…") { model.open(.gameFolder); model.gameFolder.tab = .characters; model.gameFolder.choosingComparison = true }
             .keyboardShortcut("c", modifiers: [.command, .control])
             .disabled(model.gameFolder.matrix == nil)
-        Toggle("Show Default Addons", isOn: Binding(get: { model.prefs.showGameAddons }, set: { model.prefs.showGameAddons = $0 }))
+        Toggle("Show All Addons", isOn: Binding(get: { model.prefs.showAllAddons }, set: { model.prefs.showAllAddons = $0 }))
             .keyboardShortcut("g", modifiers: [.command, .control])
         // Files > Game Settings (S-062).
         let settingsKind = model.sidebar == .gameFolder && model.gameFolder.tab == .gameSettings ? model.gameFolder.gameSettingsKind : nil

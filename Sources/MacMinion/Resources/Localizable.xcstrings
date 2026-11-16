@@ -26261,34 +26261,6 @@
         }
       }
     },
-    "Add the game's own addons to the graph and to Compare (Control-Command-G)": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Die Addons des Spiels zum Diagramm und zum Vergleich hinzufügen (Control-Befehl-G)"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Añadir los addons del propio juego al gráfico y a Comparar (Control-Comando-G)"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Ajouter les addons du jeu au graphique et à Comparer (Contrôle-Commande-G)"
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Добавить собственные аддоны игры в граф и в сравнение (Control-Command-G)"
-          }
-        }
-      }
-    },
     "Addons Turned On": {
       "localizations": {
         "de": {
@@ -26597,34 +26569,6 @@
         }
       }
     },
-    "Show Default Addons": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Standard-Addons zeigen"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Mostrar addons predeterminados"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Afficher les addons par défaut"
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Показывать стандартные аддоны"
-          }
-        }
-      }
-    },
     "The game (%@)": {
       "localizations": {
         "de": {
@@ -26677,6 +26621,342 @@
           "stringUnit": {
             "state": "translated",
             "value": "из Default"
+          }
+        }
+      }
+    },
+    "%@ uses account-wide settings: switch to per-character in the addon first": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ nutzt accountweite Einstellungen: zuerst im Addon auf pro Charakter umstellen"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ usa ajustes de toda la cuenta: cambia primero a por personaje en el addon"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ utilise les réglages du compte : passez d’abord au réglage par personnage dans l’addon"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ использует настройки учётной записи: сначала переключите на настройки персонажа в аддоне"
+          }
+        }
+      }
+    },
+    "%@ · %lld changed from default": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ · %lld vom Standard geändert"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ · %lld cambiados del predeterminado"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ · %lld modifiés par rapport au défaut"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ · изменено от стандартных: %lld"
+          }
+        }
+      }
+    },
+    "Account-wide · %@": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Accountweit · %@"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Toda la cuenta · %@"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Compte entier · %@"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Вся учётная запись · %@"
+          }
+        }
+      }
+    },
+    "Add the game's own addons, and addons this character runs without settings of their own, to the graph and to Compare (Control-Command-G)": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die Addons des Spiels und Addons, die dieser Charakter ohne eigene Einstellungen nutzt, zum Diagramm und zum Vergleich hinzufügen (Control-Befehl-G)"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Añadir al gráfico y a Comparar los addons del juego y los que este personaje usa sin ajustes propios (Control-Comando-G)"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ajouter au graphique et à Comparer les addons du jeu et ceux que ce personnage utilise sans réglages à lui (Contrôle-Commande-G)"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Добавить в граф и в сравнение аддоны игры и аддоны, которые этот персонаж использует без своих настроек (Control-Command-G)"
+          }
+        }
+      }
+    },
+    "Defaults · %@": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Standard · %@"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Predeterminado · %@"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Par défaut · %@"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Стандартные · %@"
+          }
+        }
+      }
+    },
+    "Loaded · no settings saved": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Geladen · keine Einstellungen gespeichert"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cargado · sin ajustes guardados"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chargé · aucun réglage enregistré"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Загружен · настройки не сохранены"
+          }
+        }
+      }
+    },
+    "Loads this addon, which keeps no settings for them.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lädt dieses Addon, das für ihn keine Einstellungen speichert."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Carga este addon, que no guarda ajustes para él."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Charge cet addon, qui ne garde aucun réglage pour lui."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Загружает этот аддон, который не хранит для него настроек."
+          }
+        }
+      }
+    },
+    "No settings of their own: the addon's defaults.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Keine eigenen Einstellungen: die Standardwerte des Addons."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sin ajustes propios: los predeterminados del addon."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aucun réglage à lui : les valeurs par défaut de l’addon."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Своих настроек нет: стандартные настройки аддона."
+          }
+        }
+      }
+    },
+    "Show All Addons": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Alle Addons zeigen"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mostrar todos los addons"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Afficher tous les addons"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Показывать все аддоны"
+          }
+        }
+      }
+    },
+    "Uses the account-wide settings, over the addon's defaults.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nutzt die accountweiten Einstellungen über den Standardwerten des Addons."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Usa los ajustes de toda la cuenta sobre los predeterminados del addon."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Utilise les réglages du compte, par-dessus les valeurs par défaut de l’addon."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Использует настройки учётной записи поверх стандартных настроек аддона."
+          }
+        }
+      }
+    },
+    "account-wide": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "accountweit"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "toda la cuenta"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "compte entier"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "вся учётная запись"
+          }
+        }
+      }
+    },
+    "default": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Standard"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "predeterminado"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "par défaut"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "стандартное"
           }
         }
       }

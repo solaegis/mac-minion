@@ -524,6 +524,63 @@ enum SeedData {
         }
 
         """))
+        // AutoResearch's shape (S-070): LibSavedVars with defaults in its source, Masisi with only bookkeeping (so the
+        // defaults), Alpha Top on the account-wide settings.
+        all.append((addons.appending(path: "AutoResearch/AutoResearch.txt"),
+                    "## Title: AutoResearch\n## Version: 4.0\n## SavedVariables: AutoResearch_Account AutoResearch_Character\nAutoResearch.lua\n"))
+        all.append((addons.appending(path: "AutoResearch/AutoResearch.lua"), """
+        local addon = {
+            name = "AutoResearch",
+            -- Option panel defaults
+            defaults = {
+                bags = 3,
+                enabled = true,
+                shortPrefix = true,
+                maxQuality = { [1] = ITEM_FUNCTIONAL_QUALITY_ARCANE },
+            },
+        }
+        local LSV = LibSavedVars
+        addon.settings = LSV:NewCharacterSettings(addon.name .. "_Character", addon.defaults)
+                            :AddAccountWideToggle(addon.name .. "_Account")
+
+        """))
+        all.append((sv.appending(path: "AutoResearch.lua"), """
+        AutoResearch_Account =
+        {
+            ["NA Megaserver"] =
+            {
+                ["@SOLAEGIS"] =
+                {
+                    ["$AccountWide"] =
+                    {
+                        ["bags"] = 2,
+                    },
+                },
+            },
+        }
+        AutoResearch_Character =
+        {
+            ["NA Megaserver"] =
+            {
+                ["@SOLAEGIS"] =
+                {
+                    ["8796093036412335"] =
+                    {
+                        ["LibSavedVars"] = { ["accountSavedVarsActive"] = false },
+                        ["$LastCharacterName"] = "Masisi",
+                        ["version"] = 4,
+                    },
+                    ["8798292071293572"] =
+                    {
+                        ["LibSavedVars"] = { ["accountSavedVarsActive"] = true },
+                        ["$LastCharacterName"] = "Alpha Top",
+                        ["version"] = 4,
+                    },
+                },
+            },
+        }
+
+        """))
         // LibGuildStore's data addons, three folders deep (the most the game loads), so their files belong to an installed addon.
         for name in ["GS00Data", "GS16Data", "GS17Data"] {
             all.append((libs.appending(path: "\(name)/\(name).txt"), "## Title: \(name)\n## SavedVariables: \(name)SavedVariables\n"))

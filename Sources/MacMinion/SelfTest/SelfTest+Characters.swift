@@ -30,7 +30,7 @@ extension SelfTest {
         await model.gameFolder.showConnections(masisiID)
         let hood = model.gameFolder.inspectorConnections
         check("the map puts the character in the middle", hood?.target == masisiID && model.gameFolder.tab == .inspector)
-        check("files that mention it sit around it", Set(hood?.files.map(\.file) ?? []) == ["WritWorthy.lua", "ZO_Ingame.lua", "EsoMacMinion_Data.lua", "HarvestMap.lua"])
+        check("files that mention it sit around it", Set(hood?.files.map(\.file) ?? []) == ["WritWorthy.lua", "ZO_Ingame.lua", "EsoMacMinion_Data.lua", "HarvestMap.lua", "AutoResearch.lua"])
         let around = Set(hood?.neighbors.map(\.target) ?? [])
         check("things stored with it sit around it", around.contains(SVTarget(.zone, "3")) && around.contains(SVTarget(.item, "29516")),
               "\(around.map(\.description))")
@@ -131,7 +131,8 @@ extension SelfTest {
         check("copying refuses while the game runs", model.gameFolder.errorMessage != nil && (try? Data(contentsOf: writURL)) == svBefore[writURL])
         model.simulatesRunningGame = false
         check("Copy All takes every difference shown", model.gameFolder.copyAllRows(from: masisiKey, to: alphaKey).count
-              == compared.filter { !$0.isGame }.reduce(0) { $0 + $1.differing.count })
+              == compared.filter { !$0.isGame }.flatMap { c in c.differing.map { (c.file, $0.key) } }
+                  .filter { model.gameFolder.copyTarget(file: $0.0, key: $0.1, from: masisiKey, to: alphaKey) != nil }.count)
         // Mixed directions in one Clone: Auto craft Masisi→Alpha, Writ count Alpha→Masisi.
         await model.gameFolder.applyCloneOps([
             .init(file: "WritWorthy.lua", key: "Auto craft", from: masisiKey, to: alphaKey),
@@ -219,7 +220,7 @@ extension SelfTest {
     static func defaultAddonsAndChoices(_ model: AppModel) async {
         let masisiKey = "8796093036412335", alphaKey = "8798292071293572", emberKey = "8796093011112222"
         // S-068 The game's own addons join a character's graph and Compare only when asked.
-        check("Show Default Addons starts off", model.prefs.showGameAddons == false)
+        check("Show All Addons starts off", model.prefs.showAllAddons == false)
         let matrix = model.gameFolder.matrix
         check("the game's files are known as the game's", matrix?.addon("ZO_Ingame.lua")?.isGame == true
               && matrix?.addon("WritWorthy.lua")?.isGame == false)
@@ -230,13 +231,40 @@ extension SelfTest {
               "\(matrix?.addon("ZO_Ingame.lua")?.characters.keys.sorted() ?? [])")
         check("with the checkbox off, Copy All leaves the game's files alone",
               !model.gameFolder.copyAllRows(from: masisiKey, to: alphaKey).contains { SettingsMatrix.isGame($0.file) })
-        model.prefs.showGameAddons = true
+        model.prefs.showAllAddons = true
         check("with the checkbox on, Copy All includes the game's differences",
               model.gameFolder.copyAllRows(from: masisiKey, to: alphaKey).contains { $0.file == "ZO_Ingame.lua" })
         check("an account-wide game file is there to show",
               model.gameFolder.savedVariables.contains { $0.name == "ZO_Pregame.lua" && $0.owner == .game }
               && matrix?.addon("ZO_Pregame.lua") == nil)
-        model.prefs.showGameAddons = false
+        model.prefs.showAllAddons = false
+
+        // S-070 Default addon profiles: AutoResearch keeps nothing of Masisi's but bookkeeping, and Alpha Top uses
+        // the account-wide settings; both run on its defaults, from its source.
+        let research = model.gameFolder.addonDefaults["AutoResearch.lua"]?.first
+        check("an addon's defaults are read from its source", research?.variable == "AutoResearch_Character"
+              && research?.libSavedVars == true && research?.unresolved.values.contains("ITEM_FUNCTIONAL_QUALITY_ARCANE") == true,
+              "\(model.gameFolder.addonDefaults.keys.sorted())")
+        let auto = model.gameFolder.matrix?.addon("AutoResearch.lua")
+        check("a character with only bookkeeping runs on the defaults", auto?.profile(masisiKey) == .defaults
+              && auto?.characters[masisiKey]?.values.contains { SettingsMatrix.isBookkeeping($0) } == false,
+              "\(String(describing: auto?.profile(masisiKey)))")
+        check("a character on LibSavedVars' account-wide settings gets them over the defaults", auto?.profile(alphaKey) == .accountWide,
+              "\(String(describing: auto?.profile(alphaKey)))")
+        let bagsKey = auto?.characters[masisiKey]?.keys.first { $0.hasSuffix("Bags") }
+        if let bagsKey {
+            check("defaults and account-wide values show where they come from",
+                  auto?.source(masisiKey, bagsKey) == .defaults && auto?.source(alphaKey, bagsKey) == .account)
+            check("Compare sees the default against the account-wide value",
+                  model.gameFolder.matrix?.compare(masisiKey, alphaKey).first { $0.file == "AutoResearch.lua" }?.differing.contains { $0.key == bagsKey } == true)
+            check("nothing is cloned to a character on account-wide settings",
+                  model.gameFolder.copyTarget(file: "AutoResearch.lua", key: bagsKey, from: masisiKey, to: alphaKey) == nil)
+        } else {
+            check("AutoResearch's defaults reach the matrix", false, "\(auto?.characters[masisiKey]?.keys.sorted() ?? [])")
+        }
+        check("a constant in the defaults is never compared", auto?.characters[masisiKey]?.keys.contains { $0.contains("Max quality") } == false)
+        check("characters on defaults have no grid cell", model.gameFolder.matrix?.cell("AutoResearch.lua", masisiKey) == nil
+              && !(model.gameFolder.matrix?.onlyHere(masisiKey).contains("AutoResearch.lua") ?? true))
 
         // S-069 Compare and clone which addons each character loads (AddOnSettings.txt).
         model.gameFolder.loadGameSettings()

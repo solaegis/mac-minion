@@ -686,8 +686,8 @@ Acceptance:
 Status: done
 
 ### S-068 Show the game's default addons on a character
-As the user, on a character's page (Game Folder › All Characters › Masisi) I tick Show Default Addons to add the game's own addons (its `ZO_*` SavedVariables files) to the graph, each by its own name ("The game (Ingame)"). A game file with nothing for this character reads "Account-wide only" and opens in the Inspector. The checkbox starts off to keep the graph calm, is remembered, is also in the Inspector menu (⌃⌘G), and filters Compare the same way.
-Screens: gameFolder-character, gameFolder-character-defaults
+As the user, on a character's page (Game Folder › All Characters › Masisi) I tick Show All Addons (named Show Default Addons until S-070) to add the game's own addons (its `ZO_*` SavedVariables files) to the graph, each by its own name ("The game (Ingame)"). A game file with nothing for this character reads "Account-wide only" and opens in the Inspector. The checkbox starts off to keep the graph calm, is remembered, is also in the Inspector menu (⌃⌘G), and filters Compare the same way.
+Screens: gameFolder-character, gameFolder-character-all
 Depends: S-054, S-057
 Acceptance:
 - [self] The checkbox starts off; ZO_Ingame keeps per-character settings; with it off Copy All leaves the game's files alone, with it on it includes ZO_Ingame's differences; ZO_Pregame is known as the game's with no per-character settings.
@@ -703,6 +703,16 @@ Acceptance:
 - [self] Masisi and Alpha Top differ on HarvestMap; cloning it changes only that line, backs up, says what it did, and Undo puts the file back; refused while ESO runs; Quiet Ember gets a list from #Default.
 - [snap] Masisi beside Alpha Top with Addons Turned On.
 Status: done
+
+### S-070 Default addon profiles and addons a character runs on defaults
+As the user, a character with no settings of their own in an addon still runs on something: the addon's defaults, or LibSavedVars' account-wide settings. MacMinion reads each addon's defaults (from the companion's copy in the game, else the `defaults` table in the addon's Lua, with game constants left unresolved) and shows each character's settings as the addon runs them: defaults, then account-wide, then their own. With Show All Addons on, a character's page adds a dotted line to each addon they load but keep no settings in ("Defaults · 3 settings", "Account-wide · 3 settings", "Loaded · no settings saved"). Compare and Set Differently use those values, label the ones that are defaults or account-wide, and won't clone to a character on account-wide settings (that would change every character sharing them). Returning to Characters from the Inspector goes back to the last character.
+Screens: gameFolder-character-all, gameFolder-compare
+Depends: S-054, S-057, S-060, S-068, S-069
+Acceptance:
+- [unit] Defaults are read from a ZO_SavedVars call with a literal, a table in the namespace slot, and LibSavedVars with a built name; constants stay unresolved. Values stack defaults, account, own; bookkeeping (`version`, `$LastCharacterName`, LibSavedVars' switch) is no setting; LibSavedVars with no table means account-wide; nothing is cloned to an account-wide character; only characters with their own settings get a grid cell.
+- [self] AutoResearch's defaults come from its source; Masisi runs on defaults and Alpha Top on account-wide; Compare sees 3 (default) against 2 (account-wide); cloning to Alpha Top is refused; a constant is never compared; the Characters tab returns to the last character.
+- [snap] Masisi with Show All Addons on (dotted lines) and off; Masisi beside Alpha Top with default and account-wide values labelled.
+Status: done; the companion's capture of defaults is built in eso-mac-minion
 
 ## Dropped
 - WoW / WoWInterface support: ESO only.

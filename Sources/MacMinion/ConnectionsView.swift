@@ -224,6 +224,11 @@ struct ConnectionSpokes: View {
     let count: Int
     let colors: [Color]
     let widths: [CGFloat]
+    /// Spokes drawn dotted: an addon the character runs without settings of their own (S-070).
+    var dotted: [Bool] = []
+
+    /// The dot pattern for a link with nothing saved behind it.
+    static let dots: [CGFloat] = [1, 6]
 
     var body: some View {
         Canvas { context, size in
@@ -246,8 +251,9 @@ struct ConnectionSpokes: View {
                 var line = Path()
                 line.move(to: start)
                 line.addLine(to: end)
+                let isDotted = i < dotted.count && dotted[i]
                 context.stroke(line, with: .style(colors[i].opacity(0.55)),
-                               style: StrokeStyle(lineWidth: widths[i], lineCap: .round))
+                               style: StrokeStyle(lineWidth: widths[i], lineCap: .round, dash: isDotted ? Self.dots : []))
             }
         }
     }

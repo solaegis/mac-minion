@@ -67,7 +67,7 @@ extension SelfTest {
         await model.gameFolder.find("Masisi")
         let found = model.gameFolder.inspectorResults?.first
         check("finding a name finds that character", found?.target == SVTarget(.character, "8796093036412335"))
-        check("it lists every file that mentions the character", Set(found?.files.map(\.file) ?? []) == ["WritWorthy.lua", "ZO_Ingame.lua", "EsoMacMinion_Data.lua", "HarvestMap.lua"],
+        check("it lists every file that mentions the character", Set(found?.files.map(\.file) ?? []) == ["WritWorthy.lua", "ZO_Ingame.lua", "EsoMacMinion_Data.lua", "HarvestMap.lua", "AutoResearch.lua"],
               "\(found?.files.map(\.file) ?? [])")
         check("each place is the path down to that ID",
               found?.files.flatMap(\.rows).allSatisfy { $0.path.last == .string("8796093036412335") } == true)
@@ -98,7 +98,7 @@ extension SelfTest {
     static func space(_ model: AppModel) async {
         // S-040 Find what to trim
         let usage = model.gameFolder.usage
-        check("space adds up by character, with names", usage?.characters.contains { $0.title == "Masisi" && $0.bytes > 0 && $0.files == 4 } == true)
+        check("space adds up by character, with names", usage?.characters.contains { $0.title == "Masisi" && $0.bytes > 0 && $0.files == 5 } == true)
         check("a character no file names is flagged", usage?.characters.contains { $0.id == "8796093079837777" && $0.flagged } == true)
         check("your accounts come before other people's", usage?.accounts.first?.id == "@SOLAEGIS"
               && usage?.accounts.contains { $0.id == "@Paltop" && $0.flagged } == true, "\(usage?.accounts.map(\.id) ?? [])")
@@ -134,7 +134,7 @@ extension SelfTest {
         let typed = await sv("sv tree", ["file": "WritWorthy.lua", "path": "WritWorthy_SavedVars › NA Megaserver › @SOLAEGIS › 8796093036412335"])
         check("sv tree finds a character ID typed as a number", typed?["path"] as? String
               == "WritWorthy_SavedVars[\"NA Megaserver\"][\"@SOLAEGIS\"][\"8796093036412335\"]" && rows(typed, "entries").count == 12)
-        check("sv find lists every place a name appears", svFound?["places"] as? Int == 6 && (svFound?["shown"] as? [JSONObject])?.count == 6,
+        check("sv find lists every place a name appears", svFound?["places"] as? Int == 7 && (svFound?["shown"] as? [JSONObject])?.count == 7,
               "\(svFound?["places"] ?? "") places: \((svFound?["shown"] as? [JSONObject])?.map { "\($0["file"] ?? "") \($0["path"] ?? "")" } ?? [])")
         let item = rows(await sv("sv id", ["id": "29516"]), "matches").first
         check("sv id names an ID and counts where it appears", item?["kind"] as? String == "item" && (item?["places"] as? Int ?? 0) >= 3

@@ -35,6 +35,14 @@ about 2.7 s in all, off the main thread; files over 1.5 MB (data, not code) are 
   `x` under a table `window`. The root (`Addon.sv`) can't be tied to a ZO_SavedVars level, and the
   same key name in two tables can't be told apart. These are marked as guesses.
 
+## Defaults (S-070)
+
+The same read finds each saved variable's defaults: the table an addon passes to `ZO_SavedVars:New…` or
+LibSavedVars' constructors (`SVDefaults`). It follows a name like `self.defaults` to its `defaults = { … }`
+literal and matches a built name (`self.name .. "_Character"`) to the variable the manifest declares. Game
+constants and expressions are kept as text and never compared; defaults filled in by code are missed. The
+companion's copy of the defaults from the running game (`layouts.sv[…].defaults`) wins whenever it is there.
+
 ## AI for the rest
 
 Keys the rules can't name (getters with logic, keys only a `setFunc` or the addon's code uses) can be

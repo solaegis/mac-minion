@@ -9,7 +9,7 @@ extension SelfTest {
         // S-001, S-002
         check("the seeded catalog loads", model.catalog.count == SeedData.samples.count)
         check("installed addons are matched by folder", model.installed.count == 5, "\(model.installed.count)")
-        check("a folder without a catalog entry is unmatched", model.unmatched.map(\.folder) == ["EsoVendorJunk"])
+        check("a folder without a catalog entry is unmatched", model.unmatched.map(\.folder) == ["AutoResearch", "EsoVendorJunk"], "\(model.unmatched.map(\.folder))")
         check("the companion addon is identified as installed", model.companionInstalled
               && model.companionManifest?.title == "ESO Mac Minion")
         check("the companion is not listed as not on ESOUI", !model.unmatched.contains { $0.folder == CompanionData.folderName })

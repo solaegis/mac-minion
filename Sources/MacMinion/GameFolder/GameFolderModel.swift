@@ -23,8 +23,15 @@ final class GameFolderModel {
     var svProblems: [SVProblem]? { current?.problems }
     /// What takes space in SavedVariables (S-040).
     var usage: SVUsage? { current?.usage }
-    /// Addons' settings per character (S-054).
-    var matrix: SettingsMatrix? { current?.matrix }
+    /// Addons' settings per character (S-054), as each character runs them: defaults, account-wide, then
+    /// their own (S-070).
+    var matrix: SettingsMatrix? { readIsCurrent ? effectiveMatrix ?? current?.matrix : nil }
+    /// The last read's matrix with defaults and loaded addons applied (`refreshEffectiveMatrix`).
+    var effectiveMatrix: SettingsMatrix?
+    /// Each saving addon's defaults, by SavedVariables file (S-070).
+    var addonDefaults: [String: [SVDefaults.Found]] = [:]
+    /// Defaults read from each addon folder's source, by folder path, with the version they were read from.
+    @ObservationIgnored var defaultsCache: [String: (version: String, found: [SVDefaults.Found])] = [:]
     /// Each installed addon that saves, by lowercased folder name -> its folder.
     var addonFolders: [String: URL]? { current?.addonFolders }
     // The next four come from the last read even after the files change, so Problems keeps its groups
@@ -245,7 +252,9 @@ final class GameFolderModel {
         let priorRefs = references
         let answerCache = CompanionAnswerCache.merge(file: lastRead?.names.companionAnswers ?? [:],
                                                     cache: CompanionAnswerCache.load(from: Store.directory))
-        let (read, newCache, addonIndex, companionWriteError) = await Task.detached {
+        let defaultsCache = self.defaultsCache
+        let fileNames = Set(files.map(\.lastPathComponent))
+        let (read, newCache, addonIndex, companionWriteError, defaults) = await Task.detached {
             let addonIndex = SavedVariablesAudit.index(addons)
             let declarations = addonIndex.savers.mapValues(\.variables)
             var companionWriteError: String?
@@ -263,8 +272,11 @@ final class GameFolderModel {
                                                            manifests: addonIndex.manifests,
                                                            installedVersions: addonIndex.versions, cache: cache,
                                                            answerCache: answerCache, report: report)
-            return (read, newCache, addonIndex, companionWriteError)
+            let defaults = GameFolderModel.readDefaults(savers: addonIndex.savers, files: fileNames,
+                                                        layouts: read.snapshot?.layouts ?? [:], cache: defaultsCache)
+            return (read, newCache, addonIndex, companionWriteError, defaults)
         }.value
+        self.defaultsCache = defaults.cache
         // Each part is stamped with the size and date its file had when read, so keeping it is safe even if
         // the files changed again since: those files are read again next time.
         readCache = newCache
@@ -277,7 +289,9 @@ final class GameFolderModel {
         }
         app.companionSnapshot = read.snapshot ?? app.companionSnapshot
         lastRead = SavedVariablesRead(read, topFolders: addonIndex.topFolders, addonFolders: addonIndex.savers.mapValues(\.url))
+        addonDefaults = defaults.defaults
         readIsCurrent = true
+        loadGameSettings()
     }
 
     /// Drops cached trees whose size or date no longer match the files on disk.
