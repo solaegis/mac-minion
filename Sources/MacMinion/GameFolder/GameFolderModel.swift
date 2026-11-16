@@ -272,7 +272,9 @@ final class GameFolderModel {
                                                            manifests: addonIndex.manifests,
                                                            installedVersions: addonIndex.versions, cache: cache,
                                                            answerCache: answerCache, report: report)
-            let defaults = GameFolderModel.readDefaults(savers: addonIndex.savers, files: fileNames,
+            // Defaults matter only where characters keep tables: the matrix's files, not every addon that saves.
+            let defaults = GameFolderModel.readDefaults(savers: addonIndex.savers,
+                                                        files: fileNames.intersection(read.matrix.addons.map(\.file)),
                                                         layouts: read.snapshot?.layouts ?? [:], cache: defaultsCache)
             return (read, newCache, addonIndex, companionWriteError, defaults)
         }.value

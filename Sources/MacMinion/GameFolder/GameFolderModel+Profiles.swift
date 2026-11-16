@@ -12,17 +12,20 @@ extension GameFolderModel {
         -> (defaults: [String: [SVDefaults.Found]], cache: [String: (version: String, found: [SVDefaults.Found])]) {
         var cache = cache
         var out: [String: [SVDefaults.Found]] = [:]
-        for saver in savers.values {
+        let wanted = savers.values.filter { files.contains($0.url.lastPathComponent + ".lua") }
+        // Read the addons not kept from the last read in parallel: each is independent, and reading their Lua
+        // is most of the time.
+        let versions = wanted.map { Manifest.read(folder: $0.url)?.version ?? "" }
+        let stale = wanted.indices.filter { cache[wanted[$0].url.path]?.version != versions[$0] }
+        let fresh = ParsedSlots(count: stale.count)
+        DispatchQueue.concurrentPerform(iterations: stale.count) { n in
+            let saver = wanted[stale[n]]
+            fresh.set(n, Array(SVDefaults.parse(sources: SVSourceNames.sourceTexts(folder: saver.url), variables: saver.variables).values))
+        }
+        for (n, i) in stale.enumerated() { cache[wanted[i].url.path] = (versions[i], fresh.get(n)) }
+        for saver in wanted {
             let file = saver.url.lastPathComponent + ".lua"
-            guard files.contains(file) else { continue }
-            let version = Manifest.read(folder: saver.url)?.version ?? ""
-            let fromSource: [SVDefaults.Found]
-            if let kept = cache[saver.url.path], kept.version == version {
-                fromSource = kept.found
-            } else {
-                fromSource = Array(SVDefaults.parse(sources: SVSourceNames.sourceTexts(folder: saver.url), variables: saver.variables).values)
-                cache[saver.url.path] = (version, fromSource)
-            }
+            let fromSource = cache[saver.url.path]?.found ?? []
             var found: [SVDefaults.Found] = []
             for variable in saver.variables {
                 let captured = layouts[variable]?.defaults
@@ -44,4 +47,15 @@ extension GameFolderModel {
         guard let base = current?.matrix else { effectiveMatrix = nil; return }
         effectiveMatrix = base.applying(SettingsMatrix.ProfileContext(defaults: addonDefaults), names: names)
     }
+}
+
+/// One result slot per addon, written from concurrent reads.
+nonisolated private final class ParsedSlots: @unchecked Sendable {
+    private var slots: [[SVDefaults.Found]]
+    private let lock = NSLock()
+
+    init(count: Int) { slots = Array(repeating: [], count: count) }
+
+    func set(_ i: Int, _ value: [SVDefaults.Found]) { lock.withLock { slots[i] = value } }
+    func get(_ i: Int) -> [SVDefaults.Found] { lock.withLock { slots[i] } }
 }

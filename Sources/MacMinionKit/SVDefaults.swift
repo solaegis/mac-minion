@@ -30,11 +30,14 @@ public enum SVDefaults {
     /// Each declared saved variable's defaults that the sources make plain, by variable name.
     public static func parse(sources: [String], variables: [String]) -> [String: Found] {
         var aliases: Set<String> = ["LibSavedVars"]
-        for text in sources {
+        for text in sources where text.contains("LibSavedVars") {
             for m in SVSourceNames.matches(#"(?:local\s+)?([A-Za-z_]\w*)\s*=\s*LibSavedVars\b"#, text) { aliases.insert(m[1]) }
         }
         var found: [String: Found] = [:]
-        for text in sources {
+        // Only files that make saved variables: a plain substring search first, as most of an addon's Lua
+        // (classes, data, strings) never calls a constructor, and regular expressions over it all are slow.
+        let callers = sources.filter { text in text.contains("ZO_SavedVars") || aliases.contains { text.contains("\($0):") } }
+        for text in callers {
             let u = Array(text.utf16)
             for m in SVSourceNames.rangedMatches(#"([A-Za-z_]\w*)\s*:\s*(New\w*)\s*\("#, text) {
                 let receiver = m.groups[1], ctor = m.groups[2]

@@ -173,19 +173,21 @@ private struct SettingsGridView: View {
                     }
                     ForEach(model.byName(matrix.gridAddons, file: \.file)) { addon in
                         let most = max(1, addon.characters.values.map(\.count).max() ?? 1)
+                        // Once per row: each cell's hover text names the addon, and finding the name searches the installed list.
+                        let name = model.addonName(addon.file)
                         GridRow {
                             Button { model.gameFolder.explorerOpen(.addon(addon.file)) } label: {
-                                Text(model.addonName(addon.file)).lineLimit(1).frame(width: 200, alignment: .leading)
+                                Text(name).lineLimit(1).frame(width: 200, alignment: .leading)
                             }
                             .buttonStyle(.plain)
-                            .help("Show \(model.addonName(addon.file))'s settings across characters")
+                            .help("Show \(name)'s settings across characters")
                             columns { id in
                                 GridCell(cell: matrix.cell(addon.file, id), most: most)
                                     .onHover { hovered = $0 ? id : (hovered == id ? nil : hovered) }
                                     .onTapGesture { if matrix.cell(addon.file, id) != nil { model.gameFolder.explorerOpen(.characterAddon(id: id, file: addon.file)) } }
                                     .accessibilityAddTraits(.isButton)
                                     .accessibilityAction { if matrix.cell(addon.file, id) != nil { model.gameFolder.explorerOpen(.characterAddon(id: id, file: addon.file)) } }
-                                    .help(help(addon.file, id))
+                                    .help(help(addon.file, name, id))
                             }
                         }
                     }
@@ -246,9 +248,9 @@ private struct SettingsGridView: View {
         .help(help)
     }
 
-    private func help(_ file: String, _ id: String) -> String {
-        guard let cell = matrix.cell(file, id) else { return String(localized: "\(model.addonName(file)) keeps nothing for \(model.gameFolder.characterTitle(id))") }
-        return String(localized: "\(model.gameFolder.characterTitle(id)) in \(model.addonName(file)): \(String(localized: "\(cell.settings) settings"))")
+    private func help(_ file: String, _ name: String, _ id: String) -> String {
+        guard let cell = matrix.cell(file, id) else { return String(localized: "\(name) keeps nothing for \(model.gameFolder.characterTitle(id))") }
+        return String(localized: "\(model.gameFolder.characterTitle(id)) in \(name): \(String(localized: "\(cell.settings) settings"))")
             + (cell.odd > 0 ? String(localized: ", \(cell.odd) set differently from your other characters") : "")
     }
 }
