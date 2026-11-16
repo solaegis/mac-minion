@@ -355,7 +355,7 @@ enum AgentCommands {
             model.open(page, selecting: id)
             return ["page": page.rawValue, "addon": id.map { $0 as Any } ?? NSNull()] as JSONObject
         },
-    ] + savedVariables
+    ] + savedVariables + characters
 
     static func ratingFilter(_ raw: String) throws -> RatingFilter {
         switch raw {
