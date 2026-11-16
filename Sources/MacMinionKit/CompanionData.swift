@@ -148,6 +148,21 @@ public struct CompanionSVLayout: Sendable, Equatable {
     /// Server names used as keys under `$AccountWide`, by profile and account.
     public let serverNamespaces: [String: [String: [String]]]
     public let pathCount: Int?
+    /// The defaults table the addon passed the constructor, copied in the game with constants resolved (S-070).
+    public var defaults: CompanionDefaults? = nil
+}
+
+/// An addon's defaults as the companion copied them; `truncated` when its size cap cut the copy short.
+public struct CompanionDefaults: Sendable, Equatable {
+    public let table: LuaTable
+    public let truncated: Bool
+
+    public init(table: LuaTable, truncated: Bool) {
+        self.table = table
+        self.truncated = truncated
+    }
+
+    public static func == (a: Self, b: Self) -> Bool { a.table === b.table && a.truncated == b.truncated }
 }
 
 /// When the companion last read the globals MacMinion asked for.
@@ -657,7 +672,8 @@ public enum CompanionData {
                                           namespace: c["namespace"]?.string, keyType: c["keyType"]?.string,
                                           version: text(c["version"]), addon: c["addon"]?.string, source: c["source"]?.string,
                                           zoShaped: bool(c["zoShaped"]) ?? false, tree: tree, serverNamespaces: namespaces,
-                                          pathCount: int(c["pathCount"]))
+                                          pathCount: int(c["pathCount"]),
+                                          defaults: c["defaults"]?.table.map { CompanionDefaults(table: $0, truncated: bool(c["defaultsTruncated"]) ?? false) })
         }
         return out
     }

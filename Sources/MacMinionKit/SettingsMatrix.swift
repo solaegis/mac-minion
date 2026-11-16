@@ -19,10 +19,53 @@ public struct SettingsMatrix: Sendable {
         /// The game's own file (`ZO_Ingame.lua`), not an addon's.
         public var isGame: Bool { SettingsMatrix.isGame(file) }
 
-        init(file: String, shared: Int, characters: [String: [String: Setting]]) {
+        /// Each character's own saved settings, bookkeeping left out; `characters` adds defaults and
+        /// account-wide values to these once `applying` has run (S-070).
+        public let own: [String: [String: Setting]]
+        /// How each character comes by their settings (S-070).
+        public let profiles: [String: Profile]
+        /// The addon's defaults, flattened like settings.
+        public let defaults: [String: Setting]
+        /// Defaults the source gives as a constant or expression, by setting key: shown, never compared.
+        public let unresolvedDefaults: [String: String]
+        /// Where each of a character's values comes from, when not their own.
+        let sources: [String: [String: ValueSource]]
+        /// `$AccountWide` settings, by "megaserver|@account".
+        let accountTables: [String: [String: Setting]]
+        /// Each character's own tables (variable › profile › account › character), to write into.
+        let tablePaths: [String: [[LuaKey]]]
+
+        /// How a character comes by an addon's settings.
+        public func profile(_ id: String) -> Profile { profiles[id] ?? .own }
+
+        /// Where a character's value for a key comes from.
+        public func source(_ id: String, _ key: String) -> ValueSource { sources[id]?[key] ?? .own }
+
+        /// How many of a character's own settings differ from a known default.
+        public func changedFromDefault(_ id: String) -> Int {
+            guard profile(id) == .own, !defaults.isEmpty else { return 0 }
+            return (own[id] ?? [:]).filter { key, s in defaults[key].map { $0.text != s.text } ?? false }.count
+        }
+
+        init(file: String, shared: Int, characters: [String: [String: Setting]],
+             accountTables: [String: [String: Setting]] = [:], tablePaths: [String: [[LuaKey]]] = [:]) {
+            self.init(file: file, shared: shared, characters: characters, own: characters, profiles: [:], defaults: [:],
+                      unresolvedDefaults: [:], sources: [:], accountTables: accountTables, tablePaths: tablePaths)
+        }
+
+        init(file: String, shared: Int, characters: [String: [String: Setting]], own: [String: [String: Setting]],
+             profiles: [String: Profile], defaults: [String: Setting], unresolvedDefaults: [String: String],
+             sources: [String: [String: ValueSource]], accountTables: [String: [String: Setting]], tablePaths: [String: [[LuaKey]]]) {
             self.file = file
             self.shared = shared
             self.characters = characters
+            self.own = own
+            self.profiles = profiles
+            self.defaults = defaults
+            self.unresolvedDefaults = unresolvedDefaults
+            self.sources = sources
+            self.accountTables = accountTables
+            self.tablePaths = tablePaths
             var byKey: [String: [String: (setting: Setting, ids: [String])]] = [:]
             for (id, settings) in characters {
                 for (key, s) in settings { byKey[key, default: [:]][s.text, default: (s, [])].ids.append(id) }
@@ -69,6 +112,21 @@ public struct SettingsMatrix: Sendable {
             }
         }
     }
+
+    /// How a character comes by an addon's settings (S-070).
+    public enum Profile: String, Sendable {
+        /// Settings of their own.
+        case own
+        /// LibSavedVars' account-wide settings, over the defaults.
+        case accountWide
+        /// No settings of their own: the addon's defaults.
+        case defaults
+        /// They load the addon, which keeps nothing for them, and its defaults aren't known.
+        case loadedOnly
+    }
+
+    /// Where one of a character's values comes from.
+    public enum ValueSource: Sendable { case own, account, defaults }
 
     /// One saved value, with where it lives so it can be opened.
     public struct Setting: Sendable {
@@ -129,21 +187,29 @@ public struct SettingsMatrix: Sendable {
     /// File -> character ID -> cell, worked out once.
     let cells: [String: [String: Cell]]
 
-    init(addons: [Addon], characterIDs: [String], accounts: [AccountGroup], homes: [String: Home]) {
+    /// Files that keep only account-wide settings, for `applying` to add characters who load them.
+    let others: [Addon]
+
+    init(addons: [Addon], characterIDs: [String], accounts: [AccountGroup], homes: [String: Home], others: [Addon] = []) {
         self.addons = addons
         self.characterIDs = characterIDs
         self.accounts = accounts
         self.homes = homes
+        self.others = others
+        // The grid shows settings people keep: a character on an addon's defaults has no cell.
         cells = Dictionary(uniqueKeysWithValues: addons.map { addon in
-            (addon.file, Dictionary(uniqueKeysWithValues: addon.characters.map { id, settings in
-                (id, Cell(settings: settings.count, odd: addon.oddOnesOut(id).count))
+            (addon.file, Dictionary(uniqueKeysWithValues: addon.characters.compactMap { id, settings in
+                addon.profile(id) == .own ? (id, Cell(settings: settings.count, odd: addon.oddOnesOut(id).count)) : nil
             }))
         })
     }
 
-    /// Addons where this character is the only one with settings.
+    /// Addons where this character is the only one with settings of their own.
     public func onlyHere(_ id: String) -> [String] {
-        addons.filter { $0.characters.count == 1 && $0.characters[id] != nil }.map(\.file)
+        addons.filter { addon in
+            let owners = addon.own.filter { !$0.value.isEmpty && addon.profile($0.key) == .own }
+            return owners.count == 1 && owners[id] != nil
+        }.map(\.file)
     }
 
     /// Two characters side by side in one addon (S-057): settings where their values differ, and
@@ -276,34 +342,25 @@ public struct SettingsMatrix: Sendable {
         }
         var shared = 0
         var perCharacter: [String: [String: Setting]] = [:]
+        var accountTables: [String: [String: Setting]] = [:]
+        var tablePaths: [String: [[LuaKey]]] = [:]
 
         func flatten(_ table: LuaTable, _ path: [LuaKey], _ prefix: [String], depth: Int, into out: inout [String: Setting]) {
-            for e in table.entries {
-                let label = prefix + [SVReadable.label(e.key, names: names)]
-                let here = path + [e.key]
-                if let inner = e.value.table {
-                    // A color or other small value table counts as one setting.
-                    if case .color(let r, let g, let b, let a) = SVReadable.display(e.value, key: e.key, at: path, names: nil) {
-                        out[label.joined(separator: " › ")] = Setting(value: e.value, key: e.key, path: here,
-                                                                   text: String(format: "%.3f,%.3f,%.3f,%.3f", r, g, b, a))
-                    } else if depth > 1 {
-                        flatten(inner, here, label, depth: depth - 1, into: &out)
-                    }
-                    continue
-                }
-                // Encoded strings are data an addon packs away (what a character knows), not a setting; so are
-                // the times an addon stamps its data with.
-                if case .string(let text) = e.value, isPacked(text) { continue }
-                if case .date = SVReadable.display(e.value, key: e.key, at: path, names: nil) { continue }
-                out[label.joined(separator: " › ")] = Setting(value: e.value, key: e.key, path: here, text: plain(e.value))
-            }
+            SettingsMatrix.flatten(table, path, prefix, depth: depth, names: names, into: &out)
         }
-
         func walk(_ table: LuaTable, _ path: [LuaKey]) {
             for e in table.entries {
                 guard let inner = e.value.table else { continue }
                 let level = SVLevel.of(e.key, at: path)
-                if level == .accountWide { shared += inner.count; continue }
+                if level == .accountWide {
+                    shared += inner.count
+                    if path.count == 3 {
+                        var settings = accountTables["\(path[1].description)|\(path[2].description)"] ?? [:]
+                        flatten(inner, path + [e.key], [], depth: depth, into: &settings)
+                        accountTables["\(path[1].description)|\(path[2].description)"] = settings
+                    }
+                    continue
+                }
                 var id: String?
                 if path.count == 3, case .string(let k) = e.key {
                     if CharacterID.isID(k) {
@@ -315,6 +372,7 @@ public struct SettingsMatrix: Sendable {
                 if let id {
                     var settings: [String: Setting] = perCharacter[id] ?? [:]
                     flatten(inner, path + [e.key], [], depth: depth, into: &settings)
+                    tablePaths[id, default: []].append(path + [e.key])
                     if !settings.isEmpty { perCharacter[id] = settings }
                     continue
                 }
@@ -322,7 +380,32 @@ public struct SettingsMatrix: Sendable {
             }
         }
         for v in doc.variables { if let t = v.value.table { walk(t, [v.key]) } }
-        return perCharacter.isEmpty ? nil : Addon(file: file, shared: shared, characters: perCharacter)
+        if perCharacter.isEmpty && accountTables.isEmpty { return nil }
+        return Addon(file: file, shared: shared, characters: perCharacter, accountTables: accountTables, tablePaths: tablePaths)
+    }
+
+    /// A table's settings, `depth` levels down, keyed "Colors › Guild 1"; small value tables (colors) count as one.
+    static func flatten(_ table: LuaTable, _ path: [LuaKey], _ prefix: [String], depth: Int, names: SVNameIndex?,
+                        into out: inout [String: Setting]) {
+            for e in table.entries {
+                let label = prefix + [SVReadable.label(e.key, names: names)]
+                let here = path + [e.key]
+                if let inner = e.value.table {
+                    // A color or other small value table counts as one setting.
+                    if case .color(let r, let g, let b, let a) = SVReadable.display(e.value, key: e.key, at: path, names: nil) {
+                        out[label.joined(separator: " › ")] = Setting(value: e.value, key: e.key, path: here,
+                                                                   text: String(format: "%.3f,%.3f,%.3f,%.3f", r, g, b, a))
+                    } else if depth > 1 {
+                        flatten(inner, here, label, depth: depth - 1, names: names, into: &out)
+                    }
+                    continue
+                }
+                // Encoded strings are data an addon packs away (what a character knows), not a setting; so are
+                // the times an addon stamps its data with.
+                if case .string(let text) = e.value, isPacked(text) { continue }
+                if case .date = SVReadable.display(e.value, key: e.key, at: path, names: nil) { continue }
+                out[label.joined(separator: " › ")] = Setting(value: e.value, key: e.key, path: here, text: plain(e.value))
+            }
     }
 
     /// A string an addon packs data into, like LibCharacterKnowledge's `zsU%t#tt#ltw…`, `8mc8r6IIqepWV3…`, or
@@ -340,11 +423,13 @@ public struct SettingsMatrix: Sendable {
     }
 
     /// The matrix from every file's addon, with characters grouped by account and megaserver.
-    public static func assemble(addons: [Addon], names: SVNameIndex, homes: [String: Home]) -> SettingsMatrix {
+    public static func assemble(addons all: [Addon], names: SVNameIndex, homes: [String: Home]) -> SettingsMatrix {
+        let addons = all.filter { !$0.characters.isEmpty }
         let ids = Set(addons.flatMap { $0.characters.keys })
         let accounts = group(ids, homes: homes, names: names)
         return SettingsMatrix(addons: addons.sorted { $0.file.localizedStandardCompare($1.file) == .orderedAscending },
-                              characterIDs: accounts.flatMap(\.characters), accounts: accounts, homes: homes)
+                              characterIDs: accounts.flatMap(\.characters), accounts: accounts, homes: homes,
+                              others: all.filter { $0.characters.isEmpty })
     }
 
     /// Account, then megaserver, then character, each by name; unknown ones last.
@@ -396,14 +481,16 @@ public struct SettingsMatrix: Sendable {
 extension SettingsMatrix {
     /// Where one of `from`'s settings goes for `to`: `to`'s own entry when they have the setting, else the same
     /// place under `to`'s table in the same variable. Nil when `to` keeps nothing in that variable to put it under.
+    /// A default or account-wide value goes under `to`'s own table too; nothing goes to a character on
+    /// LibSavedVars' account-wide settings, where it would change every character sharing them (S-070).
     public func target(file: String, key: String, from: String, to: String) -> [LuaKey]? {
-        guard let addon = addons.first(where: { $0.file == file }),
+        guard let addon = addons.first(where: { $0.file == file }), addon.profile(to) != .accountWide,
               let source = addon.characters[from]?[key], source.path.count > 4 else { return nil }
-        let theirs = addon.characters[to] ?? [:]
-        if let own = theirs[key] { return own.path }
+        if let own = addon.own[to]?[key] { return own.path }
         // A character's table is the fourth step: variable › profile or server › account › character.
-        let homes = theirs.values.map(\.path).filter { $0.count > 4 && $0[0] == source.path[0] }
-        guard let home = homes.first(where: { $0[1] == source.path[1] }) ?? homes.first else { return nil }
-        return Array(home.prefix(4)) + source.path.dropFirst(4)
+        let homes = (addon.tablePaths[to] ?? []).filter { $0.count == 4 }
+        guard let home = homes.first(where: { $0[0] == source.path[0] && $0[1] == source.path[1] })
+                ?? homes.first(where: { $0[0] == source.path[0] }) ?? homes.first else { return nil }
+        return home + source.path.dropFirst(4)
     }
 }

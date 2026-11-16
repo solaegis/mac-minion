@@ -73,7 +73,7 @@ extension SettingsMatrix {
     /// Whether this op would delete `to`'s key (source has no setting).
     public func cloneOpDeletes(_ op: CloneOp) -> Bool {
         addon(op.file)?.characters[op.from]?[op.key] == nil
-            && addon(op.file)?.characters[op.to]?[op.key] != nil
+            && addon(op.file)?.own[op.to]?[op.key] != nil
     }
 
     /// Edits for Compare Clone: copy when the source has the setting; remove when it doesn't and the other does.
@@ -85,7 +85,7 @@ extension SettingsMatrix {
                let path = target(file: op.file, key: op.key, from: op.from, to: op.to) {
                 byFile[op.file, default: []].append(SVEdit.Change(path: path, value: value))
             } else if fileAddon?.characters[op.from]?[op.key] == nil,
-                      let path = fileAddon?.characters[op.to]?[op.key]?.path {
+                      let path = fileAddon?.own[op.to]?[op.key]?.path {
                 byFile[op.file, default: []].append(.remove(path: path))
             }
         }
