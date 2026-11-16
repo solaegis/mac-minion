@@ -106,6 +106,38 @@ private func value(_ m: SettingsMatrix, _ id: String, _ suffix: String) -> Strin
     #expect(!m.gridAddons.contains { $0.file == "Lock.lua" }, "nobody keeps settings of their own, so no grid row")
 }
 
+// ESO Combat Lock also keeps each character's own data inside the account-wide table, keyed by ID.
+@Test func characterTablesInsideTheAccountWideTableAreThatCharactersOwnOverTheAccount() {
+    let lock = """
+    Lock_SV = { ["Default"] = { ["@ME"] = { ["$AccountWide"] = { ["NA Megaserver"] = {
+        ["size"] = 64, ["park"] = "account",
+        ["perCharacterData"] = {
+            ["\(own)"] = { ["_characterName"] = "Masisi", ["park"] = "mine" },
+            ["\(shared)"] = { ["_characterName"] = "Alpha Top" },
+        },
+    } } } } }
+    """
+    var names = SVNameIndex()
+    for (id, name) in [(own, "Masisi"), (shared, "Alpha Top"), (none, "Nameless")] { names.characters[id] = (name: name, source: "test") }
+    let base = SettingsMatrix.build(documents: ["Other.lua": SVDocument.parse(Data(other.utf8)),
+                                                "Lock.lua": SVDocument.parse(Data(lock.utf8))], names: names)
+    let m = base.applying(.init(), names: names)
+    let addon = m.addon("Lock.lua")!
+    func text(_ id: String, _ suffix: String) -> String? { addon.characters[id]?.first { $0.key.hasSuffix(suffix) }?.value.text }
+    #expect(addon.profile(own) == .own)
+    #expect(text(own, "Park") == "mine" && text(own, "Size") == "64", "their own over the account's")
+    #expect(addon.profile(shared) == .accountWide, "only bookkeeping of their own")
+    #expect(text(shared, "Park") == "account")
+    #expect(addon.profile(none) == .accountWide && text(none, "Size") == "64", "no table: still the account's")
+    #expect(!addon.characters[own]!.keys.contains { $0.contains("Per character data") || $0.hasSuffix("Character name") })
+    #expect(m.gridAddons.contains { $0.file == "Lock.lua" })
+    // Cloning Masisi's own value to Nameless has nowhere to go; cloning the account's size into Masisi's table does.
+    let size = addon.characters[shared]!.keys.first { $0.hasSuffix("Size") }!
+    #expect(m.target(file: "Lock.lua", key: size, from: shared, to: own)
+            == [.string("Lock_SV"), .string("Default"), .string("@ME"), .string("$AccountWide"), .string("NA Megaserver"),
+                .string("perCharacterData"), .string(own), .string("size")])
+}
+
 private extension LuaValue {
     var text: String { SettingsMatrix.plain(self) }
 }

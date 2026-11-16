@@ -32,8 +32,15 @@ public struct SettingsMatrix: Sendable {
         let sources: [String: [String: ValueSource]]
         /// `$AccountWide` settings, by "megaserver|@account".
         let accountTables: [String: [String: Setting]]
-        /// Each character's own tables (variable › profile › account › character), to write into.
+        /// Each character's own tables (variable › profile › account › character, or deeper inside the
+        /// account-wide table), to write into.
         let tablePaths: [String: [[LuaKey]]]
+
+        /// Whether a character's own table sits inside the account-wide one, so the account's settings are
+        /// theirs too, under their own.
+        func ownInsideAccount(_ id: String) -> Bool {
+            (tablePaths[id] ?? []).contains { $0.count > 4 && $0[3] == .string("$AccountWide") }
+        }
 
         /// How a character comes by an addon's settings.
         public func profile(_ id: String) -> Profile { profiles[id] ?? .own }
@@ -353,6 +360,27 @@ public struct SettingsMatrix: Sendable {
         func flatten(_ table: LuaTable, _ path: [LuaKey], _ prefix: [String], depth: Int, into out: inout [String: Setting]) {
             SettingsMatrix.flatten(table, path, prefix, depth: depth, names: names, into: &out)
         }
+        // Some addons keep each character's own settings inside the account-wide table, keyed by ID (ESO Combat
+        // Lock: `$AccountWide › NA Megaserver › perCharacterData › <ID>`). Those are the character's own, over the
+        // account's; the rest of the table is what the account shares.
+        func characterTables(_ table: LuaTable, _ path: [LuaKey]) -> LuaTable {
+            let byID = table.entries.filter { entry in
+                guard let t = entry.value.table, !t.entries.isEmpty else { return false }
+                return t.entries.allSatisfy { if case .string(let k) = $0.key { CharacterID.isID(k) && $0.value.table != nil } else { false } }
+            }
+            guard !byID.isEmpty else { return table }
+            for entry in byID {
+                for c in entry.value.table!.entries {
+                    guard case .string(let id) = c.key, let mine = c.value.table else { continue }
+                    let home = path + [entry.key, c.key]
+                    var settings = perCharacter[id] ?? [:]
+                    flatten(mine, home, [], depth: depth, into: &settings)
+                    tablePaths[id, default: []].append(home)
+                    if !settings.isEmpty { perCharacter[id] = settings }
+                }
+            }
+            return LuaTable(entries: table.entries.filter { e in !byID.contains { $0.key == e.key } }, span: table.span)
+        }
         func walk(_ table: LuaTable, _ path: [LuaKey]) {
             for e in table.entries {
                 guard let inner = e.value.table else { continue }
@@ -369,13 +397,14 @@ public struct SettingsMatrix: Sendable {
                         }
                         for entry in byServer {
                             var settings = accountTables["\(entry.key.description)|\(account)"] ?? [:]
-                            flatten(entry.value.table!, path + [e.key, entry.key], [], depth: depth, into: &settings)
+                            let part = characterTables(entry.value.table!, path + [e.key, entry.key])
+                            flatten(part, path + [e.key, entry.key], [], depth: depth, into: &settings)
                             accountTables["\(entry.key.description)|\(account)"] = settings
                         }
                         let rest = byServer.isEmpty ? inner : LuaTable(entries: inner.entries.filter { e in !byServer.contains { $0.key == e.key } },
                                                                        span: inner.span)
                         var settings = accountTables["\(path[1].description)|\(account)"] ?? [:]
-                        flatten(rest, path + [e.key], [], depth: depth, into: &settings)
+                        flatten(characterTables(rest, path + [e.key]), path + [e.key], [], depth: depth, into: &settings)
                         accountTables["\(path[1].description)|\(account)"] = settings
                     }
                     continue
@@ -507,9 +536,22 @@ extension SettingsMatrix {
               let source = addon.characters[from]?[key], source.path.count > 4 else { return nil }
         if let own = addon.own[to]?[key] { return own.path }
         // A character's table is the fourth step: variable › profile or server › account › character.
-        let homes = (addon.tablePaths[to] ?? []).filter { $0.count == 4 }
+        let homes = addon.tablePaths[to] ?? []
         guard let home = homes.first(where: { $0[0] == source.path[0] && $0[1] == source.path[1] })
                 ?? homes.first(where: { $0[0] == source.path[0] }) ?? homes.first else { return nil }
-        return home + source.path.dropFirst(4)
+        return home + relative(source, in: addon, of: from)
+    }
+
+    /// A setting's place inside the table it comes from: the character's own (at whatever depth), the
+    /// defaults' four steps, or the account-wide table, past its megaserver part.
+    func relative(_ s: Setting, in addon: Addon, of id: String) -> ArraySlice<LuaKey> {
+        if let home = (addon.tablePaths[id] ?? []).filter({ s.path.starts(with: $0) }).max(by: { $0.count < $1.count }) {
+            return s.path.dropFirst(home.count)
+        }
+        var rest = s.path.dropFirst(4)
+        if s.path[3] == .string("$AccountWide"), case .string(let k)? = rest.first, k.hasSuffix(" Megaserver"), rest.count > 1 {
+            rest = rest.dropFirst()
+        }
+        return rest
     }
 }

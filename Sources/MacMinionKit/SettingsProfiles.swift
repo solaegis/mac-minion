@@ -19,7 +19,7 @@ extension SettingsMatrix {
     /// Keys every addon's table carries that aren't settings: ZO_SavedVars' version and name, and
     /// LibSavedVars' own switch.
     public static func isBookkeeping(_ setting: Setting) -> Bool {
-        setting.key == .string("version") || setting.key == .string("$LastCharacterName")
+        setting.key == .string("version") || setting.key == .string("$LastCharacterName") || setting.key == .string("_characterName")
             || setting.path.dropFirst(4).contains(.string("LibSavedVars"))
     }
 
@@ -58,7 +58,9 @@ extension SettingsMatrix {
             let raw = base?.characters ?? [:]
             let libSavedVars = found.contains(where: \.libSavedVars)
                 || raw.values.contains { Self.accountSwitch($0) != nil }
-            let perCharacter = !raw.isEmpty
+            // Tables of their own at the character level; ones kept inside the account-wide table don't make an
+            // addon per-character: the account's settings still reach everyone.
+            let perCharacter = raw.keys.contains { !(base?.ownInsideAccount($0) ?? false) }
             let ids = Set(raw.keys).union(characterIDs)
             var characters: [String: [String: Setting]] = [:]
             var own: [String: [String: Setting]] = [:]
@@ -70,7 +72,8 @@ extension SettingsMatrix {
                 let shared = accountTable(base, for: id)
                 // LibSavedVars' switch on (or, with no table, its fallback), or an addon that keeps only
                 // account-wide settings: the account's settings are this character's.
-                let accountActive = table == nil
+                let inside = base?.ownInsideAccount(id) ?? false
+                let accountActive = table == nil || inside
                     ? !shared.isEmpty && (libSavedVars || !perCharacter)
                     : libSavedVars && Self.accountSwitch(table) == true
                 // Nothing of their own and nothing known to run on: nothing to show.
@@ -79,13 +82,14 @@ extension SettingsMatrix {
                 var settings = defaults
                 var from: [String: ValueSource] = defaults.mapValues { _ in .defaults }
                 for (key, s) in account { settings[key] = s; from[key] = .account }
-                if !accountActive {
+                // Their own table kept inside the account-wide one sits over the account's settings.
+                if !accountActive || inside {
                     for (key, s) in mine { settings[key] = s; from.removeValue(forKey: key) }
                 }
                 own[id] = mine
                 characters[id] = settings
                 sources[id] = from
-                profiles[id] = accountActive ? .accountWide : !mine.isEmpty ? .own : .defaults
+                profiles[id] = inside && !mine.isEmpty ? .own : accountActive ? .accountWide : !mine.isEmpty ? .own : .defaults
             }
             result.append(Addon(file: file, shared: base?.shared ?? 0, characters: characters, own: own, profiles: profiles,
                                 defaults: defaults, unresolvedDefaults: unresolved, sources: sources,
