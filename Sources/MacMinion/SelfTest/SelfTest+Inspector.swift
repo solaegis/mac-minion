@@ -134,7 +134,7 @@ extension SelfTest {
         let typed = await sv("sv tree", ["file": "WritWorthy.lua", "path": "WritWorthy_SavedVars › NA Megaserver › @SOLAEGIS › 8796093036412335"])
         check("sv tree finds a character ID typed as a number", typed?["path"] as? String
               == "WritWorthy_SavedVars[\"NA Megaserver\"][\"@SOLAEGIS\"][\"8796093036412335\"]" && rows(typed, "entries").count == 12)
-        check("sv find lists every place a name appears", svFound?["places"] as? Int == 5 && (svFound?["shown"] as? [JSONObject])?.count == 5,
+        check("sv find lists every place a name appears", svFound?["places"] as? Int == 6 && (svFound?["shown"] as? [JSONObject])?.count == 6,
               "\(svFound?["places"] ?? "") places: \((svFound?["shown"] as? [JSONObject])?.map { "\($0["file"] ?? "") \($0["path"] ?? "")" } ?? [])")
         let item = rows(await sv("sv id", ["id": "29516"]), "matches").first
         check("sv id names an ID and counts where it appears", item?["kind"] as? String == "item" && (item?["places"] as? Int ?? 0) >= 3

@@ -16,6 +16,8 @@ public struct SettingsMatrix: Sendable {
         /// Key -> its values and who has each, worked out once: the grid asks for them on every redraw.
         let groups: [String: [ValueGroup]]
         public var id: String { file }
+        /// The game's own file (`ZO_Ingame.lua`), not an addon's.
+        public var isGame: Bool { SettingsMatrix.isGame(file) }
 
         init(file: String, shared: Int, characters: [String: [String: Setting]]) {
             self.file = file
@@ -152,7 +154,12 @@ public struct SettingsMatrix: Sendable {
         public let onlyA: [(key: String, setting: Setting)]
         public let onlyB: [(key: String, setting: Setting)]
         public var id: String { file }
+        /// The game's own file (`ZO_Ingame.lua`), not an addon's.
+        public var isGame: Bool { SettingsMatrix.isGame(file) }
     }
+
+    /// Whether a SavedVariables file is the game's own: the base game's addons save as `ZO_*.lua`.
+    public static func isGame(_ file: String) -> Bool { file.hasPrefix("ZO_") }
 
     /// Every addon where two characters' settings differ, by addon name.
     public func compare(_ a: String, _ b: String) -> [Comparison] {

@@ -94,7 +94,8 @@ extension GameFolderModel {
     /// When `file` is set, only that addon's differences (S-066).
     func copyAllRows(from: String, to: String, file: String? = nil) -> [(file: String, key: String)] {
         guard let matrix = matrix else { return [] }
-        let comparisons = file.map { f in matrix.compare(from, to).filter { $0.file == f } } ?? matrix.compare(from, to)
+        let shown = matrix.compare(from, to).filter { app.prefs.showGameAddons || !$0.isGame || $0.file == file }
+        let comparisons = file.map { f in shown.filter { $0.file == f } } ?? shown
         return comparisons.flatMap { c in c.differing.map { (c.file, $0.key) } }
             .filter { copyTarget(file: $0.file, key: $0.key, from: from, to: to) != nil }
     }
@@ -112,7 +113,7 @@ extension GameFolderModel {
     /// How many selected ops would remove a key on the destination.
     func selectedCloneDeletions() -> Int {
         guard let matrix else { return 0 }
-        return selectedCloneOps().filter { matrix.cloneOpDeletes($0) }.count
+        return selectedCloneOps().filter { $0.file != AddOnChoices.fileName && matrix.cloneOpDeletes($0) }.count
     }
 
     /// Writes `from`'s values for these settings into `to`'s place in each addon's file (S-060). ESO must be
@@ -122,7 +123,8 @@ extension GameFolderModel {
         await applyCloneOps(ops)
     }
 
-    /// Applies Compare Clone ops (copy and/or key removal) after backup (S-060).
+    /// Applies Compare Clone ops after one backup (S-060): settings rows go to SavedVariables, addon rows
+    /// (`AddOnSettings.txt`) turn addons on or off for the other character (S-069). One Edit › Undo takes all back.
     func applyCloneOps(_ ops: [SettingsMatrix.CloneOp]) async {
         message = nil
         errorMessage = nil
@@ -130,9 +132,14 @@ extension GameFolderModel {
             errorMessage = String(localized: "Quit Elder Scrolls Online first: it writes its own copy of these files when it quits.")
             return
         }
-        guard let matrix = matrix, !ops.isEmpty else { return }
-        let byFile = matrix.cloneChanges(ops)
-        guard !byFile.isEmpty else { return }
+        let svOps = ops.filter { $0.file != AddOnChoices.fileName }
+        let byFile = svOps.isEmpty ? [:] : matrix?.cloneChanges(svOps) ?? [:]
+        let addOnChanges = addOnChanges(ops.filter { $0.file == AddOnChoices.fileName })
+        guard !byFile.isEmpty || !addOnChanges.isEmpty else { return }
+        if !addOnChanges.isEmpty, gameSettingsEdits(.addOns) > 0 {
+            errorMessage = String(localized: "Nothing was cloned. Save or revert your edits to AddOnSettings.txt on Game Settings first.")
+            return
+        }
         let characters = Set(ops.flatMap { [$0.from, $0.to] })
         let pair = characters.sorted().joined(separator: "|")
         if !copyBackedUp.contains(pair) {
@@ -143,17 +150,40 @@ extension GameFolderModel {
             }
             copyBackedUp.insert(pair)
         }
-        let urls = Dictionary(savedVariables.map { ($0.name, $0.url) }, uniquingKeysWith: { a, _ in a })
-        let edits = await SVEdit.apply(toFiles: Dictionary(byFile.compactMap { file, changes in urls[file].map { ($0, changes) } },
-                                                           uniquingKeysWith: +))
-        if let last = edits.failures.last {
-            errorMessage = String(localized: "\(last.file) wasn't changed: \(last.why)")
+        var before: [URL: Data] = [:], after: [URL: Data] = [:]
+        var parts: [String] = []
+        var deleted = 0
+        if !byFile.isEmpty {
+            let urls = Dictionary(savedVariables.map { ($0.name, $0.url) }, uniquingKeysWith: { a, _ in a })
+            let edits = await SVEdit.apply(toFiles: Dictionary(byFile.compactMap { file, changes in urls[file].map { ($0, changes) } },
+                                                               uniquingKeysWith: +))
+            if let last = edits.failures.last {
+                errorMessage = String(localized: "\(last.file) wasn't changed: \(last.why)")
+            }
+            before.merge(edits.before) { a, _ in a }
+            after.merge(edits.after) { _, b in b }
+            if edits.changed > 0 {
+                parts.append(String(localized: "\(edits.changed) settings"))
+                deleted = byFile.values.flatMap { $0 }.filter(\.removes).count
+            }
         }
-        registerFileUndo(before: edits.before, after: edits.after, name: String(localized: "Copy Settings"))
-        let copied = edits.changed
-        let deleted = byFile.values.flatMap { $0 }.filter(\.removes).count
-        if copied > 0 {
-            let settings = String(localized: "\(copied) settings")
+        if !addOnChanges.isEmpty {
+            let url = app.gameFolderURL.appending(path: AddOnChoices.fileName)
+            do {
+                let old = try Data(contentsOf: url)
+                let new = GameSettingsFile.parse(old, kind: .addOns).settingAddOns(addOnChanges)
+                try new.write(to: url, options: .atomic)
+                before[url] = old
+                after[url] = new
+                parts.append(String(localized: "\(addOnChanges.values.reduce(0) { $0 + $1.count }) addon choices"))
+            } catch {
+                errorMessage = String(localized: "\(AddOnChoices.fileName) wasn't changed: \(error.localizedDescription)")
+            }
+            loadGameSettings()
+        }
+        registerFileUndo(before: before, after: after, name: String(localized: "Copy Settings"))
+        if !parts.isEmpty {
+            let settings = parts.formatted(.list(type: .and))
             if deleted > 0 {
                 let removals = String(localized: "\(deleted) keys removed")
                 message = String(localized: "Backed up, then cloned \(settings) (\(removals)).")
@@ -165,6 +195,63 @@ extension GameFolderModel {
         // The matrix reads the files again, so Compare shows what's now the same.
         await scan()
         await load()
+    }
+
+    // MARK: Addon choices (S-069)
+
+    /// Which addons each character loads, from AddOnSettings.txt as last read.
+    var addOnChoices: AddOnChoices? { gameSettings[.addOns].map(AddOnChoices.init) }
+
+    /// The block in AddOnSettings.txt that's this character's ("NA Megaserver-Masisi"), or nil when their
+    /// megaserver or name isn't known.
+    func addOnHeader(_ id: String) -> String? {
+        let name = characterName(id)
+        guard name != SVName.unknownCharacter, !name.isEmpty, let server = characterLocations.location(id).megaserver else { return nil }
+        return AddOnChoices.header(server: server, name: name)
+    }
+
+    /// What a character's list says about an addon: on, off, or nil when it doesn't name it.
+    func addOnValue(_ id: String, addon: String) -> Bool? {
+        guard let header = addOnHeader(id) else { return nil }
+        return addOnChoices?.effective(for: header).choices[addon]
+    }
+
+    /// The character has no block of their own, so `#Default` decides what they load.
+    func addOnsFromDefault(_ id: String) -> Bool {
+        guard let header = addOnHeader(id) else { return false }
+        return addOnChoices?.effective(for: header).fromDefault ?? false
+    }
+
+    /// Every addon either character's list names, or nil when either one's list can't be found.
+    func addOnRows(_ a: String, _ b: String) -> [AddOnChoices.Row]? {
+        guard let choices = addOnChoices, let ha = addOnHeader(a), let hb = addOnHeader(b) else { return nil }
+        return choices.compare(ha, hb)
+    }
+
+    /// `from` names the addon and `to` loads it differently, so cloning it changes something.
+    func canCloneAddOn(_ addon: String, from: String, to: String) -> Bool {
+        guard let value = addOnValue(from, addon: addon), addOnHeader(to) != nil else { return false }
+        return addOnValue(to, addon: addon) != value
+    }
+
+    /// What Clone writes to AddOnSettings.txt for these rows, by the destination's block header.
+    func addOnChanges(_ ops: [SettingsMatrix.CloneOp]) -> [String: [String: Bool]] {
+        var out: [String: [String: Bool]] = [:]
+        for op in ops where canCloneAddOn(op.key, from: op.from, to: op.to) {
+            guard let to = addOnHeader(op.to), let on = addOnValue(op.from, addon: op.key) else { continue }
+            out[to, default: [:]][op.key] = on
+        }
+        return out
+    }
+
+    /// Opens Compare with `from` picked as the source on every addon row that differs, so Clone copies
+    /// their whole list of addons to `to`.
+    func copyAddOnChoices(from: String, to: String) {
+        loadGameSettings()
+        explorerOpen(.compare(to, from, file: nil))
+        for row in addOnRows(to, from) ?? [] where canCloneAddOn(row.addon, from: from, to: to) {
+            cloneSources[CloneRowID(file: AddOnChoices.fileName, key: row.addon)] = from
+        }
     }
 
     /// What each addon keeps about a character, largest first, with the place to open.

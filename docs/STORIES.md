@@ -297,7 +297,7 @@ Acceptance:
 - [unit] Entries naming no installed addon are flagged; character blocks are never flagged on their own (files can't tell a deleted character).
 - [self] Copy to Characters and Remove back up the file first and refuse while ESO runs.
 - [snap] Characters are grouped by server; flagged entries read "Not installed".
-Status: todo
+Status: todo; copying one character's addon choices to another is done in S-069 (Compare); the grid and clean-up remain
 
 ### S-031 Clear the graphics caches
 As the user, I clear ShaderCache.cooked and PipelineCache.esopc when the game stutters or looks wrong after a patch; MacMinion suggests it once when the game version in AddOnSettings.txt changes.
@@ -683,6 +683,25 @@ Depends: S-062, S-026, S-027
 Acceptance:
 - [unit] File snapshots write back only when no file changed since; Trash items come back and go again, refusing when something is in the way or gone; folder exchange swaps an update back and forth and checks before moving; the installer keeps replaced folders in its stash.
 - [self] Install, update, remove, folder removal, Clean Up, backup deletion, Restore File, Restore Backup, a setting's edit, and Revert each undo and redo; Clean Up's undo is refused while ESO runs; Redo of Restore File refuses after the file changed.
+Status: done
+
+### S-068 Show the game's default addons on a character
+As the user, on a character's page (Game Folder › All Characters › Masisi) I tick Show Default Addons to add the game's own addons (its `ZO_*` SavedVariables files) to the graph, each by its own name ("The game (Ingame)"). A game file with nothing for this character reads "Account-wide only" and opens in the Inspector. The checkbox starts off to keep the graph calm, is remembered, is also in the Inspector menu (⌃⌘G), and filters Compare the same way.
+Screens: gameFolder-character, gameFolder-character-defaults
+Depends: S-054, S-057
+Acceptance:
+- [self] The checkbox starts off; ZO_Ingame keeps per-character settings; with it off Copy All leaves the game's files alone, with it on it includes ZO_Ingame's differences; ZO_Pregame is known as the game's with no per-character settings.
+- [snap] Masisi with and without the game's addons.
+Status: done
+
+### S-069 Clone addon choices between characters
+As the user, Compare shows Addons Turned On, which addons each character loads (AddOnSettings.txt), side by side with the same radios and Clone as settings. Copy Addon Choices From… on a character's page opens Compare with every difference picked from the other character. A character with no list of their own uses #Default, and cloning to them gives them a list that starts from #Default. Clone backs up first, refuses while ESO runs or while AddOnSettings.txt has unsaved edits on Game Settings, and Edit › Undo takes it back. `macminion characters addons` and `characters clone-addons` do the same for agents.
+Screens: gameFolder-compare
+Depends: S-057, S-060, S-062
+Acceptance:
+- [unit] AddOnSettings.txt keeps every byte when nothing changes; a line changes in place; a missing addon joins the end of its block; a missing block is added from #Default; CRLF stays; same name on NA and EU stays apart.
+- [self] Masisi and Alpha Top differ on HarvestMap; cloning it changes only that line, backs up, says what it did, and Undo puts the file back; refused while ESO runs; Quiet Ember gets a list from #Default.
+- [snap] Masisi beside Alpha Top with Addons Turned On.
 Status: done
 
 ## Dropped

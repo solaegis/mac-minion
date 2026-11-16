@@ -41,6 +41,7 @@ enum SelfTest {
             await characterCards(model)
             await connections(model)
             await characters(model)
+            await defaultAddonsAndChoices(model)
             await creators(model)
             await gameSettings(model)
             await accountsAndServers(model)

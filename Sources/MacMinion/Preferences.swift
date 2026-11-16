@@ -202,6 +202,8 @@ final class Preferences {
     /// The most popular results in Find More get large cards.
     var featurePopular: Bool { didSet { Self.save(featurePopular, "layout.featurePopular") } }
     var showThumbnails: Bool { didSet { Self.save(showThumbnails, "layout.thumbnails") } }
+    /// The game's own addons (ZO_ SavedVariables files) on a character's page and in Compare. Off keeps the graph calm.
+    var showGameAddons: Bool { didSet { Self.save(showGameAddons, "explorer.showGameAddons") } }
 
     // AI
     var aiProvider: AIProvider { didSet { Self.save(aiProvider.rawValue, "ai.provider") } }
@@ -254,6 +256,7 @@ final class Preferences {
         groupLibraries = d.object(forKey: "layout.groupLibraries") as? Bool ?? true
         featurePopular = d.object(forKey: "layout.featurePopular") as? Bool ?? true
         showThumbnails = d.object(forKey: "layout.thumbnails") as? Bool ?? true
+        showGameAddons = d.bool(forKey: "explorer.showGameAddons")
         // First launch only: prefer Apple Intelligence when the system model is ready.
         // Test/snapshot suites keep ephemeral prefs on Off. Existing saved values (including Off) stay.
         if Self.persists, d.object(forKey: "ai.provider") == nil {

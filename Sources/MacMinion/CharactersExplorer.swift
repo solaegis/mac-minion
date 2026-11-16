@@ -36,9 +36,12 @@ extension AppModel {
     }
 
     /// "Lazy Writ Creator" for DolgubonsLazyWritCreator.lua, as ESOUI names it.
+    /// The game's own files keep their part: "The game (Ingame)" for ZO_Ingame.lua.
     func addonName(_ file: String) -> String {
         let base = String(file.dropLast(4))
-        return addonTitle(folder: base.hasPrefix("ZO_") ? "ZO_" : base)
+        guard base.hasPrefix("ZO_") else { return addonTitle(folder: base) }
+        let part = base.dropFirst(3)
+        return part.isEmpty ? addonTitle(folder: "ZO_") : String(localized: "The game (\(String(part)))")
     }
 }
 
@@ -294,34 +297,44 @@ private struct ExplorerLegend: View {
 
 /// A character in the middle, the addons that keep their settings around them, badged where they're
 /// set up differently; beside it, what's different and which addons keep settings only for them.
+/// The game's own addons (ZO_ files) join the graph only with Show Default Addons on.
 private struct CharacterConstellation: View {
     let model: AppModel
     let matrix: SettingsMatrix
     let id: String
 
+    /// One node around the character: an addon with their settings, or a game file with none of theirs.
+    private enum Node: Identifiable {
+        case addon(SettingsMatrix.Addon)
+        case gameFile(String)
+
+        var id: String {
+            switch self {
+            case .addon(let addon): addon.file
+            case .gameFile(let file): file
+            }
+        }
+    }
+
+    private var showGame: Bool { model.prefs.showGameAddons }
+
     var body: some View {
-        let addons = model.byName(matrix.addons.filter { $0.characters[id] != nil }, file: \.file)
+        let addons = model.byName(matrix.addons.filter { $0.characters[id] != nil && (showGame || !$0.isGame) }, file: \.file)
+        let nodes = self.nodes(addons)
         HStack(spacing: 0) {
             ZStack {
                 ConnectionSpokes(
-                    count: addons.count,
-                    colors: addons.map { $0.oddOnesOut(id).isEmpty ? Palette.accent : Palette.counterpart },
-                    widths: addons.map { $0.oddOnesOut(id).isEmpty ? 2 : 3 }
+                    count: nodes.count,
+                    colors: nodes.map(color),
+                    widths: nodes.map { node in
+                        if case .addon(let addon) = node, !addon.oddOnesOut(id).isEmpty { return 3 }
+                        return 2
+                    }
                 )
                 RadialLayout {
                     CenterNode(title: model.gameFolder.characterName(id), kind: characterHubLine(model, id),
                                id: id, symbol: "person.fill")
-                    ForEach(addons) { addon in
-                        let odd = addon.oddOnesOut(id).count
-                        Button { model.gameFolder.explorerOpen(.characterAddon(id: id, file: addon.file)) } label: {
-                            NodeLabel(title: model.addonName(addon.file),
-                                      detail: odd > 0 ? String(localized: "\(addon.characters[id]?.count ?? 0) settings · \(odd) different") : String(localized: "\(addon.characters[id]?.count ?? 0) settings"),
-                                      color: odd > 0 ? Palette.counterpart : Palette.accent,
-                                      symbol: "puzzlepiece.extension.fill")
-                        }
-                        .buttonStyle(.plain)
-                        .help("Show \(model.gameFolder.characterName(id))'s settings in \(model.addonName(addon.file))")
-                    }
+                    ForEach(nodes) { node in nodeButton(node) }
                 }
             }
             .padding(Space.xl)
@@ -331,9 +344,52 @@ private struct CharacterConstellation: View {
         }
     }
 
+    /// The character's addons, then (with the checkbox on) every game file they keep nothing in, by name.
+    private func nodes(_ addons: [SettingsMatrix.Addon]) -> [Node] {
+        guard showGame else { return addons.map(Node.addon) }
+        let withData = Set(addons.map(\.file))
+        let gameFiles = model.byName(
+            model.gameFolder.savedVariables
+                .filter { $0.owner == .game && $0.name.hasSuffix(".lua") && !withData.contains($0.name) }
+                .map(\.name),
+            file: \.self)
+        return addons.map(Node.addon) + gameFiles.map(Node.gameFile)
+    }
+
+    private func color(_ node: Node) -> Color {
+        switch node {
+        case .addon(let addon): addon.oddOnesOut(id).isEmpty ? Palette.accent : Palette.counterpart
+        case .gameFile: .secondary
+        }
+    }
+
+    @ViewBuilder private func nodeButton(_ node: Node) -> some View {
+        switch node {
+        case .addon(let addon):
+            let odd = addon.oddOnesOut(id).count
+            let count = addon.characters[id]?.count ?? 0
+            let settings = odd > 0 ? String(localized: "\(count) settings · \(odd) different") : String(localized: "\(count) settings")
+            Button { model.gameFolder.explorerOpen(.characterAddon(id: id, file: addon.file)) } label: {
+                NodeLabel(title: model.addonName(addon.file),
+                          detail: settings,
+                          color: color(node),
+                          symbol: addon.isGame ? "gearshape.fill" : "puzzlepiece.extension.fill")
+            }
+            .buttonStyle(.plain)
+            .help("Show \(model.gameFolder.characterName(id))'s settings in \(model.addonName(addon.file))")
+        case .gameFile(let file):
+            Button { Task { await model.gameFolder.inspect(file) } } label: {
+                NodeLabel(title: model.addonName(file), detail: String(localized: "Account-wide only"),
+                          color: color(node), symbol: "gearshape.fill")
+            }
+            .buttonStyle(.plain)
+            .help("Open \(file) in the Inspector: the game keeps nothing in it for this character")
+        }
+    }
+
     private func sidePanel(_ addons: [SettingsMatrix.Addon]) -> some View {
         let odd = addons.flatMap { addon in addon.oddOnesOut(id).map { (addon: addon, item: $0) } }
-        let only = matrix.onlyHere(id)
+        let only = matrix.onlyHere(id).filter { showGame || !SettingsMatrix.isGame($0) }
         let problems = model.gameFolder.findings(aboutCharacter: id, in: model.gameFolder.healthFindings)
         return List {
             if !problems.isEmpty {
@@ -371,12 +427,21 @@ private struct CharacterConstellation: View {
                 }
             }
             Section {
+                Toggle("Show Default Addons", isOn: Binding(get: { model.prefs.showGameAddons }, set: { model.prefs.showGameAddons = $0 }))
+                    .toggleStyle(.checkbox)
+                    .help("Add the game's own addons to the graph and to Compare (Control-Command-G)")
                 Menu("Compare With…") {
                     CharacterMenuItems(matrix: matrix, excluding: id) { other in
                         Button(model.gameFolder.characterTitle(other)) { model.gameFolder.explorerOpen(.compare(id, other, file: nil)) }
                     }
                 }
                 .help("See every setting where this character and another differ")
+                Menu("Copy Addon Choices From…") {
+                    CharacterMenuItems(matrix: matrix, excluding: id) { other in
+                        Button(model.gameFolder.characterTitle(other)) { model.gameFolder.copyAddOnChoices(from: other, to: id) }
+                    }
+                }
+                .help("Compare which addons load, with every difference picked from the other character, ready to clone")
                 Button("Show Connections") { Task { await model.gameFolder.showConnections(SVTarget(.character, id)) } }
                 Button("Find Everywhere") { Task { await model.gameFolder.findEverywhere(SVTarget(.character, id)) } }
             }
@@ -734,7 +799,7 @@ private struct CompareCharacters: View {
     }
 
     var body: some View {
-        let all = matrix.compare(a, b)
+        let all = matrix.compare(a, b).filter { model.prefs.showGameAddons || !$0.isGame || $0.file == file }
         let scoped = file.map { f in all.filter { $0.file == f } } ?? all
         let comparisons = model.byName(scoped, file: \.file)
         let differing = comparisons.reduce(0) { $0 + $1.differing.count }
@@ -742,7 +807,11 @@ private struct CompareCharacters: View {
             comparisons.flatMap { c in
                 c.onlyA.map { (c.file, $0.key, a, $0.setting) } + c.onlyB.map { (c.file, $0.key, b, $0.setting) }
             }
-        let eligible = comparisons.flatMap { c in c.differing.map { (c.file, $0.key) } }
+        let addOnRows = file == nil ? model.gameFolder.addOnRows(a, b) : nil
+        let shownAddOns = (addOnRows ?? []).filter { !onlyDifferences || $0.differs }
+        let addOnsDiffering = (addOnRows ?? []).filter(\.differs).count
+        let eligible = shownAddOns.filter(\.differs).map { (AddOnChoices.fileName, $0.addon) }
+            + comparisons.flatMap { c in c.differing.map { (c.file, $0.key) } }
             + (onlyDifferences ? [] : onlyRows.map { ($0.file, $0.key) })
         List {
             Section {
@@ -752,9 +821,14 @@ private struct CompareCharacters: View {
                     person(b, eligible: eligible)
                 }
                 HStack(alignment: .firstTextBaseline, spacing: 0) {
-                    Text(summary(differing: differing, addonCount: comparisons.filter { !$0.differing.isEmpty }.count))
-                        .foregroundStyle(.secondary)
-                        .frame(maxWidth: .infinity, alignment: .leading)
+                    VStack(alignment: .leading, spacing: Space.xs / 2) {
+                        Text(summary(differing: differing, addonCount: comparisons.filter { !$0.differing.isEmpty }.count))
+                        if addOnsDiffering > 0 {
+                            Text("\(addOnsDiffering) addons turned on differently")
+                        }
+                    }
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
                     Button("Clone") { model.gameFolder.cloneConfirmPending = true }
                         .buttonStyle(.borderedProminent)
                         .controlSize(.small)
@@ -767,6 +841,7 @@ private struct CompareCharacters: View {
                     .toggleStyle(.checkbox)
                     .help("Hide settings that only one character has, and keep the side-by-side differences")
             }
+            if file == nil { addOnsSection(addOnRows, shown: shownAddOns) }
             ForEach(comparisons.filter { !$0.differing.isEmpty }) { c in
                 Section {
                     ForEach(c.differing, id: \.key) { row in
@@ -786,6 +861,7 @@ private struct CompareCharacters: View {
         }
         .frame(maxWidth: 1040, alignment: .leading)
         .frame(maxWidth: .infinity, alignment: .leading)
+        .task { model.gameFolder.loadGameSettings() }
         .confirmationDialog(confirmTitle, isPresented: Binding(
             get: { model.gameFolder.cloneConfirmPending },
             set: { if !$0 { model.gameFolder.cloneConfirmPending = false } }
@@ -811,15 +887,24 @@ private struct CompareCharacters: View {
         return String(localized: "\(String(localized: "\(differing) settings differ")) across \(addonCount) addons.")
     }
 
+    /// Selected addon rows (AddOnSettings.txt), counted apart from settings.
+    private var selectedAddOns: Int { model.gameFolder.cloneSources.keys.filter { $0.file == AddOnChoices.fileName }.count }
+
     private var confirmTitle: String {
         let count = selectedCount
         guard count > 0 else { return "" }
-        return String(localized: "Clone \(String(localized: "\(count) settings"))?")
+        let addOns = selectedAddOns, settings = count - addOns
+        if addOns == 0 { return String(localized: "Clone \(String(localized: "\(count) settings"))?") }
+        if settings == 0 { return String(localized: "Clone \(String(localized: "\(addOns) addon choices"))?") }
+        return String(localized: "Clone \(String(localized: "\(settings) settings")) and \(String(localized: "\(addOns) addon choices"))?")
     }
 
     private var confirmMessage: String {
         let deletions = model.gameFolder.selectedCloneDeletions()
         let backup = String(localized: "MacMinion backs up first; restore the backup to undo.")
+        if selectedAddOns > 0, selectedAddOns == selectedCount {
+            return String(localized: "Selected addons are turned on or off in AddOnSettings.txt. \(backup)")
+        }
         if deletions > 0 {
             let removed = String(localized: "\(deletions) keys will be removed")
             return String(localized: "\(removed) because the source has no key. \(backup)")
@@ -833,12 +918,18 @@ private struct CompareCharacters: View {
     /// Setting name column, then two value cells with radios under them.
     private func compareRow(file: String, key: String, left: some View, right: some View, hasA: Bool, hasB: Bool) -> some View {
         HStack(alignment: .top, spacing: 0) {
-            Button { model.gameFolder.explorerOpen(.setting(file: file, key: key)) } label: {
-                Text(key).frame(width: 240, alignment: .leading).contentShape(Rectangle())
+            if file == AddOnChoices.fileName {
+                Text(model.addonTitle(folder: key)).frame(width: 240, alignment: .leading)
+                    .help(key)
+                    .padding(.trailing, Space.lg)
+            } else {
+                Button { model.gameFolder.explorerOpen(.setting(file: file, key: key)) } label: {
+                    Text(key).frame(width: 240, alignment: .leading).contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .help("Show who has which value")
+                .padding(.trailing, Space.lg)
             }
-            .buttonStyle(.plain)
-            .help("Show who has which value")
-            .padding(.trailing, Space.lg)
             valueColumn(id: a, file: file, key: key, hasValue: hasA, value: left)
             valueColumn(id: b, file: file, key: key, hasValue: hasB, value: right)
         }
@@ -863,8 +954,10 @@ private struct CompareCharacters: View {
         let selected = model.gameFolder.cloneSources[row]
         let isOn = selected == id
         let to = other(id)
-        let canCopy = hasValue && model.gameFolder.copyTarget(file: file, key: key, from: id, to: to) != nil
-        let canDelete = !hasValue && matrix.addon(file)?.characters[to]?[key] != nil
+        let isAddOn = file == AddOnChoices.fileName
+        let canCopy = isAddOn ? model.gameFolder.canCloneAddOn(key, from: id, to: to)
+            : hasValue && model.gameFolder.copyTarget(file: file, key: key, from: id, to: to) != nil
+        let canDelete = !isAddOn && !hasValue && matrix.addon(file)?.characters[to]?[key] != nil
         let enabled = canCopy || canDelete
         return Button {
             guard enabled else { return }
@@ -881,9 +974,16 @@ private struct CompareCharacters: View {
         }
         .buttonStyle(.plain)
         .disabled(!enabled || model.gameIsRunning || model.backupBusy != nil)
-        .help(radioHelp(id: id, hasValue: hasValue, canCopy: canCopy, canDelete: canDelete))
+        .help(isAddOn ? addOnRadioHelp(id: id, canCopy: canCopy)
+              : radioHelp(id: id, hasValue: hasValue, canCopy: canCopy, canDelete: canDelete))
         .accessibilityLabel(Text("Clone from \(name(id))"))
         .accessibilityAddTraits(isOn ? .isSelected : [])
+    }
+
+    private func addOnRadioHelp(id: String, canCopy: Bool) -> String {
+        if model.gameIsRunning { return String(localized: "Quit Elder Scrolls Online first") }
+        if canCopy { return String(localized: "Load this addon for \(name(other(id))) as \(name(id)) does") }
+        return String(localized: "Nothing to clone from \(name(id))")
     }
 
     private func radioHelp(id: String, hasValue: Bool, canCopy: Bool, canDelete: Bool) -> String {
@@ -898,6 +998,44 @@ private struct CompareCharacters: View {
             return String(localized: "Use \(name(id))'s value for \(name(other(id)))")
         }
         return String(localized: "Nothing to clone from \(name(id))")
+    }
+
+    /// Which addons each character loads (AddOnSettings.txt), with the same radios as settings (S-069).
+    @ViewBuilder
+    private func addOnsSection(_ rows: [AddOnChoices.Row]?, shown: [AddOnChoices.Row]) -> some View {
+        if model.gameFolder.gameSettings[.addOns] != nil {
+            Section {
+                if rows == nil {
+                    Text("MacMinion can't tell which list in AddOnSettings.txt is each character's.")
+                        .foregroundStyle(.secondary)
+                } else if shown.isEmpty {
+                    Text("Both characters load the same addons.").foregroundStyle(.secondary)
+                }
+                ForEach(shown, id: \.addon) { row in
+                    compareRow(file: AddOnChoices.fileName, key: row.addon,
+                               left: addOnValue(row.a, for: a), right: addOnValue(row.b, for: b),
+                               hasA: row.a != nil, hasB: row.b != nil)
+                }
+            } header: {
+                Text("Addons Turned On")
+            }
+        }
+    }
+
+    private func addOnValue(_ on: Bool?, for id: String) -> some View {
+        HStack(spacing: Space.xs) {
+            switch on {
+            case true?: Label("On", systemImage: "checkmark.circle.fill").foregroundStyle(color(id))
+            case false?: Label("Off", systemImage: "circle.slash").foregroundStyle(.secondary)
+            case nil: Text("—").foregroundStyle(.secondary)
+            }
+            if model.gameFolder.addOnsFromDefault(id) {
+                Text("from Default").font(.caption).foregroundStyle(.secondary)
+            }
+        }
+        .help(model.gameFolder.addOnsFromDefault(id)
+              ? String(localized: "\(name(id)) has no list of their own, so the game uses the #Default list")
+              : String(localized: "From \(name(id))'s list in AddOnSettings.txt"))
     }
 
     @ViewBuilder
@@ -931,6 +1069,7 @@ private struct CompareCharacters: View {
 
     private func canSelect(id: String, file: String, key: String, hasValue: Bool) -> Bool {
         let to = other(id)
+        if file == AddOnChoices.fileName { return model.gameFolder.canCloneAddOn(key, from: id, to: to) }
         if hasValue { return model.gameFolder.copyTarget(file: file, key: key, from: id, to: to) != nil }
         return matrix.addon(file)?.characters[to]?[key] != nil
     }

@@ -116,6 +116,12 @@ enum Snapshot {
                             try? await Task.sleep(for: .seconds(1.2))
                             await capture(to: "\(dir)/gameFolder-\(name)-\(mode).png")
                         }
+                        // The same character with the game's own addons in the graph (S-068).
+                        model.prefs.showGameAddons = true
+                        model.gameFolder.explorerPath = [.grid, .character(masisi)]
+                        try? await Task.sleep(for: .seconds(1.2))
+                        await capture(to: "\(dir)/gameFolder-character-defaults-\(mode).png")
+                        model.prefs.showGameAddons = false
                         // Reading SavedVariables, part way through.
                         model.gameFolder.explorerPath = [.grid]
                         model.gameFolder.readIsCurrent = false

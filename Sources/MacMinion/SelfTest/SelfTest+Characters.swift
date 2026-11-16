@@ -130,7 +130,8 @@ extension SelfTest {
         await model.gameFolder.copySettings([("WritWorthy.lua", "Auto craft")], from: masisiKey, to: alphaKey)
         check("copying refuses while the game runs", model.gameFolder.errorMessage != nil && (try? Data(contentsOf: writURL)) == svBefore[writURL])
         model.simulatesRunningGame = false
-        check("Copy All takes every difference", model.gameFolder.copyAllRows(from: masisiKey, to: alphaKey).count == compared.reduce(0) { $0 + $1.differing.count })
+        check("Copy All takes every difference shown", model.gameFolder.copyAllRows(from: masisiKey, to: alphaKey).count
+              == compared.filter { !$0.isGame }.reduce(0) { $0 + $1.differing.count })
         // Mixed directions in one Clone: Auto craft Masisi→Alpha, Writ count Alpha→Masisi.
         await model.gameFolder.applyCloneOps([
             .init(file: "WritWorthy.lua", key: "Auto craft", from: masisiKey, to: alphaKey),
@@ -157,7 +158,7 @@ extension SelfTest {
         await model.gameFolder.copySettings(model.gameFolder.copyAllRows(from: alphaKey, to: masisiKey), from: alphaKey, to: masisiKey)
         await model.gameFolder.copySettings(model.gameFolder.copyAllRows(from: masisiKey, to: alphaKey), from: masisiKey, to: alphaKey)
         check("cloning both ways leaves no differences",
-              model.gameFolder.matrix?.compare(masisiKey, alphaKey).allSatisfy { $0.differing.isEmpty } == true)
+              model.gameFolder.matrix?.compare(masisiKey, alphaKey).allSatisfy { $0.isGame || $0.differing.isEmpty } == true)
         // Dustman.lua is damaged on purpose in the sample; every file that read cleanly still does.
         let brokenAfter = model.gameFolder.savedVariables.filter { file in
             guard let before = svBefore[file.url], SVDocument.parse(before).error == nil else { return false }
@@ -212,6 +213,86 @@ extension SelfTest {
               model.gameFolder.matrix?.addons.allSatisfy { $0.characters.values.allSatisfy { $0.values.allSatisfy { s in
                   !(s.value.string.map(SettingsMatrix.isPacked) ?? false)
               } } } == true)
+    }
+
+    /// The game's own addons on a character's page, and cloning which addons load (S-068, S-069).
+    static func defaultAddonsAndChoices(_ model: AppModel) async {
+        let masisiKey = "8796093036412335", alphaKey = "8798292071293572", emberKey = "8796093011112222"
+        // S-068 The game's own addons join a character's graph and Compare only when asked.
+        check("Show Default Addons starts off", model.prefs.showGameAddons == false)
+        let matrix = model.gameFolder.matrix
+        check("the game's files are known as the game's", matrix?.addon("ZO_Ingame.lua")?.isGame == true
+              && matrix?.addon("WritWorthy.lua")?.isGame == false)
+        check("the game's files each get their own name", model.addonName("ZO_Ingame.lua") == String(localized: "The game (\("Ingame"))")
+              && model.addonName("ZO_Ingame.lua") != model.addonName("ZO_Pregame.lua"), model.addonName("ZO_Ingame.lua"))
+        check("the game keeps per-character settings in ZO_Ingame",
+              matrix?.addon("ZO_Ingame.lua")?.characters[masisiKey]?.isEmpty == false,
+              "\(matrix?.addon("ZO_Ingame.lua")?.characters.keys.sorted() ?? [])")
+        check("with the checkbox off, Copy All leaves the game's files alone",
+              !model.gameFolder.copyAllRows(from: masisiKey, to: alphaKey).contains { SettingsMatrix.isGame($0.file) })
+        model.prefs.showGameAddons = true
+        check("with the checkbox on, Copy All includes the game's differences",
+              model.gameFolder.copyAllRows(from: masisiKey, to: alphaKey).contains { $0.file == "ZO_Ingame.lua" })
+        check("an account-wide game file is there to show",
+              model.gameFolder.savedVariables.contains { $0.name == "ZO_Pregame.lua" && $0.owner == .game }
+              && matrix?.addon("ZO_Pregame.lua") == nil)
+        model.prefs.showGameAddons = false
+
+        // S-069 Compare and clone which addons each character loads (AddOnSettings.txt).
+        model.gameFolder.loadGameSettings()
+        let url = model.gameFolderURL.appending(path: AddOnChoices.fileName)
+        let before = (try? Data(contentsOf: url)) ?? Data()
+        check("a character's list in AddOnSettings.txt is found by megaserver and name",
+              model.gameFolder.addOnHeader(masisiKey) == "NA Megaserver-Masisi" && model.gameFolder.addOnHeader(alphaKey) == "NA Megaserver-Alpha Top",
+              model.gameFolder.addOnHeader(alphaKey) ?? "none")
+        let rows = model.gameFolder.addOnRows(masisiKey, alphaKey) ?? []
+        check("Compare lists the addons two characters load differently",
+              rows.first { $0.addon == "HarvestMap" }.map { $0.a == true && $0.b == false } == true
+              && rows.first { $0.addon == "WritWorthy" }?.differs == false, "\(rows)")
+        check("a character with no list of their own uses #Default", model.gameFolder.addOnsFromDefault(emberKey)
+              && model.gameFolder.addOnValue(emberKey, addon: "pChat") == true)
+        let harvest = SettingsMatrix.CloneOp(file: AddOnChoices.fileName, key: "HarvestMap", from: masisiKey, to: alphaKey)
+        model.simulatesRunningGame = true
+        await model.gameFolder.applyCloneOps([harvest])
+        check("cloning addon choices refuses while the game runs", model.gameFolder.errorMessage != nil && (try? Data(contentsOf: url)) == before)
+        model.simulatesRunningGame = false
+        let backupsBefore = model.backups.count
+        let undo = UndoManager()
+        undo.groupsByEvent = false
+        undo.beginUndoGrouping()
+        MainUndo.override = undo
+        model.gameFolder.copyBackedUp = []
+        await model.gameFolder.applyCloneOps([harvest])
+        undo.endUndoGrouping()
+        let after = String(decoding: (try? Data(contentsOf: url)) ?? Data(), as: UTF8.self)
+        check("cloning an addon choice changes only that line",
+              after == String(decoding: before, as: UTF8.self).replacingOccurrences(of: "#NA Megaserver-Alpha Top\nHarvestMap 0", with: "#NA Megaserver-Alpha Top\nHarvestMap 1"),
+              after)
+        check("cloning addon choices backs up first", model.backupError == nil
+              && model.gameFolder.copyBackedUp.contains([masisiKey, alphaKey].sorted().joined(separator: "|")), "\(backupsBefore) backups before")
+        check("cloning addon choices says what it did", model.gameFolder.message?.contains("addon choice") == true, model.gameFolder.message ?? "none")
+        check("they now load HarvestMap the same", model.gameFolder.addOnRows(masisiKey, alphaKey)?.first { $0.addon == "HarvestMap" }?.differs == false)
+        undo.undo()
+        await MainUndo.settle()
+        check("Undo puts AddOnSettings.txt back byte for byte", (try? Data(contentsOf: url)) == before)
+        MainUndo.override = nil
+        // A character with no list gets one, starting from #Default.
+        model.gameFolder.loadGameSettings()
+        model.gameFolder.copyAddOnChoices(from: masisiKey, to: emberKey)
+        check("Copy Addon Choices From opens Compare with the other's choices picked",
+              model.gameFolder.explorerPath.last == .compare(emberKey, masisiKey, file: nil)
+              && model.gameFolder.cloneSources[.init(file: AddOnChoices.fileName, key: "HarvestMap")] == masisiKey,
+              "\(model.gameFolder.cloneSources)")
+        await model.gameFolder.applyCloneOps(model.gameFolder.selectedCloneOps())
+        let ember = model.gameFolder.addOnChoices?.blocks["NA Megaserver-Quiet Ember"]
+        check("cloning to a character with no list gives them one, from #Default",
+              ember?["pChat"] == true && ember?["MasterMerchant"] == false && ember?["HarvestMap"] == true && ember?["WritWorthy"] == true,
+              "\(ember ?? [:]) \(model.gameFolder.errorMessage ?? "")")
+        try? before.write(to: url)
+        model.gameFolder.loadGameSettings()
+        model.gameFolder.explorerReset()
+        model.gameFolder.message = nil
+        model.gameFolder.errorMessage = nil
     }
 
     /// The game's settings files: edit, save, undo (S-062).

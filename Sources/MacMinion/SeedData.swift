@@ -236,6 +236,33 @@ enum SeedData {
                                 ["8798292033334444"] = "Velvet Thorn",
                             },
                         },
+                        ["8796093036412335"] =
+                        {
+                            ["Chat"] = { ["version"] = 4, ["fontSize"] = 16, ["timestamps"] = true },
+                            ["Camera"] = { ["version"] = 2, ["fieldOfView"] = 85 },
+                        },
+                        ["8798292071293572"] =
+                        {
+                            ["Chat"] = { ["version"] = 4, ["fontSize"] = 14, ["timestamps"] = true },
+                            ["Camera"] = { ["version"] = 2, ["fieldOfView"] = 85 },
+                        },
+                    },
+                },
+            }
+
+            """),
+            // The game's own login-screen file: account-wide only, so no character has settings in it.
+            (sv.appending(path: "ZO_Pregame.lua"), """
+            ZO_Pregame_SavedVariables =
+            {
+                ["Default"] =
+                {
+                    ["@SOLAEGIS"] =
+                    {
+                        ["$AccountWide"] =
+                        {
+                            ["LoginScreen"] = { ["version"] = 1, ["lastRealm"] = "NA Megaserver", ["skipIntro"] = true },
+                        },
                     },
                 },
             }
