@@ -458,6 +458,13 @@ enum SeedData {
                 name = "Accept writs automatically",
                 getFunc = function() return WritWorthy.savedVariables.bAutoAccept end,
             },
+            {
+                type = "dropdown",
+                name = function() return "Tooltip" end,
+                choices = { "Short", "Everything" },
+                choicesValues = { "Compact", "Full" },
+                getFunc = function() return WritWorthy.savedVariables.tooltipStyle end,
+            },
         }
         """#))
         // MacMinion Companion snapshot (S-042, S-043, S-049): roster, addon states, a Lua error, and a guild.

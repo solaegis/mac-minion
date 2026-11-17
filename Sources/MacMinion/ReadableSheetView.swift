@@ -253,6 +253,26 @@ struct SettingValueView: View {
             .help("From \(name.source)")
         case .number(let text):
             Text(text).monospacedDigit()
+        case .choice(let label, let value):
+            HStack(spacing: Space.xs) {
+                Text(label)
+                Text(value).font(.caption.monospacedDigit()).foregroundStyle(.tertiary).lineLimit(1)
+            }
+            .help("The saved value is \(value), which the addon calls \(label)")
+        case .ranged(let text, let range, let outOfRange):
+            HStack(spacing: Space.xs) {
+                if outOfRange {
+                    Label(text, systemImage: "exclamationmark.triangle")
+                        .labelStyle(.titleAndIcon)
+                        .monospacedDigit()
+                        .foregroundStyle(Palette.caution)
+                } else {
+                    Text(text).monospacedDigit()
+                }
+                Text("of \(Self.number(range.lowerBound))–\(Self.number(range.upperBound))")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+            .help(outOfRange ? "Outside the range the addon's settings panel allows" : "The range the addon's settings panel allows")
         case .text(let text):
             Text(text).lineLimit(2).textSelection(.enabled)
         case .table(let count, let isList):
@@ -268,6 +288,8 @@ struct SettingValueView: View {
             }
         }
     }
+
+    static func number(_ n: Double) -> String { n.formatted(.number.precision(.fractionLength(0...2))) }
 
     static func hex(_ r: Double, _ g: Double, _ b: Double) -> String {
         String(format: "#%02X%02X%02X", Int((r * 255).rounded()), Int((g * 255).rounded()), Int((b * 255).rounded()))

@@ -35,6 +35,17 @@ about 2.7 s in all, off the main thread; files over 1.5 MB (data, not code) are 
   `x` under a table `window`. The root (`Addon.sv`) can't be tied to a ZO_SavedVars level, and the
   same key name in two tables can't be told apart. These are marked as guesses.
 
+## Choices and ranges (S-072)
+
+The same settings-panel control that names a key also says what values it takes. `SVSourceNames.lamControl`
+reads the control's `type`; a slider's `min`, `max`, `step`; `default` when it's a literal; and a dropdown's
+`choices` and `choicesValues`, either inline or as a table the control names (`choices = sizes`). Values
+that are constants (`MODE_COMBAT`) resolve through the addon's own `NAME = n` lines. Without
+`choicesValues`, LibAddonMenu saves the label itself, so there's nothing new to show. Keys the code compares
+with two or more constants (`sv.style == MyAddon.STYLE_ICON`) get those constants as choices, labelled
+without their shared prefix ("Icon"). The result is an `SVControl` per key, looked up like a name
+(`control(for:at:)`), and shown by `SVReadable.display` as `.choice` or `.ranged`.
+
 ## Defaults (S-070)
 
 The same read finds each saved variable's defaults: the table an addon passes to `ZO_SavedVars:New…` or

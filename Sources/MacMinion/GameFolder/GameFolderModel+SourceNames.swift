@@ -85,4 +85,9 @@ extension GameFolderModel {
     func inspectorSourceName(_ key: LuaKey, at parent: [LuaKey]) -> SVSourceName? {
         inspectorFile.flatMap { inspectorSourceNames[$0] }?.name(for: key, at: parent)
     }
+
+    /// The range or choices the addon's source gives a key in the open file.
+    func inspectorControl(_ key: LuaKey, at parent: [LuaKey]) -> SVControl? {
+        inspectorFile.flatMap { inspectorSourceNames[$0] }?.control(for: key, at: parent)
+    }
 }

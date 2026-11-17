@@ -41,10 +41,12 @@ public struct SVSourceNames: Sendable, Equatable {
     var names: [String: [String: SVSourceName]] = [:]
     /// Table key -> what its keys are, for tables keyed by constants.
     var tableNotes: [String: String] = [:]
+    /// Parent key ("" for any) -> key -> the settings-panel control or constants that say what values it takes.
+    var controls: [String: [String: SVControl]] = [:]
 
     public init() {}
 
-    public var isEmpty: Bool { names.isEmpty && tableNotes.isEmpty }
+    public var isEmpty: Bool { names.isEmpty && tableNotes.isEmpty && controls.isEmpty }
     public var count: Int { names.values.reduce(0) { $0 + $1.count } }
 
     /// A name for `key` in the table at `parent`: matched with its parent key first, then by itself.
@@ -52,6 +54,13 @@ public struct SVSourceNames: Sendable, Equatable {
         let k = key.description
         if let p = parent.last?.description, let exact = names[p]?[k] { return exact }
         return names[""]?[k]
+    }
+
+    /// The range or choices for `key` in the table at `parent`: matched with its parent key first, then by itself.
+    public func control(for key: LuaKey, at parent: [LuaKey]) -> SVControl? {
+        let k = key.description
+        if let p = parent.last?.description, let exact = controls[p]?[k] { return exact }
+        return controls[""]?[k]
     }
 
     /// What the keys of the table at `key` are, like "SETTING_TYPE_* values".
@@ -121,6 +130,11 @@ public struct SVSourceNames: Sendable, Equatable {
             guard let existing else { return false }
             return existing.source == .settingsPanel && new.source != .settingsPanel
         }
+        func putControl(_ control: SVControl, key: String, parent: String) {
+            guard !control.isEmpty else { return }
+            if let existing = result.controls[parent]?[key], existing.type != "constants" { return }
+            result.controls[parent, default: [:]][key] = control
+        }
         func resolve(_ value: String) -> String? {
             let v = value.trimmingCharacters(in: .whitespaces)
             if v.hasPrefix("\"") { return Manifest.stripColors(unescape(String(v.dropFirst().dropLast()))) }
@@ -135,9 +149,13 @@ public struct SVSourceNames: Sendable, Equatable {
             for m in rangedMatches(getter, text) {
                 let chain = components(m.groups[1])
                 guard chain.count >= 2, let key = chain.last else { continue }
-                guard let block = enclosingTable(u, at: m.location) else { continue }
+                guard let bounds = enclosingBounds(u, at: m.location) else { continue }
+                let block = flatten(u, bounds), full = String(decoding: u[(bounds.start + 1)..<bounds.end], as: UTF16.self)
                 let title = block.firstMatch(#"(?<![\w.])name\s*=\s*("(?:[^"\\]|\\.)*"|GetString\s*\(\s*SI_\w+\s*\)|SI_[A-Z0-9_]+)"#, group: 1).flatMap(resolve)
                 let tip = block.firstMatch(#"(?<![\w.])tooltip\s*=\s*("(?:[^"\\]|\\.)*"|GetString\s*\(\s*SI_\w+\s*\)|SI_[A-Z0-9_]+)"#, group: 1).flatMap(resolve)
+                let control = lamControl(block: block, full: full, sources: sources, constants: constants, resolve: resolve)
+                if chain.count >= 3 { putControl(control, key: key, parent: chain[chain.count - 2]) }
+                putControl(control, key: key, parent: "")
                 guard let title, !title.isEmpty else { continue }
                 // The parent key is only known when the chain has one between the saved table and the key.
                 if chain.count >= 3 {
@@ -184,6 +202,23 @@ public struct SVSourceNames: Sendable, Equatable {
                 put(SVSourceName(title: m[2], detail: nil, source: .constant, isGuess: true), key: String(n), parent: m[1])
             }
         }
+        // Constants the code compares a key with: `if sv.mode == MyAddon.MODE_COMBAT then`.
+        var compared: [String: [String: Int]] = [:]
+        for text in sources {
+            let pattern = #"\.([A-Za-z_]\w*)\s*[~=]=\s*(?:[A-Za-z_]\w*\.)*([A-Z][A-Z0-9_]{2,})\b|\b(?:[A-Za-z_]\w*\.)*([A-Z][A-Z0-9_]{2,})\s*[~=]=\s*[\w.]*\.([A-Za-z_]\w*)\b"#
+            for m in matches(pattern, text) {
+                let key = m[1].isEmpty ? m[4] : m[1], name = m[1].isEmpty ? m[3] : m[2]
+                guard let n = constants[name], !key.isEmpty else { continue }
+                compared[key, default: [:]][name] = n
+            }
+        }
+        for (key, found) in compared where found.count >= 2 {
+            let prefix = commonPrefix(Array(found.keys))
+            let choices = found.sorted { $0.value < $1.value }.map { name, n in
+                SVControl.Choice(value: String(n), label: SVReadable.label(.string(name.dropFirst(prefix.count).lowercased())))
+            }
+            putControl(SVControl(type: "constants", choices: choices), key: key, parent: "")
+        }
         // A key named differently by two panels is left to its parent's match.
         for key in ambiguous { result.names[""]?[key] = nil }
         // A key matched only by its name might be in another table: a guess, unless the key is distinctive.
@@ -203,6 +238,11 @@ public struct SVSourceNames: Sendable, Equatable {
 
     /// The `{ … }` around a position, as text; nil when it's longer than a control would be.
     static func enclosingTable(_ u: [UInt16], at location: Int) -> String? {
+        enclosingBounds(u, at: location).map { flatten(u, $0) }
+    }
+
+    /// The offsets of the `{` and `}` around a position; nil when it's longer than a control would be.
+    static func enclosingBounds(_ u: [UInt16], at location: Int) -> (start: Int, end: Int)? {
         let open = UInt16(UInt8(ascii: "{")), close = UInt16(UInt8(ascii: "}"))
         var depth = 0, start = location - 1
         while start >= 0 {
@@ -218,12 +258,87 @@ public struct SVSourceNames: Sendable, Equatable {
             end += 1
             if end - start > 16_000 { return nil }
         }
-        // Only the control's own level: nested tables (choices, a submenu's controls) are dropped.
+        return end < u.count ? (start, end) : nil
+    }
+
+    /// Only the control's own level: nested tables (choices, a submenu's controls) are dropped.
+    static func flatten(_ u: [UInt16], _ bounds: (start: Int, end: Int)) -> String {
+        let open = UInt16(UInt8(ascii: "{")), close = UInt16(UInt8(ascii: "}"))
         var flat: [UInt16] = [], level = 0
-        for c in u[(start + 1)..<min(end, u.count)] {
+        for c in u[(bounds.start + 1)..<bounds.end] {
             if c == open { level += 1 } else if c == close { level -= 1 } else if level == 0 { flat.append(c) }
         }
         return String(decoding: flat, as: UTF16.self)
+    }
+
+    /// A LibAddonMenu control's type, range, default, and choices. `block` is the control's own level,
+    /// `full` includes its nested tables, where `choices` and `choicesValues` are.
+    static func lamControl(block: String, full: String, sources: [String], constants: [String: Int],
+                           resolve: (String) -> String?) -> SVControl {
+        let type = block.firstMatch(#"(?<![\w.])type\s*=\s*"(\w+)""#, group: 1) ?? "control"
+        func number(_ field: String) -> Double? {
+            block.firstMatch(#"(?<![\w.])\#(field)\s*=\s*(-?\d+(?:\.\d+)?)\b"#, group: 1).flatMap(Double.init)
+        }
+        /// The items of `field = { … }` in the control, or of the table a name there points to.
+        func list(_ field: String) -> [String]? {
+            if let r = full.range(of: #"(?<![\w.])\#(field)\s*=\s*\{"#, options: .regularExpression) {
+                var depth = 1, i = r.upperBound
+                while i < full.endIndex, depth > 0 {
+                    if full[i] == "{" { depth += 1 } else if full[i] == "}" { depth -= 1 }
+                    i = full.index(after: i)
+                }
+                return items(String(full[r.upperBound..<full.index(before: i)]))
+            }
+            if let name = block.firstMatch(#"(?<![\w.])\#(field)\s*=\s*([A-Za-z_][\w.]*)"#, group: 1),
+               let last = name.split(separator: ".").last, let literal = tableLiteral(named: String(last), in: sources) {
+                return items(literal)
+            }
+            return nil
+        }
+        func value(_ raw: String) -> String? {
+            if let v = SVControl.normalize(literal: raw) { return v }
+            let name = raw.split(separator: ".").last.map(String.init) ?? raw
+            return constants[name].map(String.init)
+        }
+        var choices: [SVControl.Choice] = []
+        if let labels = list("choices") {
+            let names = labels.map { resolve($0) ?? SVControl.normalize(literal: $0) }
+            if let values = list("choicesValues"), values.count == labels.count {
+                for (label, raw) in zip(names, values) { if let label, let v = value(raw) { choices.append(.init(value: v, label: label)) } }
+            } else {
+                // Without choicesValues, LibAddonMenu saves the label itself.
+                for label in names { if let label { choices.append(.init(value: label, label: label)) } }
+            }
+        }
+        let defaultValue = block.firstMatch(#"(?<![\w.])default\s*=\s*("(?:[^"\\]|\\.)*"|true|false|-?\d+(?:\.\d+)?)"#, group: 1)
+            .flatMap(SVControl.normalize(literal:))
+        let isSlider = type == "slider"
+        return SVControl(type: type, min: isSlider ? number("min") : nil, max: isSlider ? number("max") : nil,
+                         step: isSlider ? number("step") : nil, choices: choices, defaultValue: defaultValue)
+    }
+
+    /// The top-level items of a table literal's contents: `"A", "B", SI_X` -> ["\"A\"", "\"B\"", "SI_X"].
+    static func items(_ text: String) -> [String] {
+        var out: [String] = [], current = "", depth = 0, inString = false, inComment = false, escaped = false
+        let chars = Array(text)
+        for (i, c) in chars.enumerated() {
+            if inComment { if c == "\n" { inComment = false }; continue }
+            if inString {
+                current.append(c)
+                if escaped { escaped = false } else if c == "\\" { escaped = true } else if c == "\"" { inString = false }
+                continue
+            }
+            switch c {
+            case "-" where i + 1 < chars.count && chars[i + 1] == "-": inComment = true
+            case "\"": inString = true; current.append(c)
+            case "{", "(": depth += 1; current.append(c)
+            case "}", ")": depth -= 1; current.append(c)
+            case "," where depth == 0, ";" where depth == 0: out.append(current); current = ""
+            default: current.append(c)
+            }
+        }
+        out.append(current)
+        return out.map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }.filter { !$0.isEmpty }
     }
 
     /// The text of `Name = { … }` in any of the sources.

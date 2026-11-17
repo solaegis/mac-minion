@@ -340,10 +340,33 @@ private struct ValueCell: View {
 
     var body: some View {
         let name = model.gameFolder.inspectorName(node)
+        let control = model.gameFolder.inspectorControl(node.key, at: node.parentPath)
+        let choice = control?.choice(for: node.value)
         HStack(spacing: Space.sm) {
             Text(InspectorValue.preview(node.value))
                 .lineLimit(1)
                 .foregroundStyle(node.value.table == nil ? AnyShapeStyle(.primary) : AnyShapeStyle(.secondary))
+            if let control, let range = control.range, node.value.table == nil {
+                if control.isOutOfRange(node.value) {
+                    Label("outside \(SettingValueView.number(range.lowerBound))–\(SettingValueView.number(range.upperBound))",
+                          systemImage: "exclamationmark.triangle")
+                        .labelStyle(.titleAndIcon)
+                        .lineLimit(1)
+                        .foregroundStyle(Palette.caution)
+                        .help("Outside the range the addon's settings panel allows")
+                } else {
+                    Text("of \(SettingValueView.number(range.lowerBound))–\(SettingValueView.number(range.upperBound))")
+                        .lineLimit(1)
+                        .foregroundStyle(.secondary)
+                        .help("The range the addon's settings panel allows")
+                }
+            }
+            if name == nil, let choice, choice.label != choice.value {
+                Text(choice.label)
+                    .lineLimit(1)
+                    .foregroundStyle(Palette.accentText)
+                    .help(control?.type == "constants" ? "From constants in the addon's source" : "From the addon's settings panel")
+            }
             if let name {
                 if name.title == SVName.unknownCharacter {
                     Label(name.label, systemImage: "person.fill.questionmark")

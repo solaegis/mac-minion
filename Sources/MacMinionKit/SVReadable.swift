@@ -14,6 +14,10 @@ public enum SVDisplay: Sendable, Equatable {
     case text(String)
     /// A table: how many entries, and whether they're numbered like a list.
     case table(count: Int, isList: Bool)
+    /// One of the choices the addon's settings panel or constants offer: what it calls it, and the saved value.
+    case choice(label: String, value: String)
+    /// A number with the range its slider allows; `outOfRange` when the saved value is outside it.
+    case ranged(text: String, range: ClosedRange<Double>, outOfRange: Bool)
 }
 
 public enum SVReadable {
@@ -70,7 +74,19 @@ public enum SVReadable {
 
     static func hints(_ key: LuaKey) -> String { key.description.lowercased() }
 
-    public static func display(_ value: LuaValue, key: LuaKey, at path: [LuaKey], names: SVNameIndex?, now: Date = .now) -> SVDisplay {
+    public static func display(_ value: LuaValue, key: LuaKey, at path: [LuaKey], names: SVNameIndex?,
+                               control: SVControl? = nil, now: Date = .now) -> SVDisplay {
+        if let control, let choice = control.choice(for: value), choice.label != choice.value {
+            return .choice(label: choice.label, value: choice.value)
+        }
+        let plain = plainDisplay(value, key: key, at: path, names: names, now: now)
+        if let control, let range = control.range, case .number(let text) = plain {
+            return .ranged(text: text, range: range, outOfRange: control.isOutOfRange(value))
+        }
+        return plain
+    }
+
+    static func plainDisplay(_ value: LuaValue, key: LuaKey, at path: [LuaKey], names: SVNameIndex?, now: Date) -> SVDisplay {
         let k = hints(key)
         let colorKey = k.contains("color") || k.contains("colour")
         switch value {
@@ -152,6 +168,8 @@ public enum SVReadable {
         public let display: SVDisplay
         /// What the addon's source says the key is, when it says.
         public var source: SVSourceName?
+        /// The range or choices the addon's source gives the key.
+        public var control: SVControl? = nil
         public var id: String { path.map(\.description).joined(separator: "\u{1F}") }
     }
 
@@ -196,9 +214,10 @@ public enum SVReadable {
         for (id, c) in names?.characters ?? [:] { byName[c.name, default: []].append(id) }
         func rows(_ entries: [LuaEntry], _ path: [LuaKey]) -> [Row] {
             entries.prefix(rowsPerSection).map { e in
-                let named = source?.name(for: e.key, at: path)
+                let named = source?.name(for: e.key, at: path), control = source?.control(for: e.key, at: path)
                 return Row(label: named?.title ?? label(e.key, names: names), key: e.key, path: path + [e.key],
-                           display: display(e.value, key: e.key, at: path, names: names, now: now), source: named)
+                           display: display(e.value, key: e.key, at: path, names: names, control: control, now: now),
+                           source: named, control: control)
             }
         }
         /// Where a table sits: its account, profile, and megaserver. The megaserver is the first real one in the

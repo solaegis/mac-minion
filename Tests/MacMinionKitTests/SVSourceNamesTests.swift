@@ -92,3 +92,75 @@ Demo.sv.counts[MODE_SLOW] = 0
         for (table, note) in names.tableNotes { print("  NOTE \(table): \(note)") }
     }
 }
+
+// MARK: Ranges and choices
+
+private let controlsSource = #"""
+local MODE_OFF = 0
+local MODE_ALWAYS = 1
+local MODE_COMBAT = 2
+local sizes = { "Small", "Large" }
+local options = {
+    { type = "slider", name = "Scale", min = 50, max = 150, step = 5, default = 100,
+      getFunc = function() return MyAddon.sv.ui.scale end, setFunc = function(v) MyAddon.sv.ui.scale = v end },
+    { type = "dropdown", name = "Show", choices = { "Never", "Always", "In combat" }, -- labels
+      choicesValues = { MODE_OFF, MODE_ALWAYS, MODE_COMBAT },
+      getFunc = function() return MyAddon.sv.mode end, setFunc = function(v) MyAddon.sv.mode = v end },
+    { type = "dropdown", name = "Size", choices = sizes,
+      getFunc = function() return MyAddon.sv.size end, setFunc = function(v) MyAddon.sv.size = v end },
+}
+"""#
+
+@Test func slidersGiveRanges() throws {
+    let names = SVSourceNames.parse([controlsSource])
+    let scale = try #require(names.control(for: .string("scale"), at: [.string("ui")]))
+    #expect(scale.type == "slider")
+    #expect(scale.range == 50...150)
+    #expect(scale.step == 5)
+    #expect(scale.defaultValue == "100")
+    #expect(scale.isOutOfRange(.integer(200)))
+    #expect(!scale.isOutOfRange(.number(75)))
+}
+
+@Test func dropdownsGiveChoicesFromConstants() throws {
+    let names = SVSourceNames.parse([controlsSource])
+    let mode = try #require(names.control(for: .string("mode"), at: []))
+    #expect(mode.choices.map(\.label) == ["Never", "Always", "In combat"])
+    #expect(mode.choice(for: .integer(2))?.label == "In combat")
+    #expect(mode.choice(for: .number(1))?.label == "Always")
+    #expect(SVReadable.display(.integer(2), key: .string("mode"), at: [], names: nil, control: mode)
+            == .choice(label: "In combat", value: "2"))
+}
+
+@Test func dropdownsWithoutValuesSaveTheLabel() throws {
+    let names = SVSourceNames.parse([controlsSource])
+    let size = try #require(names.control(for: .string("size"), at: []))
+    #expect(size.choices.map(\.value) == ["Small", "Large"])
+    // The label is the value: nothing new to show.
+    #expect(SVReadable.display(.string("Large"), key: .string("size"), at: [], names: nil, control: size) == .text("Large"))
+}
+
+@Test func comparisonsWithConstantsGiveChoices() throws {
+    let source = """
+    MyAddon.STYLE_NONE = 0
+    MyAddon.STYLE_ICON = 1
+    MyAddon.STYLE_TEXT = 2
+    if MyAddon.sv.style == MyAddon.STYLE_ICON then end
+    if self.sv.style ~= MyAddon.STYLE_TEXT then end
+    """
+    let style = try #require(SVSourceNames.parse([source]).control(for: .string("style"), at: []))
+    #expect(style.type == "constants")
+    #expect(style.choice(for: .integer(2))?.label == "Text")
+    #expect(style.choice(for: .integer(0)) == nil)
+}
+
+@Test func rangedNumbersShowTheirRange() {
+    let control = SVControl(type: "slider", min: 0, max: 10)
+    #expect(SVReadable.display(.integer(12), key: .string("count"), at: [], names: nil, control: control)
+            == .ranged(text: "12", range: 0...10, outOfRange: true))
+}
+
+@Test func tableItemsSkipCommentsAndNesting() {
+    #expect(SVSourceNames.items("\"a,b\", -- one, two\n GetString(SI_X), { 1, 2 }; 3")
+            == [#""a,b""#, "GetString(SI_X)", "{ 1, 2 }", "3"])
+}

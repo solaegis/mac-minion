@@ -230,6 +230,9 @@ extension SelfTest {
         check("a key takes its name from the addon's settings panel", row("Every character", key: "showMatCost")?.label == "Show material cost"
               && row("Every character", key: "showMatCost")?.source?.detail == "Show what a writ's materials cost in its tooltip."
               && row("Every character", key: "bAutoAccept")?.label == "Accept writs automatically", "\(named.first?.rows.map(\.label) ?? [])")
+        check("a dropdown's choice is shown by the name its settings panel gives it",
+              row("Every character", key: "tooltipStyle")?.display == .choice(label: "Short", value: "Compact")
+              && row("Every character", key: "tooltipStyle")?.control?.type == "dropdown")
         check("a comment in the source describes a key, marked as a guess", row("Every character", key: "lastScanTime")?.source?.detail
               == "When the bank was last scanned for writs" && row("Every character", key: "lastScanTime")?.source?.isGuess == true)
         model.gameFolder.inspectorFocus = [.string("WritWorthy_SavedVars"), .string("NA Megaserver"), .string("@SOLAEGIS"), .string("$AccountWide"), .string("byType")]
@@ -245,12 +248,12 @@ extension SelfTest {
         // AI names for keys the source rules can't name: asked with key names and source lines only.
         model.gameFolder.inspectorFocus = [.string("WritWorthy_SavedVars"), .string("NA Megaserver"), .string("@SOLAEGIS"), .string("$AccountWide")]
         let unnamed = model.gameFolder.keysToNameWithAI
-        check("AI is asked only about keys the source doesn't name", unnamed.contains("goldBudget") && unnamed.contains("tooltipStyle")
+        check("AI is asked only about keys the source doesn't name", unnamed.contains("goldBudget") && unnamed.contains("tooltipStyle") && unnamed.contains("headerColor")
               && !unnamed.contains("showMatCost") && !unnamed.contains("bAutoAccept"), "\(unnamed)")
         let wwSource = SVSourceNames.sourceTexts(folder: model.addonsFolder.appending(path: "WritWorthy"))
         let evidence = SVAINaming.evidence(keys: unnamed, sources: wwSource)
         let aiPrompt = SVAINaming.prompt(addon: "WritWorthy", table: "WritWorthy.lua › $AccountWide", evidence: evidence)
-        check("AI reads the lines that use a key, and never a saved value", evidence.map(\.key).contains("goldBudget") && !evidence.map(\.key).contains("tooltipStyle")
+        check("AI reads the lines that use a key, and never a saved value", evidence.map(\.key).contains("goldBudget") && !evidence.map(\.key).contains("headerColor")
               && aiPrompt.contains("WritWorthy.savedVariables.goldBudget / 1000") && !aiPrompt.contains("50000") && !aiPrompt.contains("Compact"),
               "\(evidence.map(\.key))")
         let aiAnswer = "goldBudget = Gold budget in thousands\nshowMatCost = Something else\n"

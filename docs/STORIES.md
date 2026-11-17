@@ -723,6 +723,15 @@ Acceptance:
 - [self] The app declares the scheme; every sidebar page has a link; a page link and an addon link open there; an unknown link changes nothing; the Dock menu lists the actions with the same enabled state as the menus.
 Status: done
 
+### S-072 Choices and ranges from the addon's settings panel
+As the user, in the Inspector and in Settings mode a saved number or string that the addon's settings panel offers as a dropdown shows the choice's name ("In combat", with the saved `2` beside it), and a slider's number shows the range it allows ("75 of 50–150"). A value outside that range is marked in orange. Keys the code compares with constants (`sv.mode == MyAddon.MODE_COMBAT`) get those constants as choices. Read from the addon's Lua with no AI and no game running. First step of the Game Folder AI plan: AI fills what the source can't say, later.
+Screens: Game Folder › Inspector (Tree and Settings)
+Depends: S-050
+Acceptance:
+- [unit] A slider gives its min, max, step, and default; a dropdown gives its choices with `choicesValues`, constants, or a named table, and without values saves the label; comparisons with two or more constants give choices; comments and nested tables don't break a choice list.
+- [self] The seeded WritWorthy dropdown shows "Short" for the saved "Compact".
+Status: done
+
 ## Dropped
 - WoW / WoWInterface support: ESO only.
 - Login, account registration, cloud backup, SavedVariables sync: account and premium features.
