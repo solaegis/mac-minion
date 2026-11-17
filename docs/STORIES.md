@@ -769,6 +769,15 @@ Acceptance:
 - [live] `SELFTEST_LIVE_OLLAMA=gemma4:latest task selftest` asks a running Ollama four questions about the sample folder and has it explain a problem, printing each lookup and answer. A model without tool support (phi4) is told to choose one that has it.
 Status: done
 
+### S-077 What the companion saw in the game's settings panels, and names for ability IDs
+As the user, settings that the ESO Mac Minion companion saw in an addon's settings panel in the game take its tooltip, default, range, and choices, in my client's language. That includes choice lists the addon builds at run time and game constants as values, which the addon's source can't show. What the game showed wins over what the source says; AI only fills what both leave out. A captured control is tied to a saved key by its name, so a control whose name the source builds with a function isn't tied. Numbers in lists AI read as ability, champion skill, item, set, zone, quest, achievement, or collectible IDs are asked of the companion at the next login and named after it.
+Screens: Game Folder › Inspector, Characters, Explain Setting
+Depends: S-072, S-074, S-043, the companion's control details and ability lookups (eso-mac-minion)
+Acceptance:
+- [unit] The companion file's `layouts.lam` reads into panels and controls with range, step, default, tooltip, choices with values, and submenu; ability and champion-skill answers read. A captured control wins over the source's for the key of the same name, a function-named control isn't matched, and the schema cache keeps the source alone. Lists AI read as IDs give their IDs by kind, capped; answered ones aren't asked again; a champion skill answer names its ID.
+- [self] The seeded companion's WritWorthy panel gives Writs to keep its tooltip and default 10 while the source's step 5 stays; favoriteZones' 3 and 57 are collected and only 57, which LibZone doesn't name, is asked for.
+Status: done on MacMinion's side; the capture itself is in eso-mac-minion
+
 ## Dropped
 - WoW / WoWInterface support: ESO only.
 - Login, account registration, cloud backup, SavedVariables sync: account and premium features.

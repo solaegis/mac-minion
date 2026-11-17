@@ -360,6 +360,7 @@ extension SVName.Kind {
         case .achievement: "trophy.fill"
         case .collectible: "star.fill"
         case .ability: "wand.and.sparkles"
+        case .championSkill: "star.circle"
         }
     }
 

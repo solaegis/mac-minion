@@ -28,10 +28,27 @@ extension GameFolderModel {
         }
         schemaFileByVariable.merge(variables) { _, new in new }
         let missing = matrix.addons.map(\.file).filter { inspectorSourceNames[$0] == nil }
-        guard !missing.isEmpty else { return }
-        let found = await readSourceNames(missing)
-        if Task.isCancelled { return }
-        apply(found)
+        if !missing.isEmpty {
+            let found = await readSourceNames(missing)
+            if Task.isCancelled { return }
+            apply(found)
+        }
+        await collectListedIDs()
+    }
+
+    /// Game IDs in lists AI read the kind of, from every file that has such a list (S-077).
+    func collectListedIDs() async {
+        let withKinds = inspectorSourceNames.filter(\.value.hasIDKinds)
+        let urls = Dictionary(savedVariables.map { ($0.name, $0.url) }, uniquingKeysWith: { a, _ in a })
+        let docs = documents
+        listedIDs = await Task.detached { () -> [String: Set<Int>] in
+            var all: [String: Set<Int>] = [:]
+            for (file, names) in withKinds {
+                guard let url = urls[file], let doc = docs.get(file) ?? docs.document(named: file, at: url) else { continue }
+                all.merge(names.idLookups(in: doc)) { $0.union($1) }
+            }
+            return all
+        }.value
     }
 
     /// One result per file: the source's names (from the cache or read now) with AI names on top.
@@ -44,6 +61,11 @@ extension GameFolderModel {
 
     private func readSourceNames(_ files: [String]) async -> [SourceRead] {
         let addons = app.addonsFolder, aiCache = aiKeyNames, aiFields = aiKeyFields, known = addonFolders, cache = schemaCache
+        // The companion's settings panels by addon folder (S-077).
+        var panels: [String: [CompanionLAMControl]] = [:]
+        for panel in (app.companionSnapshot?.lamPanels ?? [:]).values {
+            if let addon = panel.addon?.lowercased() { panels[addon, default: []] += panel.controls }
+        }
         return await Task.detached { () -> [SourceRead] in
             var savers: [String: URL]?
             return files.map { file in
@@ -66,6 +88,7 @@ extension GameFolderModel {
                     found.add(SVSourceName(title: e.name, detail: nil, source: .ai, isGuess: true), key: e.key, parent: e.parent)
                 }
                 for e in aiFields.entries(folder: name, version: version) { found.addAI(e.field, key: e.key, parent: e.parent) }
+                if let controls = panels[name.lowercased()] { found.applyCompanion(controls) }
                 return SourceRead(file: file, names: found, fresh: fresh)
             }
         }.value
@@ -158,6 +181,7 @@ extension GameFolderModel {
         }
         inspectorSourceNames[file] = source
         Store.saveAIFields(aiKeyFields)
+        if fields.values.contains(where: { $0.idKind != nil }) { Task { await collectListedIDs() } }
         Store.saveAINames(aiKeyNames)
         return fields.count
     }

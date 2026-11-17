@@ -5,7 +5,7 @@ import Foundation
 /// file stays as the game wrote it. Write only while ESO is closed: the game rewrites the file on save.
 public enum CompanionRequests {
     /// Name ID kinds the companion answers (`kind:id` in `lookups.answers`).
-    public static let nameKinds = ["item", "quest", "zone", "set", "collectible", "achievement"]
+    public static let nameKinds = ["item", "quest", "zone", "set", "collectible", "achievement", "ability", "cp"]
 
     /// Cap per kind so the companion queue stays bounded.
     public static let nameIDCap = 200
@@ -28,10 +28,14 @@ public enum CompanionRequests {
 
     /// IDs from SavedVariables references that libraries / answers don't already name. With no references
     /// yet (the first read after launch) it returns no kinds, so `write` keeps the lists already in the file.
+    /// `listed` adds IDs from lists AI read the kind of (S-077), like ability IDs no key name gives away.
     public static func unmetNameIDs(references: SVReferenceIndex?, names: SVNameIndex?,
-                                    answers: [String: CompanionAnswer] = [:]) -> [String: [Int]] {
+                                    answers: [String: CompanionAnswer] = [:], listed: [String: Set<Int>] = [:]) -> [String: [Int]] {
         guard let references else { return [:] }
         var sets: [String: Set<Int>] = Dictionary(uniqueKeysWithValues: nameKinds.map { ($0, []) })
+        for (kind, ids) in listed where nameKinds.contains(kind) {
+            for id in ids where answers["\(kind):\(id)"] == nil && !named(kind: kind, id: id, names: names) { sets[kind, default: []].insert(id) }
+        }
         for target in references.hits.keys {
             let kind = target.kind.rawValue
             guard nameKinds.contains(kind), let id = Int(target.id) else { continue }

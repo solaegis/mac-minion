@@ -152,6 +152,39 @@ public struct CompanionSVLayout: Sendable, Equatable {
     public var defaults: CompanionDefaults? = nil
 }
 
+/// One LibAddonMenu panel as the companion saw it in the running game (S-077): its addon and controls.
+public struct CompanionLAMPanel: Sendable, Equatable {
+    public let name: String
+    public let addon: String?
+    public let controls: [CompanionLAMControl]
+}
+
+/// One settings-panel control, with what LibAddonMenu resolved in the client's language. Never a saved value.
+public struct CompanionLAMControl: Sendable, Equatable {
+    public let type: String?
+    public let name: String?
+    public var min: Double? = nil
+    public var max: Double? = nil
+    public var step: Double? = nil
+    /// Normalized like `SVControl.Choice.value`.
+    public var defaultValue: String? = nil
+    public var tooltip: String? = nil
+    public var choices: [String] = []
+    /// Normalized like `SVControl.Choice.value`.
+    public var choicesValues: [String] = []
+    public var submenu: String? = nil
+
+    public init(type: String?, name: String?) { self.type = type; self.name = name }
+
+    /// The control as `SVSourceNames` keeps one: choices paired with their values, or the label itself.
+    public var control: SVControl {
+        let pairs: [SVControl.Choice] = choicesValues.count == choices.count && !choicesValues.isEmpty
+            ? zip(choices, choicesValues).map { SVControl.Choice(value: $1, label: $0) }
+            : choices.map { SVControl.Choice(value: $0, label: $0) }
+        return SVControl(type: type ?? "control", min: min, max: max, step: step, choices: pairs, defaultValue: defaultValue)
+    }
+}
+
 /// An addon's defaults as the companion copied them; `truncated` when its size cap cut the copy short.
 public struct CompanionDefaults: Sendable, Equatable {
     public let table: LuaTable
@@ -233,6 +266,8 @@ public struct CompanionSnapshot: Sendable, Equatable {
     public var enabledBy: [String: CompanionEnabled] = [:]
     /// SavedVariables global -> its layout in the running game.
     public var layouts: [String: CompanionSVLayout] = [:]
+    /// LibAddonMenu panels by panel name (S-077).
+    public var lamPanels: [String: CompanionLAMPanel] = [:]
     public var layoutScan: CompanionLayoutScan? = nil
     /// The globals MacMinion last asked the companion to read.
     public var requestedSvGlobals: [String] = []
@@ -307,6 +342,7 @@ public enum CompanionData {
         var enabledBy: [String: CompanionEnabled] = [:]
         var addonsStamp = Int.min
         var layouts: [String: CompanionSVLayout] = [:]
+        var lamPanels: [String: CompanionLAMPanel] = [:]
         var layoutScan: CompanionLayoutScan?
         var requested: [String] = []
         var answers: [String: CompanionAnswer] = [:]
@@ -363,6 +399,7 @@ public enum CompanionData {
                 layouts[name] = layout
             }
             if layoutScan == nil { layoutScan = parseLayoutScan(layoutTable?["scanned"]?.table) }
+            for (name, panel) in parseLAM(layoutTable?["lam"]?.table) where lamPanels[name] == nil { lamPanels[name] = panel }
             if requested.isEmpty {
                 requested = (wide["lookups"]?.table?["requests"]?.table?["svGlobals"]?.table?.entries ?? [])
                     .compactMap(\.value.string)
@@ -395,6 +432,7 @@ public enum CompanionData {
                                          skipped: known ? [] : [String(localized: "future schema \(schema ?? 0)", bundle: .module)])
         snapshot.enabledBy = enabledBy
         snapshot.layouts = layouts
+        snapshot.lamPanels = lamPanels
         snapshot.layoutScan = layoutScan
         snapshot.requestedSvGlobals = requested
         snapshot.answers = answers
@@ -674,6 +712,26 @@ public enum CompanionData {
                                           zoShaped: bool(c["zoShaped"]) ?? false, tree: tree, serverNamespaces: namespaces,
                                           pathCount: int(c["pathCount"]),
                                           defaults: c["defaults"]?.table.map { CompanionDefaults(table: $0, truncated: bool(c["defaultsTruncated"]) ?? false) })
+        }
+        return out
+    }
+
+    private static func parseLAM(_ table: LuaTable?) -> [String: CompanionLAMPanel] {
+        var out: [String: CompanionLAMPanel] = [:]
+        for entry in table?.entries ?? [] {
+            guard case .string(let name) = entry.key, let p = entry.value.table else { continue }
+            let controls = (p["controls"]?.table?.entries ?? []).compactMap { e -> CompanionLAMControl? in
+                guard let c = e.value.table else { return nil }
+                var control = CompanionLAMControl(type: c["type"]?.string, name: c["name"]?.string)
+                control.min = number(c["min"]); control.max = number(c["max"]); control.step = number(c["step"])
+                control.defaultValue = c["default"].flatMap(SVControl.normalize)
+                control.tooltip = c["tooltip"]?.string
+                control.choices = (c["choices"]?.table?.entries ?? []).compactMap { SVControl.normalize($0.value) }
+                control.choicesValues = (c["choicesValues"]?.table?.entries ?? []).compactMap { SVControl.normalize($0.value) }
+                control.submenu = c["submenu"]?.string
+                return control
+            }
+            out[name] = CompanionLAMPanel(name: name, addon: p["addon"]?.string, controls: controls)
         }
         return out
     }

@@ -45,6 +45,9 @@ public struct SVSourceNames: Sendable, Equatable, Codable {
     var controls: [String: [String: SVControl]] = [:]
     /// Parent key ("" for any) -> key -> what AI read past the name (S-074). Added on top, never cached here.
     var aiFields: [String: [String: SVAIField]] = [:]
+    /// Parent key ("" for any) -> key -> the settings-panel control as the running game resolved it (S-077),
+    /// from the companion. Wins over the source's; added on top, never cached here.
+    var companionControls: [String: [String: SVControl]] = [:]
 
     public init() {}
 
@@ -69,7 +72,18 @@ public struct SVSourceNames: Sendable, Equatable, Codable {
     public func control(for key: LuaKey, at parent: [LuaKey]) -> SVControl? {
         let k = key.description
         let p = parent.last?.description
-        let source = p.flatMap { controls[$0]?[k] } ?? controls[""]?[k]
+        var source = p.flatMap { controls[$0]?[k] } ?? controls[""]?[k]
+        // The game's own reading of the control: its fields win, the source's fill what it left out.
+        if let game = p.flatMap({ companionControls[$0]?[k] }) ?? companionControls[""]?[k] {
+            var merged = game
+            merged.min = game.min ?? source?.min
+            merged.max = game.max ?? source?.max
+            merged.step = game.step ?? source?.step
+            merged.defaultValue = game.defaultValue ?? source?.defaultValue
+            if merged.choices.isEmpty { merged.choices = source?.choices ?? [] }
+            if merged.type == "control", let type = source?.type { merged.type = type }
+            source = merged
+        }
         guard let ai = p.flatMap({ aiFields[$0]?[k] }) ?? aiFields[""]?[k] else { return source }
         // AI fills only what the source left out.
         var merged = source ?? SVControl(type: "ai")
@@ -92,6 +106,54 @@ public struct SVSourceNames: Sendable, Equatable, Codable {
         return control(for: key, at: Array(path.dropLast()))
     }
 
+    /// The companion's settings-panel controls (S-077), tied to keys by name: a control applies to every key the
+    /// source ties to a settings-panel control of the same name. Returns how many keys it reached.
+    @discardableResult
+    public mutating func applyCompanion(_ controls: [CompanionLAMControl]) -> Int {
+        func plain(_ s: String) -> String { Manifest.stripColors(s).trimmingCharacters(in: .whitespaces).lowercased() }
+        var byName: [String: CompanionLAMControl] = [:]
+        for c in controls { if let name = c.name, !name.isEmpty { byName[plain(name)] = byName[plain(name)] ?? c } }
+        var reached = Set<String>()
+        for (parent, keys) in names {
+            for (key, name) in keys where name.source == .settingsPanel {
+                guard let title = name.title, let c = byName[plain(title)] else { continue }
+                companionControls[parent, default: [:]][key] = c.control
+                // The game's tooltip is in the player's language and can't be a guess.
+                if let tip = c.tooltip, !tip.isEmpty, name.detail == nil {
+                    self.names[parent]?[key] = SVSourceName(title: title, detail: tip, source: name.source, isGuess: name.isGuess)
+                }
+                reached.insert(key)
+            }
+        }
+        return reached.count
+    }
+
+    /// Whether AI read any key as holding game IDs: only then is a file walked for `idLookups`.
+    public var hasIDKinds: Bool { aiFields.values.contains { $0.values.contains { $0.idKind != nil } } }
+
+    /// Game IDs in a file that AI read the kind of, by kind (S-077): a key's own number, or every number in
+    /// its list. For the companion to name; at most `cap` in all.
+    public func idLookups(in doc: SVDocument, cap: Int = 200) -> [String: Set<Int>] {
+        var found: [String: Set<Int>] = [:], count = 0
+        func walk(_ entries: [LuaEntry], _ path: [LuaKey], depth: Int) {
+            for e in entries where count < cap {
+                if let kind = control(for: e.key, at: path)?.idKind {
+                    let ids: [Int64] = switch e.value {
+                    case .integer(let n): [n]
+                    case .table(let t): t.entries.compactMap { if case .integer(let n) = $0.value { n } else { nil } }
+                    default: []
+                    }
+                    for id in ids where id > 0 && count < cap {
+                        if found[kind, default: []].insert(Int(id)).inserted { count += 1 }
+                    }
+                }
+                if let t = e.value.table, depth < 8 { walk(t.entries, path + [e.key], depth: depth + 1) }
+            }
+        }
+        walk(doc.variables, [], depth: 0)
+        return found
+    }
+
     /// AI's reading of a key; its label becomes a name where the source gave none.
     public mutating func addAI(_ field: SVAIField, key: String, parent: String) {
         aiFields[parent, default: [:]][key] = field
@@ -111,6 +173,7 @@ public struct SVSourceNames: Sendable, Equatable, Codable {
         var copy = names
         copy.names = names.names.mapValues { $0.filter { $0.value.source != .ai } }.filter { !$0.value.isEmpty }
         copy.aiFields = [:]
+        copy.companionControls = [:]
         return copy
     }
 

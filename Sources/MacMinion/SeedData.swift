@@ -497,6 +497,10 @@ enum SeedData {
                         ["schema"] = 1,
                         ["written"] = \(companionStamp),
                         ["env"] = { ["apiVersion"] = 101051, ["gameVersion"] = "12.1.6", ["server"] = "NA Megaserver", ["language"] = "en", ["companionVersion"] = "0.1.0" },
+                        ["layouts"] = { ["lam"] = { ["WritWorthyPanel"] = { ["addon"] = "WritWorthy", ["name"] = "WritWorthy", ["controls"] = {
+                            [1] = { ["type"] = "slider", ["name"] = "Writs to keep", ["min"] = 0, ["max"] = 100, ["default"] = 10,
+                                    ["tooltip"] = "Stop taking writs past this many." },
+                        } } } },
                         ["characters"] =
                         {
                             ["8796093036412335"] = { ["name"] = "Masisi", ["class"] = 3, ["race"] = 9, ["alliance"] = 1, ["level"] = 50, ["champion"] = 2410, ["lastPlayed"] = \(companionStamp) },

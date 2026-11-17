@@ -72,9 +72,22 @@ extension SelfTest {
             check("a setting takes its name from the addon's settings panel", model.gameFolder.settingLabel("Max writs", maxWrits) == "Writs to keep",
                   model.gameFolder.settingLabel("Max writs", maxWrits))
             check("a slider's number shows its range", model.gameFolder.display(maxWrits) == .ranged(text: "10", range: 0...100, outOfRange: false))
+            // S-077 What the companion saw in the game: the panel's tooltip and default, which the source doesn't give.
+            let source = model.gameFolder.sourceNames(for: maxWrits)
+            let parent = Array(maxWrits.path.dropLast())
+            check("the companion's settings panel adds its tooltip and default",
+                  source?.name(for: maxWrits.key, at: parent)?.detail == "Stop taking writs past this many."
+                  && source?.control(for: maxWrits.key, at: parent)?.defaultValue == "10" && source?.control(for: maxWrits.key, at: parent)?.step == 5,
+                  "\(String(describing: source?.control(for: maxWrits.key, at: parent)))")
         } else {
             check("WritWorthy keeps Max writs per character", false)
         }
+        // S-077 IDs in a list AI read as zones are asked of the companion, unless something names them already.
+        await model.gameFolder.collectListedIDs()
+        let listed = model.gameFolder.listedIDs
+        let unmet = CompanionRequests.unmetNameIDs(references: model.gameFolder.references, names: model.gameFolder.names, listed: listed)
+        check("IDs in a list AI read the kind of are asked of the companion", listed["zone"] == [3, 57] && unmet["zone"]?.contains(57) == true
+              && unmet["zone"]?.contains(3) == false, "\(listed) \(unmet["zone"] ?? [])")
         check("what the source says is cached per addon version",
               model.gameFolder.schemaCache.entries.keys.contains { $0.hasPrefix("\(SVSchemaCache.format)|writworthy|") },
               "\(model.gameFolder.schemaCache.entries.keys.sorted())")

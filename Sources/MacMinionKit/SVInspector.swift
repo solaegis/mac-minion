@@ -152,7 +152,10 @@ public struct ItemLink: Sendable, Equatable {
 
 /// A name for an ID, and where it came from.
 public struct SVName: Sendable, Equatable {
-    public enum Kind: String, Sendable { case character, account, guild, item, set, zone, map, quest, achievement, collectible, ability }
+    public enum Kind: String, Sendable {
+        case character, account, guild, item, set, zone, map, quest, achievement, collectible, ability
+        case championSkill = "champion skill"
+    }
 
     /// The title of a character ID no file names. Views compare against this, so it is said in one place.
     public static let unknownCharacter = String(localized: "Unknown character", bundle: .module)
@@ -398,6 +401,7 @@ public struct SVNameIndex: Sendable {
         default: ""
         }
         if kind == "ability" { return companionName(kind: "ability", id: Int(id), as: .ability) }
+        if kind == "cp" { return companionName(kind: "cp", id: Int(id), as: .championSkill) }
         guard !key.isEmpty else { return nil }
         return name(forValue: .integer(id), key: .string(key), at: [])
     }

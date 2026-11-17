@@ -149,6 +149,8 @@ final class GameFolderModel {
     var schemaCache = Store.loadSchemas()
     /// SavedVariables variable -> its file, for settings the Characters tab shows by variable path.
     var schemaFileByVariable: [String: String] = [:]
+    /// IDs in lists AI read the kind of, for the companion to name at the next login (S-077).
+    var listedIDs: [String: Set<Int>] = [:]
     /// AI is reading the open table's source.
     var aiNamingBusy = false
     /// Explain Setting (S-075): the key shown, what MacMinion knows, and AI's paragraph as it streams.
@@ -273,6 +275,7 @@ final class GameFolderModel {
         let mayAskCompanion = !app.gameIsRunning
         let priorNames = names
         let priorRefs = references
+        let listed = listedIDs
         let answerCache = CompanionAnswerCache.merge(file: lastRead?.names.companionAnswers ?? [:],
                                                     cache: CompanionAnswerCache.load(from: Store.directory))
         let defaultsCache = self.defaultsCache
@@ -285,7 +288,7 @@ final class GameFolderModel {
                 do {
                     let globals = CompanionRequests.svGlobals(from: declarations)
                     let panels = CompanionRequests.lamPanels(from: Array(addonIndex.savers.keys))
-                    let nameIDs = CompanionRequests.unmetNameIDs(references: priorRefs, names: priorNames, answers: answerCache)
+                    let nameIDs = CompanionRequests.unmetNameIDs(references: priorRefs, names: priorNames, answers: answerCache, listed: listed)
                     _ = try CompanionRequests.write(svGlobals: globals, lamPanels: panels, nameIDs: nameIDs, savedVariables: folder)
                 } catch {
                     companionWriteError = (error as? SavedVariablesWrite.Refusal)?.description ?? error.localizedDescription

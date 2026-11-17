@@ -52,7 +52,7 @@ struct ExplainSheet: View {
 
     @ViewBuilder
     private func facts(_ e: SVExplanation) -> some View {
-        Section("From the Addon's Source") {
+        Section("From the Addon") {
             if e.isEmpty {
                 Text("The addon's source doesn't say anything about this key.").foregroundStyle(.secondary)
             }

@@ -22,7 +22,7 @@ public struct SVAIField: Codable, Sendable, Equatable {
     public var isEmpty: Bool { label == nil && choices.isEmpty && unit == nil && idKind == nil && indexMeaning == nil }
 
     /// The game IDs MacMinion can name, from its own data or the companion.
-    public static let idKinds = ["item", "set", "zone", "quest", "achievement", "collectible", "ability"]
+    public static let idKinds = ["item", "set", "zone", "quest", "achievement", "collectible", "ability", "cp"]
 }
 
 /// Asks the configured AI what a table's keys mean, from the lines of the addon's source that use them
@@ -57,7 +57,8 @@ public enum SVAISchema {
     "choices": an object from saved value to what it means, for numbers or texts the code compares against \
     (like if x == 2 then … "In combat"), with every value as a string;
     "unit": the unit of a number, like "seconds", "%", or "pixels";
-    "idKind": when the value, or each item of its list, is a game ID: one of \(SVAIField.idKinds.joined(separator: ", "));
+    "idKind": when the value, or each item of its list, is a game ID: one of \(SVAIField.idKinds.joined(separator: ", ")) \
+    (cp is a champion skill);
     "indexMeaning": for a list, what one position stands for, in 1 to 4 words ("Action bar slot").
     Leave a field out when the code doesn't show it, and leave a key out when nothing is known.
     """

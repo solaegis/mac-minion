@@ -27399,34 +27399,6 @@
         }
       }
     },
-    "From the Addon's Source": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Aus dem Quelltext des Addons"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Del código del addon"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "D’après le code de l’addon"
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Из исходного кода аддона"
-          }
-        }
-      }
-    },
     "Holds (AI guess)": {
       "localizations": {
         "de": {
@@ -28555,6 +28527,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "%@ не умеет искать данные, поэтому «Спросить о папке игры» с ней не работает. Выберите модель с поддержкой инструментов."
+          }
+        }
+      }
+    },
+    "From the Addon": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vom Addon"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Del addon"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "De l’addon"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Из аддона"
           }
         }
       }

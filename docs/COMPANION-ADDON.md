@@ -147,6 +147,18 @@ From `GetItemLinkName()`, `GetItemLinkQuality()`, `GetItemLinkSetInfo()` (built 
 
 **Unlocks:** item names, quality colors, and icons everywhere in the Inspector, with no network at all.
 
+**Abilities and champion skills (S-077).** Two more request kinds, `ability` and `cp`, for IDs in lists AI read as
+ability or champion-skill IDs (S-074). The companion answers them like the others:
+
+```lua
+["requests"] = { ["ability"] = { 61919, 40195 }, ["cp"] = { 59 } },
+["answers"]  = { ["ability:61919"] = { name = "Merciless Resolve", icon = "/esoui/art/icons/ability_….dds" },
+                 ["cp:59"]        = { name = "Rejuvenation" } },
+```
+
+`GetAbilityName(id)` and `GetAbilityIcon(id)` for abilities (an empty name is a missing ID), and
+`GetChampionSkillName(id)` for champion skills. Same batching, combat rule, and 2,000-answer cap.
+
 ### 8. Sessions (`sessions`), ring of recent logins
 
 ```lua
@@ -176,6 +188,32 @@ What files cannot tell: which addon called which `ZO_SavedVars` constructor, and
 **Constructor calls.** The `ZO_SavedVars` wrap installs after the first `EVENT_PLAYER_ACTIVATED`, which is after every addon has created its SavedVariables, so by default it sees only late calls. `/emm early on` (experimental, off by default) wraps in the addon's own `EVENT_ADD_ON_LOADED` and queues calls in memory, flushed after activation, and starts the load observer so `loadOrder` / `loadMs` fill. It's the test of whether load-time wrapping is safe on CrossOver; if the client stops while loading, set `experimental.earlyCapture = false` in the file while ESO is closed. It never indexes the returned proxy. Each `layouts.sv` row is keyed by `svName` or `svName/namespace`, stamped with `at` and the login counter, and pruned after five logins without a refresh. LAM is wrapped on `RegisterAddonPanel` / `RegisterOptionControls`; our own panel is attributed as `EsoMacMinion`. MacMinion also writes `lookups.requests.lamPanels` (folder / `FolderPanel` candidates); after activation the companion `rawget`s those globals a few per frame and reads `panel.data` plus control type/name/reference only — never `getFunc` / `setFunc`.
 
 **Unlocks:** Settings Matrix and the Inspector can label keys from live LAM names and tell a profile (`Default` vs `NA Megaserver`) from a namespace.
+
+**Control details (S-077).** Each `lam` control also keeps what LibAddonMenu already resolved, read from the
+control tables only, never by calling `getFunc` or `setFunc`:
+
+```lua
+controls = {
+    { type = "slider", name = "Writs to keep", min = 0, max = 50, step = 5, decimals = 0, default = 10,
+      tooltip = "How many writs to hold." },
+    { type = "dropdown", name = "Tooltip", choices = { "Short", "Everything" }, choicesValues = { "Compact", "Full" },
+      submenu = "Display" },
+}
+```
+
+- `min`, `max`, `step`, `decimals`: numbers, or left out. A function is called only for `name`, `tooltip`,
+  `choices`, `choicesValues`, `min`, and `max`, inside `pcall`, the way LAM does when it builds the control.
+- `default`: a number, string, or boolean; a function or table is left out.
+- `tooltip`: a string, cut at 200 characters.
+- `choices` / `choicesValues`: at most 40 each; values that aren't strings, numbers, or booleans end the list.
+- Controls inside a `submenu` are listed too, with `submenu` set to the submenu's name. The cap on controls per
+  panel still holds.
+- Strings are the client's language, as the player sees them, and include choice lists built at run time
+  and game constants as `choicesValues`, which the addon's source can't show.
+
+MacMinion matches a control to a saved key by its name: the key whose `getFunc` the addon's source ties to a
+control of that name. What the companion recorded wins over what the source says. A control whose name is
+a function in the source can't be matched, since the source never says what the function returns.
 
 ## Settings (LibAddonMenu if present, slash command always)
 
