@@ -4,6 +4,8 @@ import MacMinionKit
 extension SelfTest {
     /// Removing a folder not on ESOUI, Sparkle, the agent socket, and the companion (S-027, S-028, S-042, S-047).
     static func app(_ model: AppModel) async {
+        await links(model)
+
         // S-027 Remove from a tile, including folders not on ESOUI
         if let folder = model.unmatched.first {
             await model.removeFolder(folder)
@@ -110,5 +112,30 @@ extension SelfTest {
               translated("Show Backups", "de") ?? "no de.lproj")
         let russianErrors = translated("%lld errors", "ru").map { String(format: $0, locale: Locale(identifier: "ru"), 5) }
         check("Problems counts use Russian plural forms", russianErrors == "5 ошибок", russianErrors ?? "no ru.lproj")
+    }
+
+    /// S-071 `macminion://` links and the Dock menu run the same actions as the Addons menu.
+    static func links(_ model: AppModel) async {
+        let schemes = (Bundle.main.object(forInfoDictionaryKey: "CFBundleURLTypes") as? [[String: Any]])?
+            .flatMap { $0["CFBundleURLSchemes"] as? [String] ?? [] }
+        check("the app declares the macminion:// scheme", schemes == [AppLink.scheme], "\(schemes ?? [])")
+        check("every sidebar page has a link", Set(SidebarItem.allCases.map(\.linkName)) == Set(AppLink.pages)
+              && SidebarItem.allCases.allSatisfy { SidebarItem(linkName: $0.linkName) == $0 })
+        let before = model.sidebar
+        var outcome = await AppLinks.open(URL(string: "macminion://open/updates")!, model: model, showWindow: false)
+        check("a page link opens that page", outcome == .opened(.updates, addon: nil) && model.sidebar == .updates)
+        if let addon = model.installed.first {
+            outcome = await AppLinks.open(AppLink.addon(addon.id).url, model: model, showWindow: false)
+            try? await Task.sleep(for: .milliseconds(100))
+            check("an addon link opens Installed with that addon", outcome == .opened(.installed, addon: addon.id)
+                  && model.sidebar == .installed && (model.selection == .addon(addon.id) || model.pendingSelection == .addon(addon.id)))
+        }
+        let page = model.sidebar
+        outcome = await AppLinks.open(URL(string: "macminion://action/delete-everything")!, model: model, showWindow: false)
+        check("an unknown link does nothing", outcome == .refused && model.sidebar == page)
+        let dock = DockMenu.make(model)
+        check("the Dock menu has the Addons menu's actions", dock.items.map(\.title) == AppLink.Action.allCases.map(\.title)
+              && zip(dock.items, AppLink.Action.allCases).allSatisfy { $0.isEnabled == $1.isEnabled(model) })
+        if let before { model.open(before) }
     }
 }

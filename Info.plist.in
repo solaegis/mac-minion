@@ -17,6 +17,13 @@
 	<string>fr</string>
 	<string>ru</string>
 </array>
+<key>CFBundleURLTypes</key>
+<array>
+	<dict>
+		<key>CFBundleURLName</key><string>com.solaegis.macminion</string>
+		<key>CFBundleURLSchemes</key><array><string>macminion</string></array>
+	</dict>
+</array>
 <key>CFBundleShortVersionString</key><string>__VERSION__</string>
 <key>CFBundleVersion</key><string>__BUILD__</string>
 <key>LSMinimumSystemVersion</key><string>26.0</string>

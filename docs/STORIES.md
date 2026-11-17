@@ -714,6 +714,15 @@ Acceptance:
 - [snap] Masisi with Show All Addons on (dotted lines) and off; Masisi beside Alpha Top with default and account-wide values labelled.
 Status: done; the companion's capture of defaults is built in eso-mac-minion
 
+### S-071 Links and the Dock menu
+As the user, I run MacMinion's actions from outside its window: `macminion://action/check-for-updates`, `update-all`, and `back-up` from a script, Raycast, Stream Deck, or Shortcuts' Open URL; `macminion://open/<page>` (overview, installed, updates, find-more, backups, game-folder) and `macminion://addon/<ESOUI id>` show the window there. Actions run without opening the window and do nothing when their menu item would be disabled; an unknown link does nothing. Right-clicking the Dock icon offers the same three actions. One list of actions backs the Addons menu, the menu bar item, the Dock menu, and the links.
+Screens: none
+Depends: S-010
+Acceptance:
+- [unit] Links read actions, pages, and addons, in any case; another scheme, an unknown action or page, or a bad addon ID is refused; every link reads back from its URL.
+- [self] The app declares the scheme; every sidebar page has a link; a page link and an addon link open there; an unknown link changes nothing; the Dock menu lists the actions with the same enabled state as the menus.
+Status: done
+
 ## Dropped
 - WoW / WoWInterface support: ESO only.
 - Login, account registration, cloud backup, SavedVariables sync: account and premium features.

@@ -27,6 +27,7 @@ struct MacMinionApp: App {
                 .noInitialFocus()
                 .themed()
                 .overlay { if GridOverlay.enabled { GridOverlay() } }
+                .keepsWindowOpener()
                 .frame(minWidth: MainWindow.minimum.width, minHeight: MainWindow.minimum.height)
         }
         .defaultSize(width: MainWindow.standard.width, height: MainWindow.standard.height)
@@ -76,15 +77,12 @@ struct AddonCommands: Commands {
 
     var body: some Commands {
         CommandMenu("Addons") {
-            Button("Check for Updates") { Task { await model.refresh() } }
+            ActionButton(action: .checkForUpdates, model: model)
                 .keyboardShortcut("r")
-                .disabled(model.offline)
-            Button("Update All") { Task { await model.updateAll() } }
+            ActionButton(action: .updateAll, model: model)
                 .keyboardShortcut("u") // hig: ok no Format menu, so Command-U is free for Update All
-                .disabled(model.updates.isEmpty || model.batch != nil)
-            Button("Back Up Now") { Task { await model.backUp() } }
+            ActionButton(action: .backUp, model: model)
                 .keyboardShortcut("b") // hig: ok no Format menu, so Command-B is free for Back Up Now
-                .disabled(model.backupBusy != nil)
             Button("Summarize Pending Updates") { Task { await model.digestUpdates() } }
                 .keyboardShortcut("u", modifiers: [.command, .option])
                 .disabled(model.updates.isEmpty || !model.prefs.aiEnabled)
@@ -137,9 +135,8 @@ struct MenuBarMenu: View {
     var body: some View {
         let count = model.updates.count
         Text(count == 0 ? String(localized: "All addons are up to date") : String(localized: "\(count) updates available"))
-        Button("Update All") { Task { await model.updateAll() } }
-            .disabled(count == 0 || model.batch != nil)
-        Button("Check for Updates") { Task { await model.refresh() } }
+        ActionButton(action: .updateAll, model: model)
+        ActionButton(action: .checkForUpdates, model: model)
         Divider()
         Button("Open MacMinion") {
             openWindow(id: "main")
@@ -149,6 +146,7 @@ struct MenuBarMenu: View {
             .keyboardShortcut(",")
         Button("Quit MacMinion") { NSApp.terminate(nil) }
             .keyboardShortcut("q")
+            .keepsWindowOpener()
     }
 }
 
@@ -169,6 +167,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         watchWindows()
         Task { await Launch.run(model) }
     }
+
+    /// `macminion://` links from scripts, Raycast, Stream Deck, or Shortcuts (S-071).
+    func application(_ application: NSApplication, open urls: [URL]) {
+        Task {
+            await Launch.run(model)
+            for url in urls { await AppLinks.open(url, model: model) }
+        }
+    }
+
+    /// The Dock icon's menu: the same actions as the Addons menu (S-071).
+    func applicationDockMenu(_ sender: NSApplication) -> NSMenu? { DockMenu.make(model) }
 
     /// The menu bar item keeps checking for updates after the window closes.
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { false }
@@ -240,7 +249,7 @@ enum LaunchMode {
     }()
 }
 
-private extension NSWindow {
+extension NSWindow {
     /// The main MacMinion window; SwiftUI names it after the scene's id.
     var isMainWindowScene: Bool { identifier?.rawValue.hasPrefix("main") == true }
 }
