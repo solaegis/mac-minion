@@ -766,6 +766,7 @@ Depends: S-074, S-052
 Acceptance:
 - [unit] Tool definitions take text parameters; Claude, OpenAI, and Ollama requests carry tools, calls, and results in each one's shape, and their answers read back as text and calls; a refusal throws; the loop answers each call, answers an unknown tool with the tools' names, and ends on text; long answers are cut.
 - [self] Values are allowed unless turned off; off refuses without asking; the first request asks with the items to send, Don't Send sends nothing, Allow Until Quit holds and isn't asked again. The tools find an addon by file or part of its name, list addons and characters, give WritWorthy's settings with "Writs to keep [takes 0 to 100, in steps of 5]" and Masisi's Auto craft, narrow problems to Dustman, and list sizes. Ask and Explain with AI say what's missing with no Claude key.
+- [live] `SELFTEST_LIVE_OLLAMA=gemma4:latest task selftest` asks a running Ollama four questions about the sample folder and has it explain a problem, printing each lookup and answer. A model without tool support (phi4) is told to choose one that has it.
 Status: done
 
 ## Dropped

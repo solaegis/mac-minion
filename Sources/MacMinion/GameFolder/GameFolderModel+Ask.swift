@@ -7,8 +7,9 @@ extension GameFolderModel {
     static let askSystem = """
     You answer a player's questions about their Elder Scrolls Online addons and characters, from what MacMinion \
     has read in their SavedVariables files. Use the tools to look things up; never guess a value. Characters, \
-    addons, and settings are named the way the tools name them. Answer in a few plain sentences or a short list. \
-    When the tools don't show the answer, say so.
+    addons, and settings are named the way the tools name them. When a lookup finds nothing, use the names it \
+    suggests and look again before answering. Answer in a few plain sentences or a short list, naming the \
+    characters. When the tools don't show the answer, say so.
     """
 
     /// What Ask sends, for the permission question.
@@ -124,19 +125,31 @@ extension GameFolderModel {
             if let control = sourceNames(for: setting)?.control(for: setting.key, at: parent), let values = SVExplanation(key: key, name: nil, control: control, lines: []).values {
                 line += " [takes \(values)]"
             }
-            let shown = groups.prefix(4).map { "\(Self.text(display($0.setting))) on \($0.characters.count)" }
+            let shown = groups.prefix(4).map { "\(Self.text(display($0.setting))) on \(who($0.characters))" }
             line += ": " + shown.joined(separator: "; ") + (groups.count > 4 ? "; and \(groups.count - 4) more values" : "")
             lines.append(line)
         }
         return lines.joined(separator: "\n")
     }
 
+    /// "Alpha Top and Masisi", or "12 characters" when there are many.
+    private func who(_ ids: [String]) -> String {
+        ids.count > 6 ? "\(ids.count) characters" : ids.map(characterName).formatted(.list(type: .and))
+    }
+
     func toolSettingValues(_ addon: String, _ setting: String) -> String {
         guard let file = resolveAddon(addon), let a = matrix?.addon(file) else { return "No addon matches “\(addon)”. Use list_addons." }
+        let names = Dictionary(a.keys.map { ($0, settingLabel($0, a.values(of: $0).first?.setting)) }, uniquingKeysWith: { x, _ in x })
         let wanted = setting.lowercased()
-        guard let key = a.keys.first(where: { k in
-            k.lowercased() == wanted || settingLabel(k, a.values(of: k).first?.setting).lowercased() == wanted
-        }) else { return "\(app.addonName(file)) has no setting “\(setting)”. Use addon_settings." }
+        // Exact first, then a name inside the question ("Auto craft off" holds "Auto craft"), then the other way.
+        let key = a.keys.first { $0.lowercased() == wanted || names[$0]?.lowercased() == wanted }
+            ?? a.keys.filter { k in wanted.contains(k.lowercased()) || (names[k].map { wanted.contains($0.lowercased()) } ?? false) }
+                .max { $0.count < $1.count }
+            ?? a.keys.first { k in k.lowercased().contains(wanted) || (names[k]?.lowercased().contains(wanted) ?? false) }
+        guard let key else {
+            let list = a.keys.prefix(40).map { names[$0] ?? $0 }.joined(separator: ", ")
+            return "\(app.addonName(file)) has no setting “\(setting)”. Its settings are: \(list)."
+        }
         return a.characters.keys.sorted { characterName($0) < characterName($1) }.compactMap { id in
             a.characters[id]?[key].map { "\(characterName(id)) (\(id)): \(Self.text(display($0)))" }
         }.joined(separator: "\n")
@@ -194,7 +207,13 @@ extension GameFolderModel {
         var prompt = "Problem: \(finding.title)\nKind: \(finding.tier.title)\nWhat it means: \(finding.impact)\n"
         if let summary = finding.summary { prompt += "Count: \(summary)\n" }
         if let note = finding.certaintyNote { prompt += "Note: \(note)\n" }
-        prompt += "About: \(finding.affected.map(\.name).joined(separator: ", "))\n\nDetails:\n"
+        // Addons, characters, and files apart: a model mixes them up when they share a line.
+        for (title, subjects) in [("Addons", finding.affected.filter { if case .addon = $0 { true } else { false } }),
+                                  ("Characters it happens on", finding.affected.filter { if case .character = $0 { true } else { false } }),
+                                  ("Files", finding.affected.filter { if case .file = $0 { true } else { false } })] where !subjects.isEmpty {
+            prompt += "\(title): \(subjects.map(\.name).joined(separator: ", "))\n"
+        }
+        prompt += "\nDetails:\n"
         for p in finding.problems.prefix(12) {
             prompt += "- \(p.file): \(p.message)\n"
             if let detail = p.detail { prompt += String(detail.prefix(1_500)).split(separator: "\n").map { "    \($0)" }.joined(separator: "\n") + "\n" }

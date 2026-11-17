@@ -70,6 +70,7 @@ private func body(_ r: URLRequest) throws -> [String: Any] {
 final class ScriptedProtocol: URLProtocol, @unchecked Sendable {
     nonisolated(unsafe) static var replies: [String] = []
     nonisolated(unsafe) static var sent: [[String: Any]] = []
+    nonisolated(unsafe) static var status = 200
     override class func canInit(with request: URLRequest) -> Bool { true }
     override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
     override func startLoading() {
@@ -82,32 +83,12 @@ final class ScriptedProtocol: URLProtocol, @unchecked Sendable {
         }
         Self.sent.append((try? JSONSerialization.jsonObject(with: data) as? [String: Any]) ?? [:])
         let reply = Self.replies.isEmpty ? "{}" : Self.replies.removeFirst()
-        client?.urlProtocol(self, didReceive: HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!,
+        client?.urlProtocol(self, didReceive: HTTPURLResponse(url: request.url!, statusCode: Self.status, httpVersion: nil, headerFields: nil)!,
                             cacheStoragePolicy: .notAllowed)
         client?.urlProtocol(self, didLoad: Data(reply.utf8))
         client?.urlProtocolDidFinishLoading(self)
     }
     override func stopLoading() {}
-}
-
-@Test func theLoopAnswersToolCallsUntilTheModelReplies() async throws {
-    ScriptedProtocol.sent = []
-    ScriptedProtocol.replies = [
-        #"{"message":{"content":"","tool_calls":[{"function":{"name":"addon_settings","arguments":{"addon":"WritWorthy"}}},{"function":{"name":"nope","arguments":{}}}]},"done":true}"#,
-        #"{"message":{"content":"Alpha Top has Auto craft off."},"done":true}"#,
-    ]
-    let configuration = URLSessionConfiguration.ephemeral
-    configuration.protocolClasses = [ScriptedProtocol.self]
-    let client = AIClient(config: AIConfig(provider: .ollama, ollamaModel: "qwen3"), session: URLSession(configuration: configuration))
-    let tool = AITool(spec) { args in "Auto craft: Off on Alpha Top (\(args["addon"] ?? ""))" }
-    let heard = Heard()
-    let answer = try await client.answer(system: "S", prompt: "Who has Auto craft off?", tools: [tool]) { await heard.add($0.name) }
-    #expect(answer == "Alpha Top has Auto craft off.")
-    #expect(await heard.names == ["addon_settings", "nope"])
-    let second = try #require(ScriptedProtocol.sent.last?["messages"] as? [[String: Any]])
-    let results = second.filter { $0["role"] as? String == "tool" }.map { $0["content"] as? String ?? "" }
-    #expect(results.first == "Auto craft: Off on Alpha Top (WritWorthy)")
-    #expect(results.last?.hasPrefix("No tool is named nope") == true, "an unknown tool is answered, not thrown")
 }
 
 private actor Heard {
@@ -119,4 +100,43 @@ private actor Heard {
     let long = String(repeating: "x", count: AITool.maxResult + 50)
     #expect(AITool.clipped(long).hasSuffix("ask about something narrower)"))
     #expect(AITool.clipped("short") == "short")
+}
+
+/// Both share `ScriptedProtocol`'s replies, so they run one after the other.
+@Suite(.serialized) struct ToolLoopTests {
+    @Test func theLoopAnswersToolCallsUntilTheModelReplies() async throws {
+        ScriptedProtocol.sent = []
+        ScriptedProtocol.status = 200
+        ScriptedProtocol.replies = [
+            #"{"message":{"content":"","tool_calls":[{"function":{"name":"addon_settings","arguments":{"addon":"WritWorthy"}}},{"function":{"name":"nope","arguments":{}}}]},"done":true}"#,
+            #"{"message":{"content":"Alpha Top has Auto craft off."},"done":true}"#,
+        ]
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.protocolClasses = [ScriptedProtocol.self]
+        let client = AIClient(config: AIConfig(provider: .ollama, ollamaModel: "qwen3"), session: URLSession(configuration: configuration))
+        let tool = AITool(spec) { args in "Auto craft: Off on Alpha Top (\(args["addon"] ?? ""))" }
+        let heard = Heard()
+        let answer = try await client.answer(system: "S", prompt: "Who has Auto craft off?", tools: [tool]) { await heard.add($0.name) }
+        #expect(answer == "Alpha Top has Auto craft off.")
+        #expect(await heard.names == ["addon_settings", "nope"])
+        let second = try #require(ScriptedProtocol.sent.last?["messages"] as? [[String: Any]])
+        let results = second.filter { $0["role"] as? String == "tool" }.map { $0["content"] as? String ?? "" }
+        #expect(results.first == "Auto craft: Off on Alpha Top (WritWorthy)")
+        #expect(results.last?.hasPrefix("No tool is named nope") == true, "an unknown tool is answered, not thrown")
+    }
+
+    @Test func aModelWithoutToolsSaysWhichToChoose() async throws {
+        ScriptedProtocol.status = 400
+        ScriptedProtocol.replies = [#"{"error":"registry.ollama.ai/library/phi4:latest does not support tools"}"#]
+        defer { ScriptedProtocol.status = 200 }
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.protocolClasses = [ScriptedProtocol.self]
+        let client = AIClient(config: AIConfig(provider: .ollama, ollamaModel: "phi4:latest"), session: URLSession(configuration: configuration))
+        do {
+            _ = try await client.answer(system: "S", prompt: "P", tools: [AITool(spec) { _ in "" }])
+            Issue.record("expected an error")
+        } catch {
+            #expect(error.localizedDescription.hasPrefix("phi4:latest can't look things up."), "\(error.localizedDescription)")
+        }
+    }
 }

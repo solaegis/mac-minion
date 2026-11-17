@@ -58,6 +58,47 @@ extension SelfTest {
         folder.askQuestion = ""
         folder.askError = nil
         model.valuesApproved = []
+        await liveAsk(model)
         model.prefs.aiProvider = providerBefore
+    }
+
+    /// `SELFTEST_LIVE_OLLAMA=<model>`: asks a running Ollama real questions about the sample folder and
+    /// prints what it looked up and said. Off by default: it needs Ollama and takes minutes.
+    static func liveAsk(_ model: AppModel) async {
+        guard let name = ProcessInfo.processInfo.environment["SELFTEST_LIVE_OLLAMA"], !name.isEmpty else { return }
+        let folder = model.gameFolder
+        let modelBefore = model.prefs.ollamaModel
+        model.prefs.aiProvider = .ollama
+        model.prefs.ollamaModel = name
+        model.valuesApproved = [.ollama]
+        let questions = [
+            "Which characters have Auto craft off in WritWorthy?",
+            "Which WritWorthy settings are different between my characters?",
+            "Why might Dustman be losing its settings?",
+            "What is my biggest SavedVariables file?",
+        ]
+        for question in questions {
+            folder.askQuestion = question
+            let start = Date.now
+            await folder.ask()
+            let seconds = Int(Date.now.timeIntervalSince(start))
+            print("LIVE Q: \(question) (\(seconds) s)")
+            for step in folder.askSteps { print("LIVE   step: \(step)") }
+            print("LIVE   answer: \(folder.askAnswer.replacingOccurrences(of: "\n", with: " ¶ "))")
+            if let error = folder.askError { print("LIVE   error: \(error)") }
+            check("live: \(name) answers “\(question)” after looking something up", !folder.askAnswer.isEmpty && !folder.askSteps.isEmpty,
+                  folder.askError ?? "no lookups")
+        }
+        if let finding = folder.healthFindings.first(where: { $0.cause == .missingLibraries }) ?? folder.healthFindings.first {
+            await folder.diagnose(finding)
+            print("LIVE diagnose \(finding.title): \(folder.diagnoses[finding.id] ?? folder.diagnosisErrors[finding.id] ?? "nothing")")
+            check("live: \(name) explains a problem", folder.diagnoses[finding.id]?.isEmpty == false, folder.diagnosisErrors[finding.id] ?? "")
+        }
+        folder.askQuestion = ""
+        folder.askAnswer = ""
+        folder.askSteps = []
+        folder.diagnoses = [:]
+        model.valuesApproved = []
+        model.prefs.ollamaModel = modelBefore
     }
 }

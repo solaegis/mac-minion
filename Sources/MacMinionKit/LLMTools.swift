@@ -334,7 +334,13 @@ extension AIClient {
         do {
             let (data, response) = try await session.data(for: request)
             let status = (response as? HTTPURLResponse)?.statusCode ?? 0
-            guard (200..<300).contains(status) else { throw AIError.forStatus(status, body: data, provider: llm.displayName) }
+            guard (200..<300).contains(status) else {
+                // Ollama refuses tools for models that weren't trained to use them.
+                if status == 400, String(decoding: data, as: UTF8.self).contains("does not support tools") {
+                    throw AIError.notConfigured(String(localized: "\(config.model) can't look things up. Choose a model with tool support in Settings > AI, like gemma4, llama3.3, or qwen2.5.", bundle: .module))
+                }
+                throw AIError.forStatus(status, body: data, provider: llm.displayName)
+            }
             return try llm.decodeToolTurn(data)
         } catch {
             throw AIError.wrap(error, provider: llm)

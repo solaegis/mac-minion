@@ -9287,6 +9287,34 @@
           }
         }
       }
+    },
+    "%@ can't look things up. Choose a model with tool support in Settings > AI, like gemma4, llama3.3, or qwen2.5.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ kann nichts nachschlagen. Wähle in Einstellungen > KI ein Modell mit Tool-Unterstützung, etwa gemma4, llama3.3 oder qwen2.5."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ no puede consultar datos. Elige un modelo con soporte de herramientas en Ajustes > IA, como gemma4, llama3.3 o qwen2.5."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ ne peut rien consulter. Choisissez un modèle qui gère les outils dans Réglages > IA, comme gemma4, llama3.3 ou qwen2.5."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ не умеет искать данные. Выберите модель с поддержкой инструментов в Настройки > ИИ, например gemma4, llama3.3 или qwen2.5."
+          }
+        }
+      }
     }
   },
   "version": "1.0"
