@@ -518,3 +518,18 @@ private func addon(_ id: Int, _ dirs: [String], version: String = "1", downloads
     #expect(Set(files.filter(\.isTidyable).map(\.name)) == ["TooDeep.lua", "LibAddonMenu-2.0.lua", "EsoSocial.lua", "pChat.lua.bak-20261024", "HarvestMapAD.lua~"])
     #expect(Manifest.parse("## SavedVariables: A B\n").savedVariables == ["A", "B"])
 }
+
+@Test func prefersAModelThatCanLookThingsUp() throws {
+    #expect(OllamaModel.decodeTools(Data(#"{"capabilities":["completion","tools","thinking"]}"#.utf8)) == true)
+    #expect(OllamaModel.decodeTools(Data(#"{"capabilities":["completion"]}"#.utf8)) == false)
+    #expect(OllamaModel.decodeTools(Data(#"{"modelfile":"…"}"#.utf8)) == nil, "an older Ollama doesn't say")
+    let host = HostProfile(chip: "Apple M2 Ultra", memoryBytes: 192 << 30, availableBytes: 120 << 30, performanceCores: 16)
+    let phi = OllamaModel(name: "phi4:latest", bytes: 9_100_000_000, family: "phi3", billions: 14.7, contextLength: 16_384, tools: false)
+    let llama = OllamaModel(name: "llama3.2", bytes: 2_000_000_000, family: "llama", billions: 3.2, tools: true)
+    let unknown = OllamaModel(name: "mistral", bytes: 4_000_000_000, family: "llama", billions: 7)
+    #expect(ModelAdvisor.rank([phi, unknown, llama], host: host).map(\.name) == ["llama3.2", "mistral", "phi4:latest"],
+            "tools first, unknown next, none last, whatever the size")
+    let pick = try #require(ModelAdvisor.recommend([phi, llama], host: host))
+    #expect(pick.model == "llama3.2" && pick.reason.contains("can look things up for Ask"))
+    #expect(ModelAdvisor.recommend([phi], host: host)?.reason.contains("can't look things up, so Ask won't work") == true)
+}

@@ -28530,6 +28530,34 @@
           }
         }
       }
+    },
+    "%@ can't look things up, so Ask About Your Game Folder won't work with it. Choose a model with tool support.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ kann nichts nachschlagen, daher funktioniert „Frag nach deinem Spielordner“ damit nicht. Wähle ein Modell mit Tool-Unterstützung."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ no puede consultar datos, así que Preguntar sobre tu carpeta del juego no funcionará con él. Elige un modelo con soporte de herramientas."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ ne peut rien consulter : Interroger votre dossier du jeu ne fonctionnera pas avec lui. Choisissez un modèle qui gère les outils."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ не умеет искать данные, поэтому «Спросить о папке игры» с ней не работает. Выберите модель с поддержкой инструментов."
+          }
+        }
+      }
     }
   },
   "version": "1.0"

@@ -228,7 +228,24 @@ public struct AIClient: Sendable {
         let (data, response) = try await session.data(for: OllamaProvider(base: base).modelsRequest())
         let status = (response as? HTTPURLResponse)?.statusCode ?? 0
         guard (200..<300).contains(status) else { throw AIError.http(status, errorMessage(data)) }
-        return try OllamaModel.decodeTags(data).filter { !$0.isEmbedding }.sorted { $0.name < $1.name }
+        let models = try OllamaModel.decodeTags(data).filter { !$0.isEmbedding }.sorted { $0.name < $1.name }
+        // Which can call tools, asked of each model at once; a model that doesn't answer stays unknown.
+        let tools = await withTaskGroup(of: (String, Bool?).self) { group in
+            for m in models {
+                group.addTask {
+                    var r = URLRequest(url: base.appending(path: "api/show"), timeoutInterval: 5)
+                    r.httpMethod = "POST"
+                    r.setValue("application/json", forHTTPHeaderField: "Content-Type")
+                    r.httpBody = try? JSONSerialization.data(withJSONObject: ["model": m.name])
+                    guard let (data, _) = try? await session.data(for: r) else { return (m.name, nil) }
+                    return (m.name, OllamaModel.decodeTools(data))
+                }
+            }
+            var found: [String: Bool?] = [:]
+            for await (name, tools) in group { found[name] = tools }
+            return found
+        }
+        return models.map { var m = $0; m.tools = tools[m.name] ?? nil; return m }
     }
 }
 
@@ -286,9 +303,19 @@ public struct OllamaModel: Sendable, Hashable, Identifiable {
     /// Billions of parameters, from `parameter_size` ("14.7B") or, when Ollama leaves it out, from the file size.
     public let billions: Double
     public let contextLength: Int?
+    /// Whether it can call tools, which Ask About Your Game Folder needs (S-076), from `GET /api/show`;
+    /// nil when Ollama didn't say.
+    public var tools: Bool?
 
-    public init(name: String, bytes: Int64, family: String = "", billions: Double, contextLength: Int? = nil) {
+    public init(name: String, bytes: Int64, family: String = "", billions: Double, contextLength: Int? = nil, tools: Bool? = nil) {
         self.name = name; self.bytes = bytes; self.family = family; self.billions = billions; self.contextLength = contextLength
+        self.tools = tools
+    }
+
+    /// `capabilities` from `POST /api/show` ("completion", "tools", …): whether "tools" is one; nil when not listed.
+    static func decodeTools(_ data: Data) -> Bool? {
+        struct Show: Decodable { let capabilities: [String]? }
+        return (try? JSONDecoder().decode(Show.self, from: data))?.capabilities.map { $0.contains("tools") }
     }
 
     var isEmbedding: Bool { name.contains("embed") || family.contains("bert") || billions < 1 }
@@ -330,10 +357,14 @@ public enum ModelAdvisor {
     /// Below this many tokens a second a summary feels slow.
     public static let comfortableSpeed = 15.0
 
+    /// Models that can look things up come first (Ask About Your Game Folder needs them), then by score.
     public static func rank(_ models: [OllamaModel], host: HostProfile, loaded: Set<String> = [],
                             speeds: [String: ModelSpeed] = [:]) -> [OllamaModel] {
-        models.filter { suitable($0, host: host) }
-            .sorted { score($0, host: host, loaded: loaded, speeds: speeds) > score($1, host: host, loaded: loaded, speeds: speeds) }
+        func tools(_ m: OllamaModel) -> Int { switch m.tools { case true?: 2; case nil: 1; case false?: 0 } }
+        return models.filter { suitable($0, host: host) }.sorted { a, b in
+            if tools(a) != tools(b) { return tools(a) > tools(b) }
+            return score(a, host: host, loaded: loaded, speeds: speeds) > score(b, host: host, loaded: loaded, speeds: speeds)
+        }
     }
 
     public static func recommend(_ models: [OllamaModel], host: HostProfile, loaded: Set<String> = [],
@@ -344,6 +375,8 @@ public enum ModelAdvisor {
         if let speed = speeds[best.name] {
             why.append(String(localized: "writes \(Int(speed.tokensPerSecond.rounded())) tokens a second here", bundle: .module))
         }
+        if best.tools == true { why.append(String(localized: "can look things up for Ask", bundle: .module)) }
+        if best.tools == false { why.append(String(localized: "can't look things up, so Ask won't work", bundle: .module)) }
         if loaded.contains(best.name) { why.append(String(localized: "already loaded", bundle: .module)) }
         if Double(best.bytes) > Double(host.availableBytes) { why.append(String(localized: "needs more than the memory free now", bundle: .module)) }
         return Pick(model: best.name, reason: why.joined(separator: ", ") + " "

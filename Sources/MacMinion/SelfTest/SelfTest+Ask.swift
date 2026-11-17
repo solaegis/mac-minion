@@ -68,6 +68,13 @@ extension SelfTest {
         guard let name = ProcessInfo.processInfo.environment["SELFTEST_LIVE_OLLAMA"], !name.isEmpty else { return }
         let folder = model.gameFolder
         let modelBefore = model.prefs.ollamaModel
+        if let models = try? await AIClient.ollamaModels(at: model.prefs.aiConfig.ollamaURL) {
+            let ranked = ModelAdvisor.rank(models, host: HostProfile.current())
+            print("LIVE models: " + ranked.map { "\($0.name) tools=\($0.tools.map(String.init) ?? "?")" }.joined(separator: ", "))
+            print("LIVE recommended: \(ModelAdvisor.recommend(models, host: HostProfile.current()).map { "\($0.model): \($0.reason)" } ?? "none")")
+            check("live: Ollama says which models can look things up", models.first { $0.name == name }?.tools == true
+                  && ModelAdvisor.recommend(models, host: HostProfile.current()).flatMap { pick in models.first { $0.name == pick.model }?.tools } == true)
+        }
         model.prefs.aiProvider = .ollama
         model.prefs.ollamaModel = name
         model.valuesApproved = [.ollama]

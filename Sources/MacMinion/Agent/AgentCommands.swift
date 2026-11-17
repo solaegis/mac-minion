@@ -289,6 +289,7 @@ enum AgentCommands {
             let pick = ModelAdvisor.recommend(models, host: host, loaded: loaded, speeds: speeds)
             let rows: [JSONObject] = models.map { m in
                 ["name": m.name, "billions": (m.billions * 10).rounded() / 10, "bytes": m.bytes, "loaded": loaded.contains(m.name),
+                 "tools": m.tools.map { $0 as Any } ?? NSNull(),
                  "rank": ranked.firstIndex(of: m.name).map { $0 + 1 as Any } ?? NSNull(),
                  "tokensPerSecond": speeds[m.name].map { ($0.tokensPerSecond * 10).rounded() / 10 as Any } ?? NSNull()]
             }

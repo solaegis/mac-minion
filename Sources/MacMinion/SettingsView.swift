@@ -365,6 +365,11 @@ struct AISettings: View {
                         .disabled(loadingModels)
                         .help("Ask Ollama which models are installed")
                 }
+                if ollamaModels.first(where: { $0.name == prefs.ollamaModel })?.tools == false {
+                    Label("\(prefs.ollamaModel) can't look things up, so Ask About Your Game Folder won't work with it. Choose a model with tool support.",
+                          systemImage: "exclamationmark.triangle")
+                        .foregroundStyle(Palette.caution)
+                }
                 LabeledContent("This Mac", value: host.summary)
                 if let pick = recommendation {
                     LabeledContent {
@@ -470,8 +475,8 @@ struct AISettings: View {
 
     private func loadModels() async {
         guard !Store.isOverridden else {
-            ollamaModels = [OllamaModel(name: "llama3.2", bytes: 2_000_000_000, family: "llama", billions: 3.2),
-                            OllamaModel(name: "phi4:latest", bytes: 9_100_000_000, family: "phi3", billions: 14.7, contextLength: 16_384)]
+            ollamaModels = [OllamaModel(name: "llama3.2", bytes: 2_000_000_000, family: "llama", billions: 3.2, tools: true),
+                            OllamaModel(name: "phi4:latest", bytes: 9_100_000_000, family: "phi3", billions: 14.7, contextLength: 16_384, tools: false)]
             return
         }
         loadingModels = true
