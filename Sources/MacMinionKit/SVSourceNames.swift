@@ -43,10 +43,12 @@ public struct SVSourceNames: Sendable, Equatable, Codable {
     var tableNotes: [String: String] = [:]
     /// Parent key ("" for any) -> key -> the settings-panel control or constants that say what values it takes.
     var controls: [String: [String: SVControl]] = [:]
+    /// Parent key ("" for any) -> key -> what AI read past the name (S-074). Added on top, never cached here.
+    var aiFields: [String: [String: SVAIField]] = [:]
 
     public init() {}
 
-    public var isEmpty: Bool { names.isEmpty && tableNotes.isEmpty && controls.isEmpty }
+    public var isEmpty: Bool { names.isEmpty && tableNotes.isEmpty && controls.isEmpty && aiFields.isEmpty }
     public var count: Int { names.values.reduce(0) { $0 + $1.count } }
 
     /// A name for `key` in the table at `parent`: matched with its parent key first, then by itself.
@@ -57,10 +59,43 @@ public struct SVSourceNames: Sendable, Equatable, Codable {
     }
 
     /// The range or choices for `key` in the table at `parent`: matched with its parent key first, then by itself.
+    /// What AI read about `key`, when it was asked; an empty reading means it was asked and knew nothing.
+    public func aiField(for key: LuaKey, at parent: [LuaKey]) -> SVAIField? {
+        let k = key.description
+        if let p = parent.last?.description, let exact = aiFields[p]?[k] { return exact }
+        return aiFields[""]?[k]
+    }
+
     public func control(for key: LuaKey, at parent: [LuaKey]) -> SVControl? {
         let k = key.description
-        if let p = parent.last?.description, let exact = controls[p]?[k] { return exact }
-        return controls[""]?[k]
+        let p = parent.last?.description
+        let source = p.flatMap { controls[$0]?[k] } ?? controls[""]?[k]
+        guard let ai = p.flatMap({ aiFields[$0]?[k] }) ?? aiFields[""]?[k] else { return source }
+        // AI fills only what the source left out.
+        var merged = source ?? SVControl(type: "ai")
+        merged.unit = merged.unit ?? ai.unit
+        merged.idKind = merged.idKind ?? ai.idKind
+        merged.indexMeaning = merged.indexMeaning ?? ai.indexMeaning
+        if merged.choices.isEmpty, !ai.choices.isEmpty {
+            merged.choices = ai.choices.sorted { a, b in
+                if let x = Double(a.key), let y = Double(b.key) { return x < y }
+                return a.key < b.key
+            }.map { SVControl.Choice(value: $0.key, label: $0.value) }
+            merged.guessedChoices = true
+        }
+        return merged
+    }
+
+    /// What an item of a list is: the range, choices, or ID kind of the table at `path`.
+    public func itemControl(at path: [LuaKey]) -> SVControl? {
+        guard let key = path.last else { return nil }
+        return control(for: key, at: Array(path.dropLast()))
+    }
+
+    /// AI's reading of a key; its label becomes a name where the source gave none.
+    public mutating func addAI(_ field: SVAIField, key: String, parent: String) {
+        aiFields[parent, default: [:]][key] = field
+        if let label = field.label { add(SVSourceName(title: label, detail: nil, source: .ai, isGuess: true), key: key, parent: parent) }
     }
 
     /// What the keys of the table at `key` are, like "SETTING_TYPE_* values".
@@ -75,6 +110,7 @@ public struct SVSourceNames: Sendable, Equatable, Codable {
     public static func withoutAI(_ names: SVSourceNames) -> SVSourceNames {
         var copy = names
         copy.names = names.names.mapValues { $0.filter { $0.value.source != .ai } }.filter { !$0.value.isEmpty }
+        copy.aiFields = [:]
         return copy
     }
 

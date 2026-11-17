@@ -293,6 +293,8 @@ enum SeedData {
                             ["goldBudget"] = 50000,
                             ["tooltipStyle"] = "Compact",
                             ["maxWrits"] = 250,
+                            ["craftMode"] = 2,
+                            ["favoriteZones"] = { 3, 57 },
                         },
                         ["8796093036412335"] =
                         {
@@ -439,6 +441,10 @@ enum SeedData {
         ZO_CreateStringId("SI_WRITWORTHY_MAT_COST", "Show material cost")
         WritWorthy.Types = { SETTING_TYPE_CAMERA, SETTING_TYPE_COMBAT }
         for _, t in pairs(WritWorthy.Types) do WritWorthy.Default.byType[t] = {} end
+        local function Craft()
+            if WritWorthy.savedVariables.craftMode == 2 then WritWorthy.CraftAll() end
+            for _, zoneId in ipairs(WritWorthy.savedVariables.favoriteZones) do WritWorthy.Watch(GetZoneNameById(zoneId)) end
+        end
         local defaults = {
             lastScanTime = 0, -- When the bank was last scanned for writs
         }

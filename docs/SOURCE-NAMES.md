@@ -51,6 +51,17 @@ Problems, and kept in `addon-schemas.json` (`SVSchemaCache`) keyed by the addon 
 a stamp of its `.lua` files (count, bytes, newest change): reading every addon takes seconds, the stamp
 only a directory walk. AI names are left out of that cache and added on top from `ai-key-names.json`.
 
+## AI past the name (S-074)
+
+`SVAISchema` asks for one JSON object per table: for each key, any of `label`, `choices` (value to meaning,
+read from comparisons like `if x == 2 then`), `unit`, `idKind` (item, set, zone, quest, achievement,
+collectible, ability) and `indexMeaning` (what a position in a numbered list is). The prompt carries the
+key's source lines (`SVAINaming.evidence`) and its value's shape from `SVAISchema.shape`, never the value.
+Answers are kept per addon version in `ai-key-fields.json` (`SVAIFieldCache`), including empty ones, so a
+key is asked about once. `SVSourceNames.control(for:at:)` merges them under the source's own control:
+AI fills a missing unit, ID kind, position meaning, or choices (then `guessedChoices`), never a range or
+the panel's choices. Ability names need the companion's `ability:` answers.
+
 ## Defaults (S-070)
 
 The same read finds each saved variable's defaults: the table an addon passes to `ZO_SavedVars:New…` or

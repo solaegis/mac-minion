@@ -359,6 +359,7 @@ extension SVName.Kind {
         case .quest: "flag.fill"
         case .achievement: "trophy.fill"
         case .collectible: "star.fill"
+        case .ability: "wand.and.sparkles"
         }
     }
 

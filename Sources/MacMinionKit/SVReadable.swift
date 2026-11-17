@@ -77,13 +77,17 @@ public enum SVReadable {
     public static func display(_ value: LuaValue, key: LuaKey, at path: [LuaKey], names: SVNameIndex?,
                                control: SVControl? = nil, now: Date = .now) -> SVDisplay {
         if let control, let choice = control.choice(for: value), choice.label != choice.value {
-            return .choice(label: choice.label, value: choice.value)
+            return .choice(label: control.guessedChoices == true ? "\(choice.label)?" : choice.label, value: choice.value)
+        }
+        // A game ID AI read the kind of: named like a key of that kind.
+        if let kind = control?.idKind, case .integer(let id) = value, let name = names?.name(forID: id, kind: kind) {
+            return .name(name)
         }
         let plain = plainDisplay(value, key: key, at: path, names: names, now: now)
-        if let control, let range = control.range, case .number(let text) = plain {
-            return .ranged(text: text, range: range, outOfRange: control.isOutOfRange(value))
-        }
-        return plain
+        guard let control, case .number(var text) = plain else { return plain }
+        if let unit = control.unit { text += unit == "%" ? "%" : " \(unit)" }
+        if let range = control.range { return .ranged(text: text, range: range, outOfRange: control.isOutOfRange(value)) }
+        return .number(text)
     }
 
     static func plainDisplay(_ value: LuaValue, key: LuaKey, at path: [LuaKey], names: SVNameIndex?, now: Date) -> SVDisplay {
@@ -214,8 +218,19 @@ public enum SVReadable {
         for (id, c) in names?.characters ?? [:] { byName[c.name, default: []].append(id) }
         func rows(_ entries: [LuaEntry], _ path: [LuaKey]) -> [Row] {
             entries.prefix(rowsPerSection).map { e in
-                let named = source?.name(for: e.key, at: path), control = source?.control(for: e.key, at: path)
-                return Row(label: named?.title ?? label(e.key, names: names), key: e.key, path: path + [e.key],
+                let named = source?.name(for: e.key, at: path)
+                var control = source?.control(for: e.key, at: path)
+                var itemLabel: String?
+                // An item of a list: what the list's positions and items are, from AI.
+                if case .integer(let n) = e.key, let list = source?.itemControl(at: path) {
+                    if control == nil, list.idKind != nil || list.unit != nil {
+                        var item = SVControl(type: "item")
+                        item.unit = list.unit; item.idKind = list.idKind
+                        control = item
+                    }
+                    itemLabel = list.indexMeaning.map { "\($0) \(n)" }
+                }
+                return Row(label: named?.title ?? itemLabel ?? label(e.key, names: names), key: e.key, path: path + [e.key],
                            display: display(e.value, key: e.key, at: path, names: names, control: control, now: now),
                            source: named, control: control)
             }

@@ -283,6 +283,11 @@ private struct InspectorTable: View {
                         Text(node.key.description).lineLimit(1)
                         if let level = node.level, model.gameFolder.names?.name(forKey: node.key, at: node.parentPath) == nil {
                             Text(level.title).foregroundStyle(.secondary)
+                        } else if let item = model.gameFolder.inspectorItemLabel(node) {
+                            Text(item)
+                                .lineLimit(1)
+                                .foregroundStyle(.secondary)
+                                .help("A guess by AI, from the lines of the addon's source that use the key")
                         } else if let source = model.gameFolder.inspectorSourceName(node.key, at: node.parentPath), let title = source.title {
                             Text(source.isGuess ? "\(title)?" : title)
                                 .lineLimit(1)
@@ -339,7 +344,7 @@ private struct ValueCell: View {
     let node: SVNode
 
     var body: some View {
-        let name = model.gameFolder.inspectorName(node)
+        let name = model.gameFolder.inspectorName(node) ?? model.gameFolder.inspectorIDName(node)
         let control = model.gameFolder.inspectorControl(node.key, at: node.parentPath)
         let choice = control?.choice(for: node.value)
         HStack(spacing: Space.sm) {
@@ -362,10 +367,13 @@ private struct ValueCell: View {
                 }
             }
             if name == nil, let choice, choice.label != choice.value {
-                Text(choice.label)
+                let guessed = control?.guessedChoices == true
+                Text(guessed ? "\(choice.label)?" : choice.label)
                     .lineLimit(1)
                     .foregroundStyle(Palette.accentText)
-                    .help(control?.type == "constants" ? "From constants in the addon's source" : "From the addon's settings panel")
+                    .help(guessed ? String(localized: "A guess by AI, from the lines of the addon's source that use the key")
+                          : control?.type == "constants" ? String(localized: "From constants in the addon's source")
+                          : String(localized: "From the addon's settings panel"))
             }
             if let name {
                 if name.title == SVName.unknownCharacter {

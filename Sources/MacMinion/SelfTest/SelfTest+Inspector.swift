@@ -250,15 +250,39 @@ extension SelfTest {
         let unnamed = model.gameFolder.keysToNameWithAI
         check("AI is asked only about keys the source doesn't name", unnamed.contains("goldBudget") && unnamed.contains("tooltipStyle") && unnamed.contains("headerColor")
               && !unnamed.contains("showMatCost") && !unnamed.contains("bAutoAccept"), "\(unnamed)")
+        check("AI is asked about bare numbers and numbered lists, not a slider's number", unnamed.contains("craftMode") && unnamed.contains("favoriteZones")
+              && !unnamed.contains("maxWrits"), "\(unnamed)")
         let wwSource = SVSourceNames.sourceTexts(folder: model.addonsFolder.appending(path: "WritWorthy"))
         let evidence = SVAINaming.evidence(keys: unnamed, sources: wwSource)
-        let aiPrompt = SVAINaming.prompt(addon: "WritWorthy", table: "WritWorthy.lua › $AccountWide", evidence: evidence)
+        let shapes = Dictionary(uniqueKeysWithValues: model.gameFolder.inspectorRows.compactMap { node -> (String, String)? in
+            guard case .string(let k) = node.key, unnamed.contains(k) else { return nil }
+            return (k, SVAISchema.shape(of: node.value))
+        })
+        let aiPrompt = SVAISchema.prompt(addon: "WritWorthy", table: "WritWorthy.lua › $AccountWide", evidence: evidence, shapes: shapes)
         check("AI reads the lines that use a key, and never a saved value", evidence.map(\.key).contains("goldBudget") && !evidence.map(\.key).contains("headerColor")
               && aiPrompt.contains("WritWorthy.savedVariables.goldBudget / 1000") && !aiPrompt.contains("50000") && !aiPrompt.contains("Compact"),
               "\(evidence.map(\.key))")
-        let aiAnswer = "goldBudget = Gold budget in thousands\nshowMatCost = Something else\n"
-        model.gameFolder.applyAINames(SVAINaming.parse(aiAnswer, keys: Set(evidence.map(\.key))), file: "WritWorthy.lua", folder: "WritWorthy",
+        check("AI is told a value's shape, never the value", aiPrompt.contains("[favoriteZones] a list of 2 numbers") && aiPrompt.contains("[craftMode] a whole number")
+              && !aiPrompt.contains("57"), aiPrompt)
+        let aiAnswer = #"{"goldBudget": {"label": "Gold budget in thousands"}, "showMatCost": {"label": "Something else"},"#
+            + #" "craftMode": {"label": "When to craft", "choices": {"0": "Never", "1": "Ask", "2": "Always"}},"#
+            + #" "favoriteZones": {"idKind": "zone", "indexMeaning": "Favorite zone"}}"#
+        let asked = Set(evidence.map(\.key))
+        model.gameFolder.applyAIFields(SVAISchema.parse(aiAnswer, keys: asked), asked: asked, file: "WritWorthy.lua", folder: "WritWorthy",
                            version: Manifest.read(folder: model.addonsFolder.appending(path: "WritWorthy"))?.version ?? "", parent: "$AccountWide")
+        let after = model.gameFolder.keysToNameWithAI
+        check("keys AI was asked about aren't sent again, answered or not", asked.isDisjoint(with: after), "\(after)")
+        let aiSheet = SVReadable.sheet(model.gameFolder.inspectorRows.map { LuaEntry(key: $0.key, value: $0.value, span: $0.span) },
+                                       at: model.gameFolder.inspectorFocus, title: "WritWorthy", names: model.gameFolder.names,
+                                       source: model.gameFolder.inspectorSourceNames["WritWorthy.lua"])
+        let craftRow = aiSheet.flatMap(\.rows).first { $0.key == .string("craftMode") }
+        check("AI's choices name a number, as a guess", craftRow?.display == .choice(label: "Always?", value: "2") && craftRow?.label == "When to craft",
+              "\(String(describing: craftRow?.display))")
+        let zones = aiSheet.first { $0.path.last == .string("favoriteZones") }?.rows.first
+        check("a list's items are named by the ID kind AI read", zones?.label == "Favorite zone 1" && {
+            if case .name(let n)? = zones?.display { n.title == "Glenumbra" } else { false } }(), "\(String(describing: zones))")
+        check("what AI read is kept for the addon's version", Store.loadAIFields().entries(folder: "WritWorthy", version: Manifest.read(folder: model.addonsFolder.appending(path: "WritWorthy"))?.version ?? "")
+            .contains { $0.key == "craftMode" && $0.field.choices["2"] == "Always" })
         let aiName = model.gameFolder.inspectorSourceName(.string("goldBudget"), at: model.gameFolder.inspectorFocus)
         check("an AI name shows as a guess", aiName?.title == "Gold budget in thousands" && aiName?.source == .ai && aiName?.isGuess == true)
         check("AI never replaces a name from the settings panel", model.gameFolder.inspectorSourceName(.string("showMatCost"), at: model.gameFolder.inspectorFocus)?.title == "Show material cost")

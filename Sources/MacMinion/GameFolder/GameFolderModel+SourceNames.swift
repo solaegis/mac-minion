@@ -43,7 +43,7 @@ extension GameFolderModel {
     }
 
     private func readSourceNames(_ files: [String]) async -> [SourceRead] {
-        let addons = app.addonsFolder, aiCache = aiKeyNames, known = addonFolders, cache = schemaCache
+        let addons = app.addonsFolder, aiCache = aiKeyNames, aiFields = aiKeyFields, known = addonFolders, cache = schemaCache
         return await Task.detached { () -> [SourceRead] in
             var savers: [String: URL]?
             return files.map { file in
@@ -65,6 +65,7 @@ extension GameFolderModel {
                 for e in aiCache.entries(folder: name, version: version) {
                     found.add(SVSourceName(title: e.name, detail: nil, source: .ai, isGuess: true), key: e.key, parent: e.parent)
                 }
+                for e in aiFields.entries(folder: name, version: version) { found.addAI(e.field, key: e.key, parent: e.parent) }
                 return SourceRead(file: file, names: found, fresh: fresh)
             }
         }.value
@@ -88,12 +89,18 @@ extension GameFolderModel {
         }
     }
 
-    /// Keys in the table shown that the addon's source doesn't name: what AI is asked about.
+    /// Keys in the table shown that AI could say more about: ones the source doesn't name, numbers with no
+    /// range or choices, and numbered lists, unless AI was asked about them before (S-074).
     var keysToNameWithAI: [String] {
-        inspectorRows.compactMap { node in
+        let source = inspectorFile.flatMap { inspectorSourceNames[$0] }
+        return inspectorRows.compactMap { node in
             guard node.level == nil, case .string(let key) = node.key, !CharacterID.isID(key),
-                  inspectorSourceName(node.key, at: node.parentPath)?.title == nil else { return nil }
-            return key
+                  source?.aiField(for: node.key, at: node.parentPath) == nil else { return nil }
+            let unnamed = source?.name(for: node.key, at: node.parentPath)?.title == nil
+            let control = source?.control(for: node.key, at: node.parentPath)
+            let bareNumber = { if case .integer = node.value { control == nil } else { false } }()
+            let list = node.value.table.map { t in !t.entries.isEmpty && t.entries.allSatisfy { if case .integer = $0.key { true } else { false } } } ?? false
+            return unnamed || bareNumber || (list && control?.indexMeaning == nil && control?.idKind == nil) ? key : nil
         }
     }
 
@@ -104,7 +111,12 @@ extension GameFolderModel {
         let keys = keysToNameWithAI, parent = inspectorFocus.last?.description ?? "", addons = app.addonsFolder
         message = nil
         errorMessage = nil
-        guard !keys.isEmpty else { message = String(localized: "Every key in this table already has a name."); return }
+        if let problem = app.prefs.aiConfig.problem { errorMessage = problem; return }
+        guard !keys.isEmpty else { message = String(localized: "AI has nothing more to read here: every key is named or was asked about."); return }
+        let shapes = Dictionary(inspectorRows.compactMap { node -> (String, String)? in
+            guard case .string(let key) = node.key, keys.contains(key) else { return nil }
+            return (key, SVAISchema.shape(of: node.value))
+        }, uniquingKeysWith: { a, _ in a })
         aiNamingBusy = true
         defer { aiNamingBusy = false }
         let found = await Task.detached { () -> (folder: String, version: String, evidence: [SVKeyEvidence])? in
@@ -119,15 +131,35 @@ extension GameFolderModel {
         }
         let table = ([file] + inspectorFocus.map(\.description)).joined(separator: " › ")
         do {
+            let asked = Set(found.evidence.map(\.key))
             let answer = try await AIClient(config: app.prefs.aiConfig).complete(
-                system: SVAINaming.system, prompt: SVAINaming.prompt(addon: app.addonName(file), table: table, evidence: found.evidence))
-            let named = applyAINames(SVAINaming.parse(answer, keys: Set(found.evidence.map(\.key))),
+                system: SVAISchema.system,
+                prompt: SVAISchema.prompt(addon: app.addonName(file), table: table, evidence: found.evidence, shapes: shapes))
+            let read = applyAIFields(SVAISchema.parse(answer, keys: asked), asked: asked,
                                      file: file, folder: found.folder, version: found.version, parent: parent)
-            message = named == 0 ? "\(app.aiSource) couldn't tell what these keys are for from the source."
-                : "\(app.aiSource) named \(named) key\(named == 1 ? "" : "s") from \(app.addonName(file))'s source. They end in “?”: they're guesses."
+            message = read == 0 ? "\(app.aiSource) couldn't tell what these keys are for from the source."
+                : "\(app.aiSource) read \(read) key\(read == 1 ? "" : "s") from \(app.addonName(file))'s source. What it says ends in “?”: it's a guess."
         } catch {
             errorMessage = error.localizedDescription
         }
+    }
+
+    /// Keeps what AI read for this addon version and shows it; returns how many keys it said something about.
+    /// Keys asked about with no answer are kept as asked, so they aren't sent again for this version.
+    @discardableResult
+    func applyAIFields(_ fields: [String: SVAIField], asked: Set<String>, file: String, folder: String, version: String,
+                       parent: String) -> Int {
+        var source = inspectorSourceNames[file] ?? SVSourceNames()
+        for key in asked {
+            let field = fields[key] ?? SVAIField()
+            aiKeyFields[folder, version, parent, key] = field
+            source.addAI(field, key: key, parent: parent)
+            if let label = field.label { aiKeyNames[folder, version, parent, key] = label }
+        }
+        inspectorSourceNames[file] = source
+        Store.saveAIFields(aiKeyFields)
+        Store.saveAINames(aiKeyNames)
+        return fields.count
     }
 
     /// Keeps AI names for this addon version and shows them; returns how many there were.
@@ -147,6 +179,21 @@ extension GameFolderModel {
     /// What the addon's source calls a key in the open file.
     func inspectorSourceName(_ key: LuaKey, at parent: [LuaKey]) -> SVSourceName? {
         inspectorFile.flatMap { inspectorSourceNames[$0] }?.name(for: key, at: parent)
+    }
+
+    /// For an item of a numbered list: what its position stands for ("Favorite zone 1"), from AI.
+    func inspectorItemLabel(_ node: SVNode) -> String? {
+        guard case .integer(let n) = node.key, let meaning = inspectorFile.flatMap({ inspectorSourceNames[$0] })?.itemControl(at: node.parentPath)?.indexMeaning
+        else { return nil }
+        return "\(meaning) \(n)?"
+    }
+
+    /// A game ID AI read the kind of, for the value or for the list it's in, named.
+    func inspectorIDName(_ node: SVNode) -> SVName? {
+        guard case .integer(let id) = node.value, let source = inspectorFile.flatMap({ inspectorSourceNames[$0] }) else { return nil }
+        let kind = source.control(for: node.key, at: node.parentPath)?.idKind
+            ?? { if case .integer = node.key { source.itemControl(at: node.parentPath)?.idKind } else { nil } }()
+        return kind.flatMap { names?.name(forID: id, kind: $0) }
     }
 
     /// The range or choices the addon's source gives a key in the open file.

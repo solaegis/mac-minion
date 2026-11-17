@@ -6,7 +6,8 @@ public struct SVKeyEvidence: Sendable, Equatable {
     public let lines: [String]
 }
 
-/// Names for saved keys the source rules can't name, asked of the configured AI (docs/SOURCE-NAMES.md).
+/// The source lines AI reads about saved keys the source rules can't name (docs/SOURCE-NAMES.md); the
+/// prompt and answer are `SVAISchema`.
 /// Only the addon's name, the table's path, key names, and lines of the addon's public Lua are sent:
 /// never a saved value, so no account, character, or guild names leave the Mac.
 public enum SVAINaming {
@@ -32,43 +33,6 @@ public enum SVAINaming {
             }
             return found.isEmpty ? nil : SVKeyEvidence(key: key, lines: found)
         }
-    }
-
-    public static let system = """
-    You name the saved settings of Elder Scrolls Online addons from their Lua source. \
-    Answer only with lines in the form key = Name, one per key, nothing else. \
-    A name is 2 to 6 words in sentence case that says what the setting does for the player, \
-    using only what the code shows. When the code doesn't show what a key is for, write key = ?
-    """
-
-    public static func prompt(addon: String, table: String, evidence: [SVKeyEvidence]) -> String {
-        var text = "Addon: \(addon)\nSaved table: \(table)\n\nFor each key, the lines of the addon's Lua source that use it:\n"
-        for e in evidence {
-            text += "\n[\(e.key)]\n" + e.lines.map { "    \($0)" }.joined(separator: "\n") + "\n"
-        }
-        return text
-    }
-
-    /// `key = Name` lines (or a JSON object), for the keys that were asked about only. "?" means unknown.
-    public static func parse(_ answer: String, keys: Set<String>) -> [String: String] {
-        var found: [String: String] = [:]
-        func keep(_ key: String, _ raw: String) {
-            let name = raw.trimmingCharacters(in: CharacterSet(charactersIn: " \t\"'`*.").union(.whitespaces))
-            guard keys.contains(key), !name.isEmpty, name != "?", name.count <= 60, !name.contains("=") else { return }
-            found[key] = name.prefix(1).uppercased() + name.dropFirst()
-        }
-        let unfenced = answer.replacingOccurrences(of: "```json", with: "").replacingOccurrences(of: "```", with: "")
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-        if unfenced.hasPrefix("{"), let data = unfenced.data(using: .utf8),
-           let object = try? JSONDecoder().decode([String: String].self, from: data) {
-            for (key, name) in object { keep(key, name) }
-            return found
-        }
-        for line in unfenced.split(whereSeparator: \.isNewline) {
-            let parts = SVSourceNames.matches(#"^\s*(?:[-•*]\s*)?`?\[?([A-Za-z_$][\w$]*)\]?`?\s*[=:]\s*(.+)$"#, String(line))
-            if let m = parts.first { keep(m[1], m[2]) }
-        }
-        return found
     }
 }
 

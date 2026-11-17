@@ -152,7 +152,7 @@ public struct ItemLink: Sendable, Equatable {
 
 /// A name for an ID, and where it came from.
 public struct SVName: Sendable, Equatable {
-    public enum Kind: String, Sendable { case character, account, guild, item, set, zone, map, quest, achievement, collectible }
+    public enum Kind: String, Sendable { case character, account, guild, item, set, zone, map, quest, achievement, collectible, ability }
 
     /// The title of a character ID no file names. Views compare against this, so it is said in one place.
     public static let unknownCharacter = String(localized: "Unknown character", bundle: .module)
@@ -385,6 +385,23 @@ public struct SVNameIndex: Sendable {
     }
 
     /// A name for a value, from its shape or the key it sits under.
+    /// A game ID of a kind AI read from the source (`SVAIField.idKinds`), named like a key of that kind would be.
+    public func name(forID id: Int64, kind: String) -> SVName? {
+        let key = switch kind {
+        case "item": "itemId"
+        case "set": "setId"
+        case "zone": "zoneId"
+        case "quest": "questId"
+        case "achievement": "achievementId"
+        case "collectible": "collectibleId"
+        case "ability": ""
+        default: ""
+        }
+        if kind == "ability" { return companionName(kind: "ability", id: Int(id), as: .ability) }
+        guard !key.isEmpty else { return nil }
+        return name(forValue: .integer(id), key: .string(key), at: [])
+    }
+
     public func name(forValue value: LuaValue, key: LuaKey, at path: [LuaKey]) -> SVName? {
         let keyName = key.description
         let variable = path.first?.description ?? ""

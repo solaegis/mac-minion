@@ -173,7 +173,11 @@ enum Snapshot {
                         model.gameFolder.inspectorPendingFile = nil
                         // Names from the addon's source: its settings panel, and a table keyed by game constants.
                         // A sample answer from AI, as a guess beside the panel's names.
-                        model.gameFolder.applyAINames(["goldBudget": "Gold budget in thousands"], file: "WritWorthy.lua", folder: "WritWorthy",
+                        // AI's reading of what a number means and what a list holds (S-074).
+                        let aiFields = ["goldBudget": SVAIField(label: "Gold budget in thousands"),
+                                        "craftMode": SVAIField(label: "When to craft", choices: ["0": "Never", "1": "Ask", "2": "Always"]),
+                                        "favoriteZones": SVAIField(idKind: "zone", indexMeaning: "Favorite zone")]
+                        model.gameFolder.applyAIFields(aiFields, asked: Set(aiFields.keys), file: "WritWorthy.lua", folder: "WritWorthy",
                                            version: Manifest.read(folder: model.addonsFolder.appending(path: "WritWorthy"))?.version ?? "", parent: "$AccountWide")
                         model.gameFolder.inspectorFocus = [.string("WritWorthy_SavedVars"), .string("NA Megaserver"), .string("@SOLAEGIS"), .string("$AccountWide")]
                         try? await Task.sleep(for: .seconds(1.2))

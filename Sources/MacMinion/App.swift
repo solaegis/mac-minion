@@ -328,6 +328,18 @@ enum Store {
         if let data = try? encoder.encode(cache) { try? data.write(to: aiNamesURL, options: .atomic) }
     }
 
+    private static var aiFieldsURL: URL { directory.appending(path: "ai-key-fields.json") }
+
+    static func loadAIFields() -> SVAIFieldCache {
+        (try? Data(contentsOf: aiFieldsURL)).flatMap { try? JSONDecoder().decode(SVAIFieldCache.self, from: $0) } ?? SVAIFieldCache()
+    }
+
+    static func saveAIFields(_ cache: SVAIFieldCache) {
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        if let data = try? encoder.encode(cache) { try? data.write(to: aiFieldsURL, options: .atomic) }
+    }
+
     private static var schemasURL: URL { directory.appending(path: "addon-schemas.json") }
 
     static func loadSchemas() -> SVSchemaCache {

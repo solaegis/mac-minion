@@ -20,6 +20,13 @@ public struct SVControl: Sendable, Equatable, Codable {
     public var choices: [Choice]
     /// The control's `default`, normalized like a choice's value.
     public var defaultValue: String?
+    /// From AI (S-074): the number's unit, the kind of game ID it or each item of its list is, and what a
+    /// position in its numbered table stands for.
+    public var unit: String?
+    public var idKind: String?
+    public var indexMeaning: String?
+    /// The choices are AI's reading of the source, not the settings panel's or the constants': a guess.
+    public var guessedChoices: Bool?
 
     public init(type: String, min: Double? = nil, max: Double? = nil, step: Double? = nil,
                 choices: [Choice] = [], defaultValue: String? = nil) {
@@ -81,7 +88,7 @@ public struct SVControl: Sendable, Equatable, Codable {
 /// AI names are kept apart, in `SVAINameCache`, and added on top.
 public struct SVSchemaCache: Codable, Sendable, Equatable {
     /// Bumped when the source rules change, so every addon is read again.
-    public static let format = 1
+    public static let format = 2
     /// "format|folder|version" -> what the source says.
     public var entries: [String: SVSourceNames] = [:]
 

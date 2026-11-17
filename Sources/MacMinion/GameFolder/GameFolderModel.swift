@@ -143,6 +143,8 @@ final class GameFolderModel {
     var inspectorSourceNamesRevision = 0
     /// Names AI gave saved keys, per addon version, kept between launches.
     var aiKeyNames = Store.loadAINames()
+    /// What AI read past each key's name: choices, units, ID kinds, list positions (S-074).
+    var aiKeyFields = Store.loadAIFields()
     /// What each addon version's source says about its keys, kept between launches.
     var schemaCache = Store.loadSchemas()
     /// SavedVariables variable -> its file, for settings the Characters tab shows by variable path.

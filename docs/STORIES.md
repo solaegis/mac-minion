@@ -741,6 +741,15 @@ Acceptance:
 - [self] WritWorthy's Max writs reads "Writs to keep" with the range 0–100; the cache has WritWorthy; the account-wide 250 is a problem and its finding opens the Inspector.
 Status: done
 
+### S-074 AI reads what numbers, lists, and positions mean
+As the user, Name with AI (⌥⌘N) in the Inspector now asks about more than names. For each key the addon's source doesn't fully explain, the configured AI says, from the lines of source that use it, what its numbers mean ("2" is "Always?"), its unit ("30 seconds"), what kind of game ID it or each item of its list is (a list of zone IDs reads "Favorite zone 1 · Glenumbra"), and what a position in a numbered table stands for. Keys with no name, bare numbers with no range or choices, and numbered lists are asked about once per addon version; a key it couldn't explain isn't sent again. Only key names, source lines, and each value's shape ("a list of 2 numbers") are sent, never a saved value. AI fills only what the source left out, and everything it says ends in "?".
+Screens: Game Folder › Inspector (Tree and Settings)
+Depends: S-072
+Acceptance:
+- [unit] The JSON answer gives labels, choices, units, ID kinds MacMinion can name, and position meanings, for keys asked about only; shapes say nothing of values; AI never replaces the settings panel's name or range, and its choices are marked guesses in number order; readings are cached per addon version.
+- [self] WritWorthy's craftMode and favoriteZones are asked about and maxWrits isn't; the prompt has shapes and no values; after the answer, craftMode reads "Always?" and favoriteZones' first item reads "Favorite zone 1" named Glenumbra; no asked key is sent again; the reading is kept.
+Status: done
+
 ## Dropped
 - WoW / WoWInterface support: ESO only.
 - Login, account registration, cloud backup, SavedVariables sync: account and premium features.

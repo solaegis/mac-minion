@@ -27118,6 +27118,62 @@
           }
         }
       }
+    },
+    "A guess by AI, from the lines of the addon's source that use the key": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Eine Vermutung der KI, aus den Zeilen im Quelltext des Addons, die den Schlüssel verwenden"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Una suposición de la IA, a partir de las líneas del código del addon que usan la clave"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Une supposition de l’IA, d’après les lignes du code de l’addon qui utilisent la clé"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Предположение ИИ по строкам исходного кода аддона, где используется ключ"
+          }
+        }
+      }
+    },
+    "AI has nothing more to read here: every key is named or was asked about.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hier gibt es für die KI nichts mehr zu lesen: Jeder Schlüssel hat einen Namen oder wurde schon abgefragt."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La IA no tiene nada más que leer aquí: cada clave tiene nombre o ya se consultó."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "L’IA n’a plus rien à lire ici : chaque clé a un nom ou a déjà été demandée."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ИИ здесь больше нечего читать: у каждого ключа есть имя или о нём уже спрашивали."
+          }
+        }
+      }
     }
   },
   "version": "1.0"
