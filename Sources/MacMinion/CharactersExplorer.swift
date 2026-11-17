@@ -692,6 +692,10 @@ private struct SettingAcrossCharacters: View {
             let order = Dictionary(uniqueKeysWithValues: matrix.characterIDs.enumerated().map { ($1, $0) })
             List {
                 Section {
+                    if let setting = groups.first?.setting {
+                        Button("Explain Setting…", systemImage: "info.circle") { Task { await model.gameFolder.explain(file: file, setting: setting) } }
+                            .help("What the addon's source says this setting is and the values it takes")
+                    }
                     Text("\(model.gameFolder.settingLabel(key, groups.first?.setting)) in \(model.addonName(file)): \(groups.count == 1 ? "the same for all \(total) characters" : "\(groups.count) values across \(total) characters").")
                         .foregroundStyle(.secondary)
                 }
@@ -936,6 +940,15 @@ private struct CompareCharacters: View {
     }
 
     private var confirmMessage: String {
+        let base = confirmBase
+        let warnings = model.gameFolder.cloneWarnings(model.gameFolder.selectedCloneOps())
+        guard !warnings.isEmpty else { return base }
+        var lines = warnings.prefix(5).map { "• \($0)" }
+        if warnings.count > 5 { lines.append(String(localized: "and \(warnings.count - 5) more")) }
+        return String(localized: "Check these first, from what each addon's settings panel allows:") + "\n" + lines.joined(separator: "\n") + "\n\n" + base
+    }
+
+    private var confirmBase: String {
         let deletions = model.gameFolder.selectedCloneDeletions()
         let backup = String(localized: "MacMinion backs up first; restore the backup to undo.")
         if selectedAddOns > 0, selectedAddOns == selectedCount {

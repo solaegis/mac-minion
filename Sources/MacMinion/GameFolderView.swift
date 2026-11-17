@@ -51,6 +51,7 @@ struct GameFolderPage: View {
             if !stacked { GameFolderHeader() }
         }
         .navigationTitle("Game Folder")
+        .sheet(item: Bindable(model.gameFolder).explainTarget) { ExplainSheet(target: $0) }
         .toolbar {
             ToolbarItem { PageHelpButton() }
             ToolbarItem {

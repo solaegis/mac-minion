@@ -185,6 +185,15 @@ enum Snapshot {
                         model.gameFolder.inspectorFocus.append(.string("byType"))
                         try? await Task.sleep(for: .seconds(1.2))
                         await capture(to: "\(dir)/gameFolder-inspector-constants-\(mode).png")
+                        // Explain Setting (S-075) on a slider, with a sample AI paragraph.
+                        await model.gameFolder.explain(file: "WritWorthy.lua", key: .string("maxWrits"),
+                                                       parent: [.string("WritWorthy_SavedVars"), .string("NA Megaserver"), .string("@SOLAEGIS"), .string("$AccountWide")])
+                        model.gameFolder.explanationAI = "Sets how many crafting writs WritWorthy keeps in your inventory before it stops accepting new ones. A higher number means more writs waiting to be crafted; the settings panel allows 0 to 100."
+                        try? await Task.sleep(for: .seconds(1.2))
+                        let explainMain = NSApp.windows.first { $0.canBecomeMain && !$0.isSheet }
+                        await capture(to: "\(dir)/gameFolder-explain-\(mode).png", window: explainMain?.attachedSheet)
+                        model.gameFolder.explainTarget = nil
+                        try? await Task.sleep(for: .seconds(0.5))
                         model.gameFolder.inspectorFocus = []
                         model.gameFolder.inspectorReadable = false
                         model.gameFolder.inspectorFocus = [.string("WritWorthy_SavedVars"), .string("NA Megaserver"), .string("@SOLAEGIS")]

@@ -117,6 +117,11 @@ private struct ReadableSectionForm: View {
                         ReadableRow(model: model, row: row)
                             .contextMenu {
                                 if case .table = row.display { Button("Open") { open(row) } }
+                                if let file = folder.inspectorFile {
+                                    Button("Explain Setting…") {
+                                        Task { await folder.explain(file: file, key: row.key, parent: Array(row.path.dropLast())) }
+                                    }
+                                }
                                 Button("Show in Tree") { showInTree(row) }
                                 Button("Copy Path") {
                                     NSPasteboard.general.clearContents()

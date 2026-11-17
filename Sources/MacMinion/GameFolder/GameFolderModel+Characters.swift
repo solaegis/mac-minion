@@ -139,6 +139,26 @@ extension GameFolderModel {
         }
     }
 
+    /// What may be wrong with these values on the other character, from what each addon's source says the
+    /// setting takes (S-075): outside its range, not one of its choices, a new type, or naming the character
+    /// they come from. Shown before Clone writes; nothing is stopped.
+    func cloneWarnings(_ ops: [SettingsMatrix.CloneOp]) -> [String] {
+        guard let matrix else { return [] }
+        var warnings: [String] = []
+        for op in ops where op.file != AddOnChoices.fileName {
+            guard let addon = matrix.addon(op.file), let setting = addon.characters[op.from]?[op.key] else { continue }
+            let parent = Array(setting.path.dropLast())
+            let control = sourceNames(for: setting)?.control(for: setting.key, at: parent)
+            let name = characterName(op.from)
+            let issues = SVWriteCheck.issues(value: setting.value, replacing: addon.characters[op.to]?[op.key]?.value, control: control,
+                                             from: (op.from, name == SVName.unknownCharacter ? nil : name))
+            let label = "\(app.addonName(op.file)) · \(settingLabel(op.key, setting))"
+            let value = SVControl.normalize(setting.value) ?? setting.text
+            warnings += issues.map { SVWriteCheck.message($0, label: label, value: value) }
+        }
+        return warnings.sorted { $0.localizedStandardCompare($1) == .orderedAscending }
+    }
+
     /// How many selected ops would remove a key on the destination.
     func selectedCloneDeletions() -> Int {
         guard let matrix else { return 0 }

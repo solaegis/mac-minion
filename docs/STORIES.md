@@ -750,6 +750,15 @@ Acceptance:
 - [self] WritWorthy's craftMode and favoriteZones are asked about and maxWrits isn't; the prompt has shapes and no values; after the answer, craftMode reads "Always?" and favoriteZones' first item reads "Favorite zone 1" named Glenumbra; no asked key is sent again; the reading is kept.
 Status: done
 
+### S-075 Explain a setting, and check values before Clone writes them
+As the user, Explain Setting… (⌃⌘I in the Inspector, on any row's context menu in Tree or Settings, and on a setting's page in Characters) opens a sheet with what the addon's source says about a key: its name and description, its control, the values it takes ("0 to 100, in steps of 5", or a dropdown's choices), its default, what AI read about its unit, ID kind, or positions, and the lines of source that use it. Explain with AI streams a few sentences from those facts, never from a saved value. Before Clone writes, its confirmation lists what may be wrong with each value on the other character: outside the slider's range, not one of the settings panel's choices, a different type from the value it replaces, or naming the character it comes from. Nothing is blocked; it's a warning.
+Screens: Game Folder › Inspector, Characters (setting page, Compare)
+Depends: S-072, S-074, S-060
+Acceptance:
+- [unit] An explanation has the panel's name, description, range with step, default, choices in words, and the lines that use the key; its prompt carries those facts only. Write checks flag out of range, not a choice (the source's own dropdowns only), a type change, and a value naming the source character, and pass a value in range.
+- [self] Clone from the character whose Writ count is text warns "a string replaces a number"; Max writs in range has no warning; Explain Setting on Max writs gives "Writs to keep" with "0 to 100, in steps of 5" and its getFunc line; Explain with AI with no Claude key says what's missing.
+Status: done
+
 ## Dropped
 - WoW / WoWInterface support: ESO only.
 - Login, account registration, cloud backup, SavedVariables sync: account and premium features.

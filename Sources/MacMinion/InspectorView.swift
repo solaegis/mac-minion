@@ -317,6 +317,9 @@ private struct InspectorTable: View {
                         Button("Show Connections") { Task { await model.gameFolder.showConnections(target) } }
                     }
                 }
+                if node.level == nil, let file = model.gameFolder.inspectorFile {
+                    Button("Explain Setting…") { Task { await model.gameFolder.explain(file: file, key: node.key, parent: node.parentPath) } }
+                }
                 Button("Copy Path") { model.gameFolder.inspectorSelection = id; model.gameFolder.copyInspectorPath() }
                 Button("Copy Value") { model.gameFolder.inspectorSelection = id; model.gameFolder.copyInspectorValue() }
                 Button("Show Raw…") { model.gameFolder.inspectorRaw = node }
@@ -450,6 +453,9 @@ struct InspectorCommands: View {
         Button("Look Up on UESP") { model.gameFolder.lookUpOnUESP() }
             .keyboardShortcut("l", modifiers: [.command, .option])
             .disabled(node.flatMap { model.gameFolder.inspectorName($0)?.uesp } == nil)
+        Button("Explain Setting…") { Task { await model.gameFolder.explainSelection() } }
+            .keyboardShortcut("i", modifiers: [.command, .control])
+            .disabled(node == nil || node?.level != nil)
         Button("Name Keys with AI") { Task { await model.gameFolder.nameKeysWithAI() } }
             .keyboardShortcut("n", modifiers: [.command, .option])
             .disabled(!inspecting || !model.prefs.aiEnabled || model.gameFolder.aiNamingBusy)

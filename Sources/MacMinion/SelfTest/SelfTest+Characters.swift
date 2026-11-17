@@ -138,6 +138,30 @@ extension SelfTest {
         @MainActor func writDiff() -> SettingsMatrix.Comparison? {
             model.gameFolder.matrix?.compare(masisiKey, alphaKey).first { $0.file == "WritWorthy.lua" }
         }
+        // S-075 Clone checks each value against what the addon's source says the setting takes.
+        let textKey = "8796093079837777"
+        let typeWarnings = model.gameFolder.cloneWarnings([.init(file: "WritWorthy.lua", key: "Writ count", from: textKey, to: masisiKey)])
+        check("Clone warns when a value would change type", typeWarnings == ["WritWorthy · Writ count: a string replaces a number"], "\(typeWarnings)")
+        check("Clone has nothing to say about a value in range",
+              model.gameFolder.cloneWarnings([.init(file: "WritWorthy.lua", key: "Max writs", from: masisiKey, to: alphaKey)]).isEmpty)
+        // S-075 Explain Setting: the source's facts at once, AI only when asked.
+        if let maxWrits = model.gameFolder.matrix?.addon("WritWorthy.lua")?.characters[masisiKey]?["Max writs"] {
+            await model.gameFolder.explain(file: "WritWorthy.lua", setting: maxWrits)
+            let e = model.gameFolder.explanation
+            check("Explain Setting gives the settings panel's name, range, and the lines that use it",
+                  e?.name?.title == "Writs to keep" && e?.values == "0 to 100, in steps of 5"
+                  && e?.lines.contains { $0.contains("savedVariables.maxWrits") } == true, "\(String(describing: e))")
+            check("Explain Setting opens with no AI text", model.gameFolder.explanationAI.isEmpty && !model.gameFolder.explainingWithAI)
+            let aiBefore = model.prefs.aiProvider
+            model.prefs.aiProvider = .claude
+            await model.gameFolder.explainWithAI()
+            check("Explain with AI says what's missing in Settings", model.gameFolder.explainError == "Add a Claude API key in Settings.",
+                  model.gameFolder.explainError ?? "")
+            model.prefs.aiProvider = aiBefore
+            model.gameFolder.explainTarget = nil
+        } else {
+            check("WritWorthy keeps Max writs for Masisi", false)
+        }
         model.simulatesRunningGame = true
         await model.gameFolder.copySettings([("WritWorthy.lua", "Auto craft")], from: masisiKey, to: alphaKey)
         check("copying refuses while the game runs", model.gameFolder.errorMessage != nil && (try? Data(contentsOf: writURL)) == svBefore[writURL])

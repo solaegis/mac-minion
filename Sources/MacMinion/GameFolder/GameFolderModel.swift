@@ -151,6 +151,12 @@ final class GameFolderModel {
     var schemaFileByVariable: [String: String] = [:]
     /// AI is reading the open table's source.
     var aiNamingBusy = false
+    /// Explain Setting (S-075): the key shown, what MacMinion knows, and AI's paragraph as it streams.
+    var explainTarget: ExplainTarget?
+    var explanation: SVExplanation?
+    var explanationAI = ""
+    var explainingWithAI = false
+    var explainError: String?
 
     // MARK: Problems (GameFolderModel+Problems.swift)
 
