@@ -338,3 +338,13 @@ private func claimedOnce(_ findings: [HealthFinding], _ input: [SVProblem]) -> B
     #expect(mine?.isMain == true)
     #expect(findings.filter { $0.cause == .unknownCharacter }.count == 2)
 }
+
+@Test func settingsOutsideTheirRangeAreOneFindingPerFile() {
+    let input = [problem(.outOfRange, "Z.lua", path: [.string("a")]), problem(.outOfRange, "Z.lua", path: [.string("b")])]
+    let findings = HealthFindings.build(problems: input, context: .init(files: [svFile("Z.lua", .addon("Zaddon"))]))
+    let range = findings.first { $0.cause == .outOfRange }
+    #expect(range?.problems.count == 2)
+    #expect(range?.tier == .dataAtRisk)
+    #expect(range?.certainty == .likely)
+    #expect(range?.action == .showInInspector(problemID: input[0].id))
+}

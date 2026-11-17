@@ -328,6 +328,16 @@ enum Store {
         if let data = try? encoder.encode(cache) { try? data.write(to: aiNamesURL, options: .atomic) }
     }
 
+    private static var schemasURL: URL { directory.appending(path: "addon-schemas.json") }
+
+    static func loadSchemas() -> SVSchemaCache {
+        (try? Data(contentsOf: schemasURL)).flatMap { try? JSONDecoder().decode(SVSchemaCache.self, from: $0) } ?? SVSchemaCache()
+    }
+
+    static func saveSchemas(_ cache: SVSchemaCache) {
+        if let data = try? JSONEncoder().encode(cache) { try? data.write(to: schemasURL, options: .atomic) }
+    }
+
     private static var blurbsURL: URL { directory.appending(path: "blurbs.json") }
 
     static func loadBlurbs() -> [Int: String] {

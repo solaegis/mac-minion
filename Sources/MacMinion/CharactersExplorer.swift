@@ -430,7 +430,7 @@ private struct CharacterConstellation: View {
                 ForEach(Array(odd.enumerated()), id: \.offset) { _, entry in
                     Button { model.gameFolder.explorerOpen(.setting(file: entry.addon.file, key: entry.item.key)) } label: {
                         VStack(alignment: .leading, spacing: Space.xs / 2) {
-                            Text("\(model.addonName(entry.addon.file)) · \(entry.item.key)").lineLimit(1)
+                            Text("\(model.addonName(entry.addon.file)) · \(model.gameFolder.settingLabel(entry.item.key, entry.item.setting))").lineLimit(1)
                             HStack(spacing: Space.xs) {
                                 SettingValueView(display: model.gameFolder.display(entry.item.setting), label: entry.item.key)
                                 Text("usually").foregroundStyle(.secondary)
@@ -513,7 +513,8 @@ private struct AddonAcrossCharacters: View {
                     if differing.isEmpty { Text("Every character has the same settings.").foregroundStyle(.secondary) }
                     ForEach(differing, id: \.self) { key in
                         Button { model.gameFolder.explorerOpen(.setting(file: file, key: key)) } label: {
-                            ValueBar(model: model, label: key, groups: addon.values(of: key), total: addon.characters.count)
+                            ValueBar(model: model, label: model.gameFolder.settingLabel(key, addon.values(of: key).first?.setting), groups: addon.values(of: key),
+                                     total: addon.characters.count)
                         }
                         .buttonStyle(.plain)
                         .help("Show who has which value")
@@ -523,7 +524,7 @@ private struct AddonAcrossCharacters: View {
                     if same.isEmpty { Text("No setting is shared by every character.").foregroundStyle(.secondary) }
                     ForEach(same, id: \.self) { key in
                         if let setting = addon.values(of: key).first?.setting {
-                            LabeledContent(key) { SettingValueView(display: model.gameFolder.display(setting), label: key) }
+                            LabeledContent(model.gameFolder.settingLabel(key, setting)) { SettingValueView(display: model.gameFolder.display(setting), label: key) }
                         }
                     }
                 }
@@ -534,7 +535,7 @@ private struct AddonAcrossCharacters: View {
                                 LabeledContent {
                                     SettingValueView(display: model.gameFolder.display(group.setting), label: key)
                                 } label: {
-                                    Text(key)
+                                    Text(model.gameFolder.settingLabel(key, group.setting))
                                     Text(group.characters.map(model.gameFolder.characterName).joined(separator: ", ")).lineLimit(1)
                                 }
                             }
@@ -630,7 +631,7 @@ private struct CharacterInAddon: View {
                                                 .foregroundStyle(Palette.counterpart)
                                                 .accessibilityLabel("Set differently")
                                         }
-                                        Text(key)
+                                        Text(model.gameFolder.settingLabel(key, setting))
                                     }
                                 }
                                 .contentShape(Rectangle())
@@ -691,7 +692,7 @@ private struct SettingAcrossCharacters: View {
             let order = Dictionary(uniqueKeysWithValues: matrix.characterIDs.enumerated().map { ($1, $0) })
             List {
                 Section {
-                    Text("\(key) in \(model.addonName(file)): \(groups.count == 1 ? "the same for all \(total) characters" : "\(groups.count) values across \(total) characters").")
+                    Text("\(model.gameFolder.settingLabel(key, groups.first?.setting)) in \(model.addonName(file)): \(groups.count == 1 ? "the same for all \(total) characters" : "\(groups.count) values across \(total) characters").")
                         .foregroundStyle(.secondary)
                 }
                 ForEach(Array(groups.enumerated()), id: \.offset) { i, group in
@@ -880,7 +881,7 @@ private struct CompareCharacters: View {
             ForEach(comparisons.filter { !$0.differing.isEmpty }) { c in
                 Section {
                     ForEach(c.differing, id: \.key) { row in
-                        compareRow(file: c.file, key: row.key,
+                        compareRow(file: c.file, key: row.key, label: model.gameFolder.settingLabel(row.key, row.a),
                                    left: SettingValueView(display: model.gameFolder.display(row.a), label: row.key),
                                    right: SettingValueView(display: model.gameFolder.display(row.b), label: row.key),
                                    hasA: true, hasB: true)
@@ -951,7 +952,7 @@ private struct CompareCharacters: View {
     }
 
     /// Setting name column, then two value cells with radios under them.
-    private func compareRow(file: String, key: String, left: some View, right: some View, hasA: Bool, hasB: Bool) -> some View {
+    private func compareRow(file: String, key: String, label: String, left: some View, right: some View, hasA: Bool, hasB: Bool) -> some View {
         HStack(alignment: .top, spacing: 0) {
             if file == AddOnChoices.fileName {
                 Text(model.addonTitle(folder: key)).frame(width: 240, alignment: .leading)
@@ -959,7 +960,7 @@ private struct CompareCharacters: View {
                     .padding(.trailing, Space.lg)
             } else {
                 Button { model.gameFolder.explorerOpen(.setting(file: file, key: key)) } label: {
-                    Text(key).frame(width: 240, alignment: .leading).contentShape(Rectangle())
+                    Text(label).frame(width: 240, alignment: .leading).contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
                 .help("Show who has which value")
@@ -1055,7 +1056,7 @@ private struct CompareCharacters: View {
                     Text("Both characters load the same addons.").foregroundStyle(.secondary)
                 }
                 ForEach(shown, id: \.addon) { row in
-                    compareRow(file: AddOnChoices.fileName, key: row.addon,
+                    compareRow(file: AddOnChoices.fileName, key: row.addon, label: row.addon,
                                left: addOnValue(row.a, for: a), right: addOnValue(row.b, for: b),
                                hasA: row.a != nil, hasB: row.b != nil)
                 }
@@ -1095,7 +1096,7 @@ private struct CompareCharacters: View {
     }
 
     private func onlyRow(_ row: (file: String, key: String, owner: String, setting: SettingsMatrix.Setting)) -> some View {
-        compareRow(file: row.file, key: row.key,
+        compareRow(file: row.file, key: row.key, label: model.gameFolder.settingLabel(row.key, row.setting),
                     left: onlyValue(row, for: a),
                     right: onlyValue(row, for: b),
                     hasA: row.owner == a, hasB: row.owner == b)

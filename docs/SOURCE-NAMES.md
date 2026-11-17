@@ -46,6 +46,11 @@ with two or more constants (`sv.style == MyAddon.STYLE_ICON`) get those constant
 without their shared prefix ("Icon"). The result is an `SVControl` per key, looked up like a name
 (`control(for:at:)`), and shown by `SVReadable.display` as `.choice` or `.ranged`.
 
+Since S-073 every file's source is read after each Game Folder read, for the Characters tab and
+Problems, and kept in `addon-schemas.json` (`SVSchemaCache`) keyed by the addon folder, its version, and
+a stamp of its `.lua` files (count, bytes, newest change): reading every addon takes seconds, the stamp
+only a directory walk. AI names are left out of that cache and added on top from `ai-key-names.json`.
+
 ## Defaults (S-070)
 
 The same read finds each saved variable's defaults: the table an addon passes to `ZO_SavedVars:New…` or

@@ -4,7 +4,16 @@ import MacMinionKit
 /// Problems: what looks wrong, grouped into findings, and the links to them from other pages.
 extension GameFolderModel {
     /// Clean-up findings plus what's wrong inside the files.
-    var allProblems: [SVProblem] { fileProblems + (svProblems ?? []) }
+    var allProblems: [SVProblem] { fileProblems + (svProblems ?? []) + rangeProblems }
+
+    /// Settings outside the range their addon's settings panel allows, once the addons' source is read.
+    var rangeProblems: [SVProblem] {
+        guard let matrix else { return [] }
+        return SVProblems.inDisplayOrder(matrix.addons.flatMap { addon -> [SVProblem] in
+            guard let names = inspectorSourceNames[addon.file] else { return [] }
+            return SVProblems.outOfRange(file: addon.file, settings: addon.savedSettings, names: names)
+        })
+    }
 
     /// Asks before moving the files of these problems to the Trash; ESO must be closed and a backup comes first.
     func askToCleanUp(_ problems: [SVProblem]) {

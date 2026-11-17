@@ -5,7 +5,7 @@ public struct SVProblem: Sendable, Identifiable, Equatable {
     public enum Kind: String, Sendable, CaseIterable {
         case unreadable, endsEarly, empty, missingVariable, unknownVariable, typeMismatch, longList, largeFile,
              unusedFile, copyFile, staleFile, strayItem, didntLoad, luaError, outOfDateAddon, slowLoad, unknownSchema,
-             unknownCharacter
+             unknownCharacter, outOfRange
 
         public var title: String {
             switch self {
@@ -27,6 +27,7 @@ public struct SVProblem: Sendable, Identifiable, Equatable {
             case .slowLoad: String(localized: "Slow to load", bundle: .module)
             case .unknownSchema: String(localized: "Newer companion data", bundle: .module)
             case .unknownCharacter: String(localized: "Unknown character", bundle: .module)
+            case .outOfRange: String(localized: "Outside its range", bundle: .module)
             }
         }
 
@@ -97,6 +98,26 @@ public enum SVProblems {
             if a.element.severity != b.element.severity { return a.element.severity > b.element.severity }
             return a.offset < b.offset // each file's problems arrive together, in the check's own order
         }.map(\.element)
+    }
+
+    /// At most this many out-of-range settings per file.
+    public static let outOfRangePerFile = 10
+
+    /// Settings whose number is outside the range the addon's settings panel allows, by what the addon's
+    /// source says (S-073). One problem per saved place, at most `outOfRangePerFile` per file.
+    public static func outOfRange(file: String, settings: [SettingsMatrix.Setting], names: SVSourceNames) -> [SVProblem] {
+        var seen = Set<[LuaKey]>(), problems: [SVProblem] = []
+        for setting in settings where problems.count < outOfRangePerFile && seen.insert(setting.path).inserted {
+            let parent = Array(setting.path.dropLast())
+            guard let control = names.control(for: setting.key, at: parent), let range = control.range,
+                  control.isOutOfRange(setting.value) else { continue }
+            let label = names.name(for: setting.key, at: parent)?.title ?? SVReadable.label(setting.key)
+            let value = SVReadable.number(setting.value)
+            let low = range.lowerBound.formatted(), high = range.upperBound.formatted()
+            problems.append(SVProblem(file: file, path: setting.path, kind: .outOfRange, severity: .warning,
+                                      message: String(localized: "\(label) is \(value), but the addon's settings panel allows \(low) to \(high). The addon may clamp it, ignore it, or misbehave.", bundle: .module)))
+        }
+        return problems
     }
 
     /// Lists with at least this many entries are reported: logs and histories that keep growing.

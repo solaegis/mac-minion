@@ -62,6 +62,12 @@ extension SelfTest {
             check("Show in Inspector opens the file at the problem", model.gameFolder.inspectorFile == "LibDebugLogger.lua"
                   && model.gameFolder.inspectorSelectedNode?.key == .string("LibDebugLoggerLog"))
         }
+        // S-073 A number outside its slider's range.
+        let range = model.gameFolder.rangeProblems.first { $0.file == "WritWorthy.lua" }
+        check("a setting outside its slider's range is a problem", range?.path.last == .string("maxWrits")
+              && range?.message.contains("Writs to keep is 250") == true, range?.message ?? "none")
+        check("it's one finding for the file, shown in the Inspector", finding(with: range)?.cause == .outOfRange
+              && finding(with: range)?.action == .showInInspector(problemID: range?.id ?? ""))
         // S-058 Problems from other tabs: a link where a finding names an addon or character, never the problem itself.
         let writWorthy = model.gameFolder.findings(aboutFile: "WritWorthy.lua", in: findings)
         check("an addon's card links to the findings about it", writWorthy.contains { $0.cause == .mixedTypes }

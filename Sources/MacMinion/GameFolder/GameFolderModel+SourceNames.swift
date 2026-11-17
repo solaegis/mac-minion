@@ -7,22 +7,85 @@ extension GameFolderModel {
     /// open file needs it, and reading every addon's source took half of the whole read.
     func loadSourceNames(for file: String, generation: Int? = nil) async {
         guard inspectorSourceNames[file] == nil else { return }
-        let addons = app.addonsFolder, aiCache = aiKeyNames, known = addonFolders
-        let found = await withInspectorStatus(String(localized: "Reading names from the addon's source…")) { await Task.detached { () -> SVSourceNames in
-            let base = String(file.dropLast(4)).lowercased()
-            guard let folder = known?[base] ?? SavedVariablesAudit.saverFolders(addons)[base] else { return SVSourceNames() }
-            var found = SVSourceNames.read(folder: folder)
-            // Names AI gave this version of the addon before.
-            let version = Manifest.read(folder: folder)?.version ?? ""
-            for e in aiCache.entries(folder: folder.lastPathComponent, version: version) {
-                found.add(SVSourceName(title: e.name, detail: nil, source: .ai, isGuess: true), key: e.key, parent: e.parent)
-            }
-            return found
-        }.value }
+        let found = await withInspectorStatus(String(localized: "Reading names from the addon's source…")) {
+            await readSourceNames([file])
+        }
         // A newer inspect may have cleared or replaced names while this read ran.
         if Task.isCancelled { return }
         if let generation, generation != inspectGeneration { return }
-        inspectorSourceNames[file] = found
+        apply(found)
+    }
+
+    /// What the source says for every file the Characters tab shows, from the cache where the addon's
+    /// version hasn't changed. Also learns each file's variables, so a setting finds its file.
+    func loadCharacterSourceNames() async {
+        guard let matrix else { return }
+        var variables: [String: String] = [:]
+        for addon in matrix.addons {
+            for settings in addon.characters.values {
+                for setting in settings.values { if let v = setting.path.first?.description { variables[v] = addon.file } }
+            }
+        }
+        schemaFileByVariable.merge(variables) { _, new in new }
+        let missing = matrix.addons.map(\.file).filter { inspectorSourceNames[$0] == nil }
+        guard !missing.isEmpty else { return }
+        let found = await readSourceNames(missing)
+        if Task.isCancelled { return }
+        apply(found)
+    }
+
+    /// One result per file: the source's names (from the cache or read now) with AI names on top.
+    private struct SourceRead: Sendable {
+        let file: String
+        let names: SVSourceNames
+        /// Set when the source was read, not cached: to keep.
+        let fresh: (folder: String, version: String)?
+    }
+
+    private func readSourceNames(_ files: [String]) async -> [SourceRead] {
+        let addons = app.addonsFolder, aiCache = aiKeyNames, known = addonFolders, cache = schemaCache
+        return await Task.detached { () -> [SourceRead] in
+            var savers: [String: URL]?
+            return files.map { file in
+                let base = String(file.dropLast(4)).lowercased()
+                if known?[base] == nil, savers == nil { savers = SavedVariablesAudit.saverFolders(addons) }
+                guard let folder = known?[base] ?? savers?[base] else { return SourceRead(file: file, names: SVSourceNames(), fresh: nil) }
+                let version = Manifest.read(folder: folder)?.version ?? ""
+                let name = folder.lastPathComponent
+                // The version and the files' stamp: source can change without a new version.
+                let stamp = "\(version)#\(SVSourceNames.fingerprint(folder: folder))"
+                var found: SVSourceNames, fresh: (String, String)?
+                if let cached = cache[folder: name, version: stamp] {
+                    found = cached
+                } else {
+                    found = SVSourceNames.read(folder: folder)
+                    fresh = (name, stamp)
+                }
+                // Names AI gave this version of the addon before.
+                for e in aiCache.entries(folder: name, version: version) {
+                    found.add(SVSourceName(title: e.name, detail: nil, source: .ai, isGuess: true), key: e.key, parent: e.parent)
+                }
+                return SourceRead(file: file, names: found, fresh: fresh)
+            }
+        }.value
+    }
+
+    private func apply(_ reads: [SourceRead]) {
+        var changed = false, kept: [(folder: String, version: String)] = []
+        for read in reads {
+            inspectorSourceNames[read.file] = read.names
+            if let fresh = read.fresh {
+                // Kept without AI names: those have their own cache and are added on each read.
+                schemaCache[folder: fresh.folder, version: fresh.version] = SVSourceNames.withoutAI(read.names)
+                kept.append(fresh)
+                changed = true
+            }
+        }
+        if changed {
+            // An older version or stamp of the same addon isn't needed again.
+            schemaCache.keepOnly(kept)
+            Store.saveSchemas(schemaCache)
+        }
     }
 
     /// Keys in the table shown that the addon's source doesn't name: what AI is asked about.
@@ -89,5 +152,21 @@ extension GameFolderModel {
     /// The range or choices the addon's source gives a key in the open file.
     func inspectorControl(_ key: LuaKey, at parent: [LuaKey]) -> SVControl? {
         inspectorFile.flatMap { inspectorSourceNames[$0] }?.control(for: key, at: parent)
+    }
+
+    /// What the addon's source says about the file a setting is in.
+    func sourceNames(for setting: SettingsMatrix.Setting) -> SVSourceNames? {
+        setting.path.first.flatMap { schemaFileByVariable[$0.description] }.flatMap { inspectorSourceNames[$0] }
+    }
+
+    /// A Characters-tab setting label ("Colors › Guild 1") with its last part named by the addon's source,
+    /// when the source names it. A guess ends in "?".
+    func settingLabel(_ label: String, _ setting: SettingsMatrix.Setting?) -> String {
+        guard let setting, let named = sourceNames(for: setting)?.name(for: setting.key, at: Array(setting.path.dropLast())),
+              var title = named.title else { return label }
+        if named.isGuess, !title.hasSuffix("?") { title += "?" }
+        var parts = label.components(separatedBy: " › ")
+        parts[parts.count - 1] = title
+        return parts.joined(separator: " › ")
     }
 }

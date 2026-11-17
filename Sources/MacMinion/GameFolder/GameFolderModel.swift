@@ -143,6 +143,10 @@ final class GameFolderModel {
     var inspectorSourceNamesRevision = 0
     /// Names AI gave saved keys, per addon version, kept between launches.
     var aiKeyNames = Store.loadAINames()
+    /// What each addon version's source says about its keys, kept between launches.
+    var schemaCache = Store.loadSchemas()
+    /// SavedVariables variable -> its file, for settings the Characters tab shows by variable path.
+    var schemaFileByVariable: [String: String] = [:]
     /// AI is reading the open table's source.
     var aiNamingBusy = false
 
@@ -296,6 +300,8 @@ final class GameFolderModel {
         addonDefaults = defaults.defaults
         effectiveMatrix = effective
         readIsCurrent = true
+        // Names, choices, and ranges from each addon's source, for Characters and Problems: cached per version.
+        await loadCharacterSourceNames()
     }
 
     /// Drops cached trees whose size or date no longer match the files on disk.

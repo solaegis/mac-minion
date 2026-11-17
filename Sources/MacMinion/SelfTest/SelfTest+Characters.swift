@@ -66,6 +66,18 @@ extension SelfTest {
               && ww?.values(of: "Auto craft").last?.characters == [masisiKey] && ww?.differing.contains("Max writs") == false)
         check("a character's odd ones out come with the usual value",
               ww?.oddOnesOut(masisiKey).first.map { $0.key == "Auto craft" && $0.usual.text == "true" } == true)
+        // S-073 The addon's own names and ranges, cached per addon version.
+        await model.gameFolder.loadCharacterSourceNames()
+        if let maxWrits = ww?.characters[masisiKey]?["Max writs"] {
+            check("a setting takes its name from the addon's settings panel", model.gameFolder.settingLabel("Max writs", maxWrits) == "Writs to keep",
+                  model.gameFolder.settingLabel("Max writs", maxWrits))
+            check("a slider's number shows its range", model.gameFolder.display(maxWrits) == .ranged(text: "10", range: 0...100, outOfRange: false))
+        } else {
+            check("WritWorthy keeps Max writs per character", false)
+        }
+        check("what the source says is cached per addon version",
+              model.gameFolder.schemaCache.entries.keys.contains { $0.hasPrefix("\(SVSchemaCache.format)|writworthy|") },
+              "\(model.gameFolder.schemaCache.entries.keys.sorted())")
         model.gameFolder.tab = .characters
         model.gameFolder.explorerReset()
         model.gameFolder.explorerOpen(.character(masisiKey))

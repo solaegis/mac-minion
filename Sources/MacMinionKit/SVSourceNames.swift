@@ -1,8 +1,8 @@
 import Foundation
 
 /// What an addon's own Lua source says a saved key means. See docs/SOURCE-NAMES.md.
-public struct SVSourceName: Sendable, Equatable {
-    public enum Source: String, Sendable {
+public struct SVSourceName: Sendable, Equatable, Codable {
+    public enum Source: String, Sendable, Codable {
         /// The label of the LibAddonMenu control whose getFunc returns this key.
         case settingsPanel = "the addon's settings panel"
         /// A comment beside the key where the addon sets its defaults.
@@ -36,7 +36,7 @@ public struct SVSourceName: Sendable, Equatable {
 }
 
 /// Names for one addon's saved keys, read from its Lua files.
-public struct SVSourceNames: Sendable, Equatable {
+public struct SVSourceNames: Sendable, Equatable, Codable {
     /// Parent key ("" for any) -> key -> name.
     var names: [String: [String: SVSourceName]] = [:]
     /// Table key -> what its keys are, for tables keyed by constants.
@@ -71,6 +71,13 @@ public struct SVSourceNames: Sendable, Equatable {
     /// Lua files bigger than this are data, not code with settings: skipped.
     public static let maxFileBytes = 1_500_000
 
+    /// The same names with AI's left out: what the source alone says.
+    public static func withoutAI(_ names: SVSourceNames) -> SVSourceNames {
+        var copy = names
+        copy.names = names.names.mapValues { $0.filter { $0.value.source != .ai } }.filter { !$0.value.isEmpty }
+        return copy
+    }
+
     /// Adds a name where the source gave none; a name from the source always wins.
     public mutating func add(_ new: SVSourceName, key: String, parent: String) {
         if name(for: .string(key), at: [.string(parent)])?.title != nil { return }
@@ -92,6 +99,22 @@ public struct SVSourceNames: Sendable, Equatable {
             }
         }
         return sources
+    }
+
+    /// The addon's `.lua` files as one stamp: how many, their bytes, and the newest change. Cheap next to
+    /// reading them, and it changes whenever the source does, even without a new version.
+    public static func fingerprint(folder: URL) -> String {
+        var count = 0, bytes = 0, newest = 0.0
+        let keys: [URLResourceKey] = [.fileSizeKey, .contentModificationDateKey]
+        if let walker = FileManager.default.enumerator(at: folder, includingPropertiesForKeys: keys, options: [.skipsHiddenFiles]) {
+            for case let url as URL in walker where url.pathExtension.lowercased() == "lua" {
+                let values = try? url.resourceValues(forKeys: Set(keys))
+                count += 1
+                bytes += values?.fileSize ?? 0
+                newest = max(newest, values?.contentModificationDate?.timeIntervalSince1970 ?? 0)
+            }
+        }
+        return "\(count)-\(bytes)-\(Int(newest))"
     }
 
     /// `de.lua`, `lang/fr.lua`, `MyAddon_ru.lua`: strings in other languages, which would replace the English ones.

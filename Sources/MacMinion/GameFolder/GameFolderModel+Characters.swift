@@ -75,7 +75,9 @@ extension GameFolderModel {
 
     /// The readable form of a saved setting.
     func display(_ setting: SettingsMatrix.Setting) -> SVDisplay {
-        SVReadable.display(setting.value, key: setting.key, at: Array(setting.path.dropLast()), names: names)
+        let parent = Array(setting.path.dropLast())
+        return SVReadable.display(setting.value, key: setting.key, at: parent, names: names,
+                                  control: sourceNames(for: setting)?.control(for: setting.key, at: parent))
     }
 
     /// The character's own table in a file, from any of their settings' paths, to open in the Inspector.

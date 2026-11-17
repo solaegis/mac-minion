@@ -732,6 +732,15 @@ Acceptance:
 - [self] The seeded WritWorthy dropdown shows "Short" for the saved "Compact".
 Status: done
 
+### S-073 The addon's own names, ranges, and choices on Characters and Problems
+As the user, the Characters and Compare views name each setting the way the addon's settings panel does ("Writs to keep", not "Max writs") and show its choice or range, like the Inspector (S-072). A saved number outside the range its slider allows is a Problems finding under Saved data at risk, one per file, with Show in Inspector. What each addon's source says is kept in `addon-schemas.json` in the app's folder, keyed by the addon's version and a stamp of its Lua files, so it's read once and only again when the source changes. AI names stay in their own cache and are added on top.
+Screens: Game Folder › Characters, Compare, Problems
+Depends: S-072, S-052
+Acceptance:
+- [unit] The cache round-trips names and ranges without AI names, misses a new version, and drops other versions and older formats; a number outside a slider's range is one problem per place; out-of-range problems are one likely finding per file under Saved data at risk.
+- [self] WritWorthy's Max writs reads "Writs to keep" with the range 0–100; the cache has WritWorthy; the account-wide 250 is a problem and its finding opens the Inspector.
+Status: done
+
 ## Dropped
 - WoW / WoWInterface support: ESO only.
 - Login, account registration, cloud backup, SavedVariables sync: account and premium features.

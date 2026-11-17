@@ -36,6 +36,13 @@ public struct SettingsMatrix: Sendable {
         /// account-wide table), to write into.
         let tablePaths: [String: [[LuaKey]]]
 
+        /// Every value saved in the file once: each character's own, then each account-wide table's, in a
+        /// stable order. Defaults are left out: they aren't saved.
+        public var savedSettings: [Setting] {
+            let tables = own.sorted { $0.key < $1.key }.map(\.value) + accountTables.sorted { $0.key < $1.key }.map(\.value)
+            return tables.flatMap { $0.sorted { $0.key < $1.key }.map(\.value) }
+        }
+
         /// Whether a character's own table sits inside the account-wide one, so the account's settings are
         /// theirs too, under their own.
         func ownInsideAccount(_ id: String) -> Bool {

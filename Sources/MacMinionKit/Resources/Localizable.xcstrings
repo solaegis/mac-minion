@@ -8943,6 +8943,152 @@
           }
         }
       }
+    },
+    "%@ is %@, but the addon's settings panel allows %@ to %@. The addon may clamp it, ignore it, or misbehave.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "new",
+            "value": "%1$@ is %2$@, but the addon's settings panel allows %3$@ to %4$@. The addon may clamp it, ignore it, or misbehave."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@ ist %2$@, aber das Einstellungsmenü des Addons erlaubt %3$@ bis %4$@. Das Addon kann den Wert begrenzen, ignorieren oder sich falsch verhalten."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@ es %2$@, pero el panel de ajustes del addon permite de %3$@ a %4$@. El addon puede ajustarlo, ignorarlo o fallar."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@ vaut %2$@, mais le panneau de réglages de l’addon autorise de %3$@ à %4$@. L’addon peut le limiter, l’ignorer ou mal fonctionner."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@ = %2$@, но панель настроек аддона допускает от %3$@ до %4$@. Аддон может ограничить значение, проигнорировать его или работать неправильно."
+          }
+        }
+      }
+    },
+    "Matched to the settings panel by key name, so a key in another table can be mistaken for it.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Über den Schlüsselnamen dem Einstellungsmenü zugeordnet, daher kann ein Schlüssel aus einer anderen Tabelle verwechselt werden."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Asociado al panel de ajustes por el nombre de la clave, así que puede confundirse con una clave de otra tabla."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Associé au panneau de réglages par le nom de la clé : une clé d’une autre table peut être confondue avec elle."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Сопоставлено с панелью настроек по имени ключа, поэтому его можно спутать с ключом из другой таблицы."
+          }
+        }
+      }
+    },
+    "Outside its range": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Außerhalb des Bereichs"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fuera de rango"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hors plage"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Вне диапазона"
+          }
+        }
+      }
+    },
+    "Some %@ settings are outside their range": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Einige Einstellungen von %@ liegen außerhalb ihres Bereichs"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Algunos ajustes de %@ están fuera de rango"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Certains réglages de %@ sont hors plage"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Некоторые настройки %@ вне допустимого диапазона"
+          }
+        }
+      }
+    },
+    "Their numbers are outside what the addon's settings panel allows, often left by an older version.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ihre Werte liegen außerhalb dessen, was das Einstellungsmenü des Addons erlaubt, oft von einer älteren Version übrig."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sus valores están fuera de lo que permite el panel de ajustes del addon, a menudo restos de una versión anterior."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Leurs valeurs sortent de ce que permet le panneau de réglages de l’addon, souvent laissées par une version antérieure."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Их значения выходят за пределы, допустимые панелью настроек аддона; часто это остаток от старой версии."
+          }
+        }
+      }
     }
   },
   "version": "1.0"

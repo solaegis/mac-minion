@@ -13,7 +13,7 @@ public struct HealthFinding: Sendable, Identifiable, Equatable {
         public static func of(_ kind: SVProblem.Kind) -> Tier {
             switch kind {
             case .didntLoad, .luaError: .broken
-            case .unreadable, .endsEarly, .missingVariable, .typeMismatch: .dataAtRisk
+            case .unreadable, .endsEarly, .missingVariable, .typeMismatch, .outOfRange: .dataAtRisk
             case .outOfDateAddon: .outOfDate
             case .unusedFile, .staleFile, .copyFile, .strayItem, .unknownVariable, .unknownCharacter: .clutter
             case .longList, .largeFile, .slowLoad: .size
@@ -35,7 +35,7 @@ public struct HealthFinding: Sendable, Identifiable, Equatable {
 
     public enum Cause: String, Sendable, CaseIterable {
         case missingLibraries, outOfDateAddon, outOfDateAddons, damagedFile, ignoredData, runawayData,
-             removedAddonLeftovers, unusedAddons, copiesAndStrays, unknownCharacter, mixedTypes, olderVersionLeftovers, single
+             removedAddonLeftovers, unusedAddons, copiesAndStrays, unknownCharacter, mixedTypes, outOfRange, olderVersionLeftovers, single
     }
 
     /// How sure the grouping is. Anything short of certain says why on the card.
@@ -510,6 +510,17 @@ private struct Builder {
                 affected: [.addon(title(ofAddon: addon)), .file(file)],
                 action: .showInInspector(problemID: problems[indices[0]].id), indices: indices)
         }
+        for file in files(with: .outOfRange) {
+            let indices = open { $0.file == file && $0.kind == .outOfRange }
+            let addon = owner(ofFile: file)
+            add(.outOfRange, key: file, certainty: .likely,
+                title: String(localized: "Some \(title(ofAddon: addon)) settings are outside their range", bundle: .module),
+                impact: String(localized: "Their numbers are outside what the addon's settings panel allows, often left by an older version.", bundle: .module),
+                summary: String(localized: "\(indices.count) settings", bundle: .module),
+                note: String(localized: "Matched to the settings panel by key name, so a key in another table can be mistaken for it.", bundle: .module),
+                affected: [.addon(title(ofAddon: addon)), .file(file)],
+                action: .showInInspector(problemID: problems[indices[0]].id), indices: indices)
+        }
         for file in files(with: .unknownVariable) {
             let indices = open { $0.file == file && $0.kind == .unknownVariable }
             let addon = owner(ofFile: file)
@@ -549,7 +560,7 @@ private struct Builder {
                 if let folder, context.updatable.contains(Self.key(folder)) { action = .update(folders: [folder]) }
                 else if let folder { action = .showAddon(folder: folder) }
                 else { action = .showInInspector(problemID: p.id) }
-            case .longList, .typeMismatch, .missingVariable, .unreadable, .endsEarly:
+            case .longList, .typeMismatch, .missingVariable, .unreadable, .endsEarly, .outOfRange:
                 action = .showInInspector(problemID: p.id)
             case .unusedFile, .copyFile, .staleFile, .strayItem:
                 action = .cleanUp(problemIDs: [p.id])

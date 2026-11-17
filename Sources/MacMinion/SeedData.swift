@@ -292,6 +292,7 @@ enum SeedData {
                             ["lastScanTime"] = 1793288692,
                             ["goldBudget"] = 50000,
                             ["tooltipStyle"] = "Compact",
+                            ["maxWrits"] = 250,
                         },
                         ["8796093036412335"] =
                         {
@@ -464,6 +465,12 @@ enum SeedData {
                 choices = { "Short", "Everything" },
                 choicesValues = { "Compact", "Full" },
                 getFunc = function() return WritWorthy.savedVariables.tooltipStyle end,
+            },
+            {
+                type = "slider",
+                name = "Writs to keep",
+                min = 0, max = 100, step = 5,
+                getFunc = function() return WritWorthy.savedVariables.maxWrits end,
             },
         }
         """#))
