@@ -52,6 +52,11 @@ struct ContentView: View {
         } message: { failure in
             Text(failure.message)
         }
+        // Asked before saved values first go to an AI provider this session (S-076); Ask's own sheet asks over itself.
+        .sheet(item: Binding(get: { model.gameFolder.askOpen ? nil : model.valuesRequest },
+                             set: { if $0 == nil, !model.gameFolder.askOpen { model.answerValuesRequest(false) } })) {
+            ValuesPermissionSheet(request: $0)
+        }
         .sheet(item: $model.addonImagePreview) { preview in
             PreviewImageSheet(name: preview.name, url: preview.url)
         }

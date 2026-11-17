@@ -211,6 +211,7 @@ private struct FindingRow: View {
                     if finding.certainty != .certain {
                         Text(certainty).font(.caption).foregroundStyle(.secondary)
                     }
+                    diagnosis
                     if !finding.problems.isEmpty {
                         let expanded = model.gameFolder.problemsExpanded.contains(finding.id)
                         DisclosureButton(title: String(localized: "Details (\(finding.problems.count))"), expanded: expanded) {
@@ -244,6 +245,32 @@ private struct FindingRow: View {
             }
         }
         .padding(.vertical, Space.xs)
+    }
+
+    /// Explain with AI (S-076): a likely cause and fix, streamed under the card.
+    @ViewBuilder
+    private var diagnosis: some View {
+        let folder = model.gameFolder
+        if let text = folder.diagnoses[finding.id] {
+            Label { Text(text).textSelection(.enabled).fixedSize(horizontal: false, vertical: true) } icon: { Image(systemName: "sparkles") }
+                .font(.callout)
+                .foregroundStyle(.secondary)
+        }
+        if let error = folder.diagnosisErrors[finding.id] {
+            Label(error, systemImage: "exclamationmark.triangle").font(.callout).foregroundStyle(Palette.caution)
+        }
+        if model.prefs.aiEnabled {
+            HStack(spacing: Space.sm) {
+                Button(folder.diagnoses[finding.id] == nil ? "Explain with AI" : "Explain Again", systemImage: "sparkles") {
+                    Task { await folder.diagnose(finding) }
+                }
+                .buttonStyle(.borderless)
+                .disabled(folder.diagnosing != nil)
+                .help("Ask \(model.aiSource) for a likely cause and what to try first")
+                if folder.diagnosing == finding.id { ProgressView().controlSize(.small) }
+            }
+            .font(.callout)
+        }
     }
 
     /// "WritWorthy, HarvestMap, LibDebugLogger, and 4 more"; nil when there are none.

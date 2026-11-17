@@ -453,6 +453,9 @@ struct InspectorCommands: View {
         Button("Look Up on UESP") { model.gameFolder.lookUpOnUESP() }
             .keyboardShortcut("l", modifiers: [.command, .option])
             .disabled(node.flatMap { model.gameFolder.inspectorName($0)?.uesp } == nil)
+        Button("Ask About Your Game Folder…") { model.open(.gameFolder); model.gameFolder.askOpen = true }
+            .keyboardShortcut("a", modifiers: [.command, .control])
+            .disabled(!model.prefs.aiEnabled || model.gameFolder.matrix == nil)
         Button("Explain Setting…") { Task { await model.gameFolder.explainSelection() } }
             .keyboardShortcut("i", modifiers: [.command, .control])
             .disabled(node == nil || node?.level != nil)

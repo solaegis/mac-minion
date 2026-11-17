@@ -95,6 +95,9 @@ final class AppModel {
     var pendingSelection: Selection?
     /// The Customize Overview sheet is open.
     var customizingOverview = false
+    /// Providers you allowed to see saved values this session (S-076), and the question waiting for you.
+    var valuesApproved: Set<AIProvider> = []
+    var valuesRequest: ValuesRequest?
     /// Settings reopens on the last tab. Test and snapshot runs leave it alone.
     var settingsTab: SettingsTab = SettingsTab(rawValue: UserDefaults.standard.string(forKey: "settings.tab") ?? "") ?? .general {
         didSet { if !Store.isOverridden { UserDefaults.standard.set(settingsTab.rawValue, forKey: "settings.tab") } }

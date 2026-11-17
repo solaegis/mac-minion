@@ -759,6 +759,15 @@ Acceptance:
 - [self] Clone from the character whose Writ count is text warns "a string replaces a number"; Max writs in range has no warning; Explain Setting on Max writs gives "Writs to keep" with "0 to 100, in steps of 5" and its getFunc line; Explain with AI with no Claude key says what's missing.
 Status: done
 
+### S-076 Ask about your game folder, explain a problem, and allow saved values per provider
+As the user, Ask About Your Game Folder… (⌃⌘A, or the sparkles button on Game Folder's toolbar) takes a question in plain words ("Which characters have Auto craft off?"). The configured AI answers by looking things up through tools over what MacMinion read: the addons with settings, the characters, one addon's settings with what values each takes and who has which, one setting on every character, the Problems list, and the largest files. Each lookup shows as a step ("Looked at WritWorthy's settings"). On Problems, Explain with AI under a card streams a likely cause and what to try first. Both send saved values, so each provider has an Allow Saved Values switch in Settings > AI, on unless you turn it off. While it's on, the first time a session needs values a sheet lists what will be sent and asks; Allow Until Quit holds until MacMinion quits. Off means never, and Ask and Explain with AI say so. Naming keys and Explain Setting don't need it: they send only the addon's source.
+Screens: Game Folder (toolbar, Problems), Ask sheet, permission sheet, Settings > AI
+Depends: S-074, S-052
+Acceptance:
+- [unit] Tool definitions take text parameters; Claude, OpenAI, and Ollama requests carry tools, calls, and results in each one's shape, and their answers read back as text and calls; a refusal throws; the loop answers each call, answers an unknown tool with the tools' names, and ends on text; long answers are cut.
+- [self] Values are allowed unless turned off; off refuses without asking; the first request asks with the items to send, Don't Send sends nothing, Allow Until Quit holds and isn't asked again. The tools find an addon by file or part of its name, list addons and characters, give WritWorthy's settings with "Writs to keep [takes 0 to 100, in steps of 5]" and Masisi's Auto craft, narrow problems to Dustman, and list sizes. Ask and Explain with AI say what's missing with no Claude key.
+Status: done
+
 ## Dropped
 - WoW / WoWInterface support: ESO only.
 - Login, account registration, cloud backup, SavedVariables sync: account and premium features.

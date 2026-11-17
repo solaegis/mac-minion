@@ -52,8 +52,16 @@ struct GameFolderPage: View {
         }
         .navigationTitle("Game Folder")
         .sheet(item: Bindable(model.gameFolder).explainTarget) { ExplainSheet(target: $0) }
+        .sheet(isPresented: Bindable(model.gameFolder).askOpen) { AskSheet() }
         .toolbar {
             ToolbarItem { PageHelpButton() }
+            ToolbarItem {
+                Button("Ask About Your Game Folder…", systemImage: "sparkles") { model.gameFolder.askOpen = true }
+                    .labelStyle(.iconOnly)
+                    .disabled(!model.prefs.aiEnabled || model.gameFolder.matrix == nil)
+                    .help(model.prefs.aiEnabled ? String(localized: "Ask \(model.aiSource) about your characters, addon settings, and problems (Control-Command-A)")
+                          : String(localized: "Turn on AI in Settings to ask about your game folder"))
+            }
             ToolbarItem {
                 // Problems lists the same files as Clean up findings, so the question opens there.
                 Button("Clean Up…", systemImage: "trash") { model.gameFolder.tab = .problems; model.gameFolder.askToTidy() }

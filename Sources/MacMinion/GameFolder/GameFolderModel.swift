@@ -157,6 +157,17 @@ final class GameFolderModel {
     var explanationAI = ""
     var explainingWithAI = false
     var explainError: String?
+    /// Ask About Your Game Folder (S-076): the sheet, the question, what the AI looked at, and its answer.
+    var askOpen = false
+    var askQuestion = ""
+    var askAnswer = ""
+    var askSteps: [String] = []
+    var askBusy = false
+    var askError: String?
+    /// Explain with AI on Problems (S-076): answers and errors by finding, and the one under way.
+    var diagnoses: [String: String] = [:]
+    var diagnosisErrors: [String: String] = [:]
+    var diagnosing: String?
 
     // MARK: Problems (GameFolderModel+Problems.swift)
 

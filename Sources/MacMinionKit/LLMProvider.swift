@@ -3,8 +3,7 @@ import Foundation
 // The provider-neutral AI layer. Each backend (Ollama, Anthropic, OpenAI) is an adapter that turns
 // these types into its own wire format and parses its own stream back into `ChatEvent`s.
 //
-// Tool calling is not here: MacMinion only asks for text (summaries, suggestions, search), so no
-// adapter sends tool definitions. Add a neutral tool schema here before any feature needs one.
+// Tool calling lives in LLMTools.swift (S-076): non-streamed turns, text parameters only.
 
 public enum ChatRole: String, Sendable, Codable {
     case system, user, assistant, tool

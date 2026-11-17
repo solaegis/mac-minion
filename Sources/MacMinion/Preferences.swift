@@ -219,6 +219,8 @@ final class Preferences {
         didSet { Self.save(Dictionary(uniqueKeysWithValues: cachedModels.map { ($0.key.rawValue, $0.value) }), "ai.models") }
     }
     var summarizeOnOpen: Bool { didSet { Self.save(summarizeOnOpen, "ai.summarizeOnOpen") } }
+    /// Providers that may be sent saved values once you allow it each session (S-076); on unless turned off.
+    var aiValuesOff: Set<String> { didSet { Self.save(Array(aiValuesOff).sorted(), "ai.values.off") } }
     /// Measured Ollama speeds on this Mac, by model, from Settings > AI > Benchmark.
     var modelSpeeds: [String: ModelSpeed] {
         didSet { if Self.persists, let data = try? JSONEncoder().encode(modelSpeeds) { Self.defaults.set(data, forKey: "ai.ollama.speeds") } }
@@ -273,6 +275,7 @@ final class Preferences {
         let models = d.dictionary(forKey: "ai.models") as? [String: [String]] ?? [:]
         cachedModels = Dictionary(uniqueKeysWithValues: models.compactMap { k, v in AIProvider(rawValue: k).map { ($0, v) } })
         summarizeOnOpen = d.bool(forKey: "ai.summarizeOnOpen")
+        aiValuesOff = Set(d.stringArray(forKey: "ai.values.off") ?? [])
         modelSpeeds = d.data(forKey: "ai.ollama.speeds").flatMap { try? JSONDecoder().decode([String: ModelSpeed].self, from: $0) } ?? [:]
     }
 
@@ -318,6 +321,13 @@ final class Preferences {
     }
 
     var aiEnabled: Bool { aiProvider != .off }
+
+    /// Whether a provider may be asked to see saved values (after you allow it once per session).
+    func allowsValues(_ provider: AIProvider) -> Bool { !aiValuesOff.contains(provider.rawValue) }
+
+    func setAllowsValues(_ allowed: Bool, for provider: AIProvider) {
+        if allowed { aiValuesOff.remove(provider.rawValue) } else { aiValuesOff.insert(provider.rawValue) }
+    }
 
     private static func save(_ value: Any, _ key: String) {
         if persists { defaults.set(value, forKey: key) }

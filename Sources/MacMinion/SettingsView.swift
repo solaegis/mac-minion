@@ -399,6 +399,18 @@ struct AISettings: View {
             KeyedProviderSection(provider: .openai, model: $prefs.openAIModel)
                 .id(AIProvider.openai)
         }
+
+        if prefs.aiEnabled {
+            Section {
+                Toggle("Allow Saved Values", isOn: Binding(get: { prefs.allowsValues(prefs.aiProvider) },
+                                                           set: { prefs.setAllowsValues($0, for: prefs.aiProvider) }))
+            } footer: {
+                Text(prefs.allowsValues(prefs.aiProvider)
+                     ? String(localized: "Ask About Your Game Folder and Explain with AI on Problems send \(prefs.aiProvider.title) saved values. You're asked once each time MacMinion opens.")
+                     : String(localized: "\(prefs.aiProvider.title) never sees saved values: Ask About Your Game Folder and Explain with AI on Problems stay off. Naming keys and Explain Setting still work: they send only the addon's source."))
+                    .foregroundStyle(.secondary)
+            }
+        }
     }
 
     private var footer: String {

@@ -223,6 +223,32 @@ enum Snapshot {
                         await capture(to: "\(dir)/gameFolder-problems-expanded-\(mode).png")
                         model.gameFolder.problemsMoreExpanded = false
                         model.gameFolder.problemsExpanded = []
+                        // Explain with AI on a finding (S-076), with a sample answer.
+                        if let first = model.gameFolder.healthFindings.first {
+                            model.gameFolder.diagnoses[first.id] = "WritWorthy needs LibLazyCrafting, which isn't installed, so the game skips WritWorthy at login. Install the library with the button on this card, then log in again. Fairly sure: the game names the missing library."
+                            try? await Task.sleep(for: .seconds(1))
+                            await capture(to: "\(dir)/gameFolder-problems-ai-\(mode).png")
+                            model.gameFolder.diagnoses = [:]
+                        }
+                        // Ask About Your Game Folder (S-076) with sample steps and answer, then the permission question.
+                        let askMain = NSApp.windows.first { $0.canBecomeMain && !$0.isSheet }
+                        model.gameFolder.askQuestion = "Which characters have Auto craft off?"
+                        model.gameFolder.askSteps = ["Listed the addons with settings", "Looked at WritWorthy's settings"]
+                        model.gameFolder.askAnswer = "Only Masisi has Auto craft off in WritWorthy. Alpha Top and the third character have it on."
+                        model.gameFolder.askOpen = true
+                        try? await Task.sleep(for: .seconds(1.2))
+                        await capture(to: "\(dir)/gameFolder-ask-\(mode).png", window: askMain?.attachedSheet)
+                        model.gameFolder.askAnswer = ""
+                        model.gameFolder.askSteps = []
+                        let asking = Task { await model.allowSendingValues(purpose: String(localized: "Ask About Your Game Folder"), items: model.gameFolder.askItems) }
+                        try? await Task.sleep(for: .seconds(1.2))
+                        await capture(to: "\(dir)/gameFolder-values-permission-\(mode).png", window: askMain?.attachedSheet?.attachedSheet)
+                        model.answerValuesRequest(false)
+                        _ = await asking.value
+                        model.gameFolder.askOpen = false
+                        model.gameFolder.askQuestion = ""
+                        model.gameFolder.askError = nil
+                        try? await Task.sleep(for: .seconds(0.5))
                         // From an installed addon's icons (S-059): Problems and the Inspector narrowed to one addon.
                         if let dustman = model.installed.first(where: { $0.catalog.name == "Dustman" }) {
                             model.gameFolder.showProblems(of: dustman.catalog.name, dirs: dustman.record.dirs)

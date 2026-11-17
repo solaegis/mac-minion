@@ -27706,6 +27706,830 @@
           }
         }
       }
+    },
+    "%@ isn't allowed to see saved values. Turn on Allow Saved Values in Settings > AI.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ darf keine gespeicherten Werte sehen. Schalte „Gespeicherte Werte erlauben“ in Einstellungen > KI ein."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ no puede ver valores guardados. Activa Permitir valores guardados en Ajustes > IA."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ n’a pas le droit de voir les valeurs enregistrées. Activez Autoriser les valeurs enregistrées dans Réglages > IA."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ не разрешено видеть сохранённые значения. Включите «Разрешить сохранённые значения» в Настройки > ИИ."
+          }
+        }
+      }
+    },
+    "%@ looks things up in what MacMinion read. Its answer can be wrong.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ schlägt in dem nach, was MacMinion gelesen hat. Die Antwort kann falsch sein."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ busca en lo que MacMinion leyó. Su respuesta puede ser incorrecta."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ cherche dans ce que MacMinion a lu. Sa réponse peut être fausse."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ ищет в том, что прочитал MacMinion. Ответ может быть неверным."
+          }
+        }
+      }
+    },
+    "%@ never sees saved values: Ask About Your Game Folder and Explain with AI on Problems stay off. Naming keys and Explain Setting still work: they send only the addon's source.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ sieht nie gespeicherte Werte: „Frag nach deinem Spielordner“ und „Mit KI erklären“ bei Probleme bleiben aus. Schlüssel benennen und Einstellung erklären funktionieren weiter: Sie senden nur den Quelltext des Addons."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ nunca ve valores guardados: Preguntar sobre tu carpeta del juego y Explicar con IA en Problemas quedan desactivados. Nombrar claves y Explicar ajuste siguen funcionando: solo envían el código del addon."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ ne voit jamais les valeurs enregistrées : Interroger votre dossier du jeu et Expliquer avec l’IA dans Problèmes restent désactivés. Nommer les clés et Expliquer le réglage fonctionnent toujours : ils n’envoient que le code de l’addon."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ никогда не видит сохранённые значения: «Спросить о папке игры» и «Объяснить с ИИ» в «Проблемах» отключены. Именование ключей и «Объяснить настройку» работают: они отправляют только исходный код аддона."
+          }
+        }
+      }
+    },
+    "%@ sends %@ some of what your SavedVariables files hold:": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "new",
+            "value": "%1$@ sends %2$@ some of what your SavedVariables files hold:"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@ sendet %2$@ einen Teil dessen, was deine SavedVariables-Dateien enthalten:"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@ envía a %2$@ parte de lo que contienen tus archivos SavedVariables:"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@ envoie à %2$@ une partie de ce que contiennent vos fichiers SavedVariables :"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@ отправляет %2$@ часть содержимого ваших файлов SavedVariables:"
+          }
+        }
+      }
+    },
+    "Addon, character, account, and setting names": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Namen von Addons, Charakteren, Accounts und Einstellungen"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nombres de addons, personajes, cuentas y ajustes"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Noms des addons, personnages, comptes et réglages"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Названия аддонов, персонажей, аккаунтов и настроек"
+          }
+        }
+      }
+    },
+    "Addon, file, and character names": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Namen von Addons, Dateien und Charakteren"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nombres de addons, archivos y personajes"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Noms des addons, fichiers et personnages"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Названия аддонов, файлов и персонажей"
+          }
+        }
+      }
+    },
+    "Allow Saved Values": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gespeicherte Werte erlauben"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Permitir valores guardados"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Autoriser les valeurs enregistrées"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Разрешить сохранённые значения"
+          }
+        }
+      }
+    },
+    "Allow Until Quit": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bis zum Beenden erlauben"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Permitir hasta salir"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Autoriser jusqu’à la fermeture"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Разрешить до выхода"
+          }
+        }
+      }
+    },
+    "Ask %@ about your characters, addon settings, and problems (Control-Command-A)": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ nach deinen Charakteren, Addon-Einstellungen und Problemen fragen (Control-Command-A)"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Preguntar a %@ sobre tus personajes, ajustes de addons y problemas (Control-Comando-A)"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Interroger %@ sur vos personnages, réglages d’addons et problèmes (Contrôle-Commande-A)"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Спросить %@ о персонажах, настройках аддонов и проблемах (Control-Command-A)"
+          }
+        }
+      }
+    },
+    "Ask %@ for a likely cause and what to try first": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ nach einer wahrscheinlichen Ursache und einem ersten Schritt fragen"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Preguntar a %@ la causa probable y qué probar primero"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Demander à %@ une cause probable et quoi essayer d’abord"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Спросить %@ о вероятной причине и что попробовать сначала"
+          }
+        }
+      }
+    },
+    "Ask About Your Game Folder": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Frag nach deinem Spielordner"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Preguntar sobre tu carpeta del juego"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Interroger votre dossier du jeu"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Спросить о папке игры"
+          }
+        }
+      }
+    },
+    "Ask About Your Game Folder and Explain with AI on Problems send %@ saved values. You're asked once each time MacMinion opens.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "„Frag nach deinem Spielordner“ und „Mit KI erklären“ bei Probleme senden %@ gespeicherte Werte. Du wirst bei jedem Start von MacMinion einmal gefragt."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Preguntar sobre tu carpeta del juego y Explicar con IA en Problemas envían a %@ valores guardados. Se te pregunta una vez cada vez que se abre MacMinion."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Interroger votre dossier du jeu et Expliquer avec l’IA dans Problèmes envoient à %@ des valeurs enregistrées. La question est posée une fois à chaque ouverture de MacMinion."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "«Спросить о папке игры» и «Объяснить с ИИ» в «Проблемах» отправляют %@ сохранённые значения. Вопрос задаётся один раз при каждом запуске MacMinion."
+          }
+        }
+      }
+    },
+    "Ask About Your Game Folder…": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Frag nach deinem Spielordner …"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Preguntar sobre tu carpeta del juego…"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Interroger votre dossier du jeu…"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Спросить о папке игры…"
+          }
+        }
+      }
+    },
+    "Don't Send": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nicht senden"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No enviar"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ne pas envoyer"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Не отправлять"
+          }
+        }
+      }
+    },
+    "File sizes and the Problems list, including Lua error messages": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dateigrößen und die Problemliste, einschließlich Lua-Fehlermeldungen"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tamaños de archivo y la lista de Problemas, con los mensajes de error de Lua"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tailles des fichiers et liste des Problèmes, y compris les messages d’erreur Lua"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Размеры файлов и список проблем, включая сообщения об ошибках Lua"
+          }
+        }
+      }
+    },
+    "It leaves this Mac for %@. You're asked once until MacMinion quits; turn this off for good in Settings > AI.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Es verlässt diesen Mac und geht an %@. Du wirst einmal gefragt, bis MacMinion beendet wird; dauerhaft abschalten in Einstellungen > KI."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sale de este Mac hacia %@. Se te pregunta una vez hasta que salgas de MacMinion; desactívalo para siempre en Ajustes > IA."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cela quitte ce Mac pour %@. La question est posée une fois jusqu’à la fermeture de MacMinion ; désactivez-le pour de bon dans Réglages > IA."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Данные уходят с этого Mac в %@. Вопрос задаётся один раз до выхода из MacMinion; отключить навсегда можно в Настройки > ИИ."
+          }
+        }
+      }
+    },
+    "It stays on this Mac. You're asked once until MacMinion quits; turn this off for good in Settings > AI.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Es bleibt auf diesem Mac. Du wirst einmal gefragt, bis MacMinion beendet wird; dauerhaft abschalten in Einstellungen > KI."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Se queda en este Mac. Se te pregunta una vez hasta que salgas de MacMinion; desactívalo para siempre en Ajustes > IA."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cela reste sur ce Mac. La question est posée une fois jusqu’à la fermeture de MacMinion ; désactivez-le pour de bon dans Réglages > IA."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Данные остаются на этом Mac. Вопрос задаётся один раз до выхода из MacMinion; отключить навсегда можно в Настройки > ИИ."
+          }
+        }
+      }
+    },
+    "Listed the addons with settings": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Addons mit Einstellungen aufgelistet"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Listó los addons con ajustes"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A listé les addons avec réglages"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Перечислил аддоны с настройками"
+          }
+        }
+      }
+    },
+    "Listed the characters": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Charaktere aufgelistet"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Listó los personajes"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A listé les personnages"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Перечислил персонажей"
+          }
+        }
+      }
+    },
+    "Looked at %@ in %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Looked at %1$@ in %2$@"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@ in %2$@ angesehen"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Miró %1$@ en %2$@"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A regardé %1$@ dans %2$@"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Посмотрел %1$@ в %2$@"
+          }
+        }
+      }
+    },
+    "Looked at %@'s settings": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Einstellungen von %@ angesehen"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Miró los ajustes de %@"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A regardé les réglages de %@"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Посмотрел настройки %@"
+          }
+        }
+      }
+    },
+    "Looked at file sizes": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dateigrößen angesehen"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Miró los tamaños de archivo"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A regardé la taille des fichiers"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Посмотрел размеры файлов"
+          }
+        }
+      }
+    },
+    "Nothing was sent.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Es wurde nichts gesendet."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No se envió nada."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rien n’a été envoyé."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ничего не отправлено."
+          }
+        }
+      }
+    },
+    "Read the Problems list": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Problemliste gelesen"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Leyó la lista de Problemas"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A lu la liste des Problèmes"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Прочитал список проблем"
+          }
+        }
+      }
+    },
+    "Saved setting values the AI asks to see": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gespeicherte Werte, die die KI sehen möchte"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Valores guardados que la IA pida ver"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Valeurs enregistrées que l’IA demande à voir"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Сохранённые значения, которые запросит ИИ"
+          }
+        }
+      }
+    },
+    "Send Saved Values to %@?": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gespeicherte Werte an %@ senden?"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "¿Enviar valores guardados a %@?"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Envoyer les valeurs enregistrées à %@ ?"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Отправить сохранённые значения в %@?"
+          }
+        }
+      }
+    },
+    "This problem as the Problems page shows it, including Lua error messages": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dieses Problem, wie die Seite Probleme es zeigt, einschließlich Lua-Fehlermeldungen"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Este problema tal como lo muestra Problemas, con los mensajes de error de Lua"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ce problème tel que la page Problèmes le montre, y compris les messages d’erreur Lua"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Эта проблема в том виде, как её показывает страница «Проблемы», включая сообщения об ошибках Lua"
+          }
+        }
+      }
+    },
+    "Turn on AI in Settings to ask about your game folder": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Schalte KI in den Einstellungen ein, um nach deinem Spielordner zu fragen"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Activa la IA en Ajustes para preguntar sobre tu carpeta del juego"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Activez l’IA dans les Réglages pour interroger votre dossier du jeu"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Включите ИИ в настройках, чтобы спрашивать о папке игры"
+          }
+        }
+      }
+    },
+    "Which characters have Auto craft off?": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Welche Charaktere haben Auto craft aus?"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "¿Qué personajes tienen Auto craft desactivado?"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Quels personnages ont Auto craft désactivé ?"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "У каких персонажей выключен Auto craft?"
+          }
+        }
+      }
     }
   },
   "version": "1.0"
