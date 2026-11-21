@@ -28,6 +28,8 @@ struct OverviewView: View {
             .frame(maxWidth: .infinity)
         }
         .navigationTitle("Overview")
+        // Remount after Check for Updates (Command-R) or Update All so counts, “checked … ago”, and cards redraw.
+        .id(model.overviewReloadID)
         .toolbar {
             RefreshButton()
             ToolbarItem {

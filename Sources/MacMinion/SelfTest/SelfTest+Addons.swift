@@ -38,8 +38,11 @@ extension SelfTest {
         check("the new folder is on disk", manifest?.version == "2.0 r43")
 
         // S-004
+        let overviewBeforeUpdateAll = model.overviewReloadID
         await model.updateAll()
         check("Update All clears every update", model.updates.isEmpty)
+        check("Update All remounts the Overview", model.overviewReloadID == overviewBeforeUpdateAll + 1,
+              "\(model.overviewReloadID) after \(overviewBeforeUpdateAll)")
 
         // S-005
         model.search = "merchant"

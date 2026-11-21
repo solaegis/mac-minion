@@ -108,6 +108,8 @@ final class AppModel {
     private(set) var categories: [AddonCategory] = []
     private(set) var catalogDate: Date?
     private(set) var isRefreshing = false
+    /// Goes up when Check for Updates or Update All finishes, so Overview remounts with fresh numbers.
+    private(set) var overviewReloadID = 0
     var refreshError: String?
     var search = ""
     var sort: CatalogSort = .downloads
@@ -385,6 +387,7 @@ final class AppModel {
         }
         notified = Set(updates.map(\.id))
         if prefs.autoUpdate, !updates.isEmpty { await updateAll() }
+        overviewReloadID += 1
     }
 
     /// Checks ESOUI on the interval chosen in Settings.
@@ -564,6 +567,7 @@ final class AppModel {
         }
         // One Edit › Undo for the whole run.
         if let all = Reversible.group(String(localized: "Update All"), changes) { MainUndo.register(all) }
+        overviewReloadID += 1
     }
 
     /// Installs the given missing libraries, or all of them, one after another.
