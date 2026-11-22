@@ -1,3 +1,4 @@
+import AppKit
 import Charts
 import MacMinionKit
 import SwiftUI
@@ -422,6 +423,8 @@ private struct CategoryCard: View {
 
 private struct RecentActivityCard: View {
     @Environment(AppModel.self) private var model
+    /// Bumped when the window opens or the app becomes active so relative “time since” labels refresh.
+    @State private var now = Date()
 
     var body: some View {
         let events = Array(model.history.prefix(7))
@@ -431,11 +434,15 @@ private struct RecentActivityCard: View {
             } else {
                 VStack(spacing: 0) {
                     ForEach(events) { event in
-                        EventRow(event: event)
+                        EventRow(event: event, now: now)
                         if event.id != events.last?.id { Divider() }
                     }
                 }
             }
+        }
+        .onAppear { now = .now }
+        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
+            now = .now
         }
     }
 }
@@ -443,6 +450,8 @@ private struct RecentActivityCard: View {
 private struct EventRow: View {
     @Environment(AppModel.self) private var model
     let event: HistoryEvent
+    /// Current clock from the parent; referencing it forces relative dates to recompute.
+    let now: Date
 
     var body: some View {
         HStack(spacing: Space.md) {
@@ -459,7 +468,7 @@ private struct EventRow: View {
                     .lineLimit(1)
             }
             Spacer(minLength: Space.sm)
-            Text(event.date.formatted(.relative(presentation: .named)))
+            Text(relativeTime)
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }
@@ -474,6 +483,12 @@ private struct EventRow: View {
         if let id = event.addonID ?? model.catalog.first(where: { $0.name == event.name })?.id {
             model.open(model.installed(id) == nil ? .findMore : .installed, selecting: id)
         }
+    }
+
+    /// Depends on `now` so relative “ago” text recomputes when the window opens.
+    private var relativeTime: String {
+        _ = now
+        return event.date.formatted(.relative(presentation: .named))
     }
 
     private var symbol: String {
