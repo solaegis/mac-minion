@@ -27,14 +27,15 @@ MacMinion runs on this Mac only. There is no account and no server of its own. I
 - Live or PTS AddOns folder (or any folder you choose)
 - Menu bar extra with the Dock minion glyph, the update count, and Update All; closing the window can leave MacMinion in the menu bar (out of the Dock), and Open at login can start it there with the window closed
 - Checks ESOUI for updates once a day by default (Settings → Updates)
-- **Game Folder** for SavedVariables and the game's settings files: Characters (compare and clone settings), Inspector, Problems with Clean Up, and Game Settings forms with hover help on curated keys
+- **Game Folder** for SavedVariables and the game's settings files: Characters (compare and clone settings, Show All Addons, clone which addons load), Inspector with named settings and ranges from each addon's panel, Problems with Clean Up, and Game Settings forms with hover help on curated keys; Explain Setting… for what a key means before you clone
 - UI in English, German, French, Spanish, or Russian (follows the Mac by default; override in Settings → Appearance)
 - Optional AI, via Apple Intelligence or Ollama on this Mac, Claude, or OpenAI:
   - changelog summaries for one addon or every pending update
   - **Recommended for You** on the Overview: addons that would add something to the ones you have
   - a search bar on the Overview that finds addons from a description in your own words
+  - **Ask About Your Game Folder…** and Explain with AI on Problems (Allow Saved Values per provider)
   - thumbs up and down on any addon steer both; a thumbs down keeps that addon out of them
-  - for Ollama, a model recommendation for this Mac from the models on your server, using its memory, what is loaded, and a speed benchmark
+  - for Ollama, a model recommendation for this Mac from the models on your server, using its memory, what is loaded, and a speed benchmark; Ask needs a model that can use tools
 
 ESO only. No WoW catalog, no login, and no cloud backup or SavedVariables sync.
 

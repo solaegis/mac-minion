@@ -9,6 +9,7 @@ which characters, what each SavedVariables file holds, what looks wrong, and the
 <p>Game Folder has four tabs: <strong>Characters</strong>, <strong>Inspector</strong>, <strong>Problems</strong>, and
 <strong>Game Settings</strong> (<kbd>⌃</kbd><kbd>⌘</kbd><kbd>1</kbd> through <kbd>⌃</kbd><kbd>⌘</kbd><kbd>4</kbd>).
 <strong>Show Game Folder in Finder</strong> is <kbd>⌥</kbd><kbd>⌘</kbd><kbd>G</kbd>.
+<strong>Ask About Your Game Folder…</strong> (<kbd>⌃</kbd><kbd>⌘</kbd><kbd>A</kbd>, or the sparkles button on the toolbar) asks the AI about characters, settings, and problems; see <a href="ai.html#ask">AI</a>.
 From the command line, <code>macminion sv</code> covers files, find, problems, and space totals; see <a href="cli.html">Command line</a>.</p>
 
 <h2 id="characters">Characters</h2>
@@ -18,12 +19,23 @@ characters. Click to dig down: a character shows their addons around them and wh
 shows that character's settings in that addon, odd ones highlighted beside the usual value; a setting shows every value it
 has across your characters, as bars, with who has each. An account over the grid opens that account and its megaservers.
 The path bar or <kbd>⌘</kbd><kbd>[</kbd> climbs back out. Only the settings addons save are read, never their code.</p>
+<p>Settings use the names, ranges, and choices from each addon's settings panel (from the addon's source, and from what the
+companion saw in game when that is available). <strong>Show All Addons</strong> adds dotted lines for addons a character
+runs on from defaults or account-wide tables, without their own saved block. <strong>Explain Setting…</strong>
+(<kbd>⌃</kbd><kbd>⌘</kbd><kbd>I</kbd>) opens what the source says about a key, with an optional AI paragraph that never
+reads a saved value.</p>
 <p><strong>Compare With…</strong> on a character, or <strong>Compare Characters…</strong>
 (<kbd>⌃</kbd><kbd>⌘</kbd><kbd>C</kbd>), puts two characters side by side: every setting where they differ, then what only
 one of them has. From a character inside one addon, <strong>Compare With…</strong> scopes the comparison to that addon's
-file so Clone and Clone all change only those differences. Save and copy can be undone with <kbd>⌘</kbd><kbd>Z</kbd>.</p>
-<p>With <strong>MacMinion Companion</strong> installed, character cards can also show class, level, and champion points from
-what the companion recorded.</p>
+file so Clone and Clone all change only those differences. Compare also covers which addons each character loads
+(<strong>Addons Turned On</strong>); <strong>Copy Addon Choices From…</strong> opens Compare with those differences picked.
+Before Clone writes, it lists values that may be wrong on the other character (outside a slider's range, not one of the
+panel's choices, or a different type). Lua writes re-parse the file, refuse unexpected key changes, refuse if the file
+changed since it was read, and keep one <code>*.lua.macminion.bak</code> beside the file. Save and copy can be undone with
+<kbd>⌘</kbd><kbd>Z</kbd>.</p>
+<p>With <strong>MacMinion Companion</strong> (EsoMacMinion) installed, character cards can also show class, level, and
+champion points from what the companion recorded. The companion page shows frame rate, latency, Lua memory, and load times
+from the last session.</p>
 
 <h2 id="inspector">Inspector</h2>
 <p>Pick a SavedVariables file on the left to see what it stores. Files list largest or by name, with the addon each belongs to:</p>
@@ -45,8 +57,10 @@ what the companion recorded.</p>
 </ul>
 <p>The Inspector opens on <strong>Settings</strong>: the addon's saved settings as you'd read them, a section for every
 character and one for settings all your characters share. On and off are switches, colors are swatches, item links are
-item tags with their set, times are dates, money is gold, and IDs are names. <strong>Tree</strong>
-(<kbd>⌥</kbd><kbd>⌘</kbd><kbd>V</kbd>) shows every key and value as stored. Right-click a setting to see it in the tree.</p>
+item tags with their set, times are dates, money is gold, and IDs are names. Dropdowns show choice names and sliders show
+their allowed range when the addon's panel (or the companion) provided them. <strong>Tree</strong>
+(<kbd>⌥</kbd><kbd>⌘</kbd><kbd>V</kbd>) shows every key and value as stored. Right-click a setting to see it in the tree
+or to <strong>Explain Setting…</strong>.</p>
 <p>Double-click a table (or <kbd>⌘</kbd><kbd>↓</kbd>) to show only its entries; the path bar or <kbd>⌘</kbd><kbd>↑</kbd> goes back up.
 The <strong>Inspector</strong> menu also has Copy Path (<kbd>⌥</kbd><kbd>⌘</kbd><kbd>C</kbd>), Copy Value (<kbd>⇧</kbd><kbd>⌘</kbd><kbd>C</kbd>),
 Show Raw (<kbd>⌥</kbd><kbd>⌘</kbd><kbd>R</kbd>), and Look Up on UESP (<kbd>⌥</kbd><kbd>⌘</kbd><kbd>L</kbd>), which opens the page in your browser.
@@ -67,13 +81,15 @@ things stored with them; follow a node to dig further.</p>
   <li><strong>Long list</strong>: 5,000 entries or more, like a log or history that grows every session.</li>
   <li><strong>Large file</strong>: over 5 MB. The game reads every file at each login and reload.</li>
   <li><strong>Clean up</strong>: files no installed addon uses, copies of <code>.lua</code> files, or data for an unknown character.</li>
+  <li><strong>Out of range</strong>: a saved number outside its slider's range from the addon's settings panel.</li>
+  <li><strong>Companion Lua errors</strong>: from EsoMacMinion; hidden once you install an update that fixes them. Errors older than seven days drop off.</li>
 </ul>
 <p>Double-click a problem to see it in the Inspector. Choose <strong>Clean Up…</strong>
 (<kbd>⇧</kbd><kbd>⌘</kbd><kbd>T</kbd>) or <strong>Clean Up All…</strong> on Problems to move unused files and copies to the Trash
-(Problems lists the same files). Select findings and act on one at a time when you only want some.</p>
+(Problems lists the same files). After Clean Up, MacMinion re-reads SavedVariables so the list leaves Starting…. Select findings and act on one at a time when you only want some. <strong>Explain with AI</strong> under a card streams a likely cause when AI is on.</p>
 <div class="note">
   <p>Before anything goes to the Trash, MacMinion makes a <a href="backups.html">backup</a> of SavedVariables and the settings files.</p>
-  <p>Quit the game first: it rewrites these files when it quits. MacMinion won't change anything while it runs.</p>
+  <p>Quit the game first: it rewrites these files when it quits. MacMinion won't change anything while it runs, including under CrossOver when <code>eso64.exe</code> is on the process command line.</p>
 </div>
 
 <h2 id="game-settings">Game Settings</h2>

@@ -1,5 +1,5 @@
 <!-- title: AI -->
-<!-- description: Optional AI in MacMinion: changelog summaries, addon suggestions, plain-words search, ratings, and choosing an Ollama model. -->
+<!-- description: Optional AI in MacMinion: changelog summaries, Ask about your Game Folder, Explain with AI, addon suggestions, plain-words search, ratings, and choosing an Ollama model. -->
 <h1>AI</h1>
 <p class="lead">Optional. On first launch MacMinion picks Apple Intelligence when it is available; otherwise AI stays off until you choose a provider. Use Apple Intelligence or Ollama on your Mac, so nothing leaves it, or Claude or OpenAI with your own API key.</p>
 
@@ -32,8 +32,16 @@
   <li>Coding and embedding models are left out; the model must fit in 60% of your memory.</li>
   <li>It prefers recent chat models around 8 to 16 billion parameters, models already loaded, and ones that fit in the memory free right now.</li>
   <li><strong>Benchmark Top Models</strong> writes a short summary with the three best candidates and measures their speed here. A model slower than 15 tokens a second drops down the list.</li>
+  <li><strong>Ask About Your Game Folder</strong> needs a model that can use tools. Settings recommends one that can, and warns when the chosen model cannot.</li>
 </ul>
 <p>Choose <strong>Use</strong> next to the recommendation, or any model in the menu.</p>
+
+<h2 id="ask">Ask and Explain</h2>
+<p><strong>Ask About Your Game Folder…</strong> (<kbd>⌃</kbd><kbd>⌘</kbd><kbd>A</kbd>, or the sparkles button on Game Folder's toolbar) takes a question in plain words, such as which characters have a setting off. The model looks things up through tools over what MacMinion already read: addons, characters, settings and who has which value, Problems, and the largest files. Each lookup shows as a step.</p>
+<p>On Problems, <strong>Explain with AI</strong> under a card streams a likely cause and what to try first. <strong>Explain Setting…</strong> (<kbd>⌃</kbd><kbd>⌘</kbd><kbd>I</kbd> in the Inspector, or on a setting in Characters) shows what the addon's source says about a key, with an optional AI paragraph that uses only that source, never a saved value.</p>
+
+<h2 id="saved-values">Allow Saved Values</h2>
+<p>Ask and Explain with AI on Problems can send saved setting values. Each provider has an <strong>Allow Saved Values</strong> switch in Settings &gt; AI (on unless you turn it off). While it is on, the first time a session needs values a sheet lists what will be sent and asks; <strong>Allow Until Quit</strong> holds until MacMinion quits. Off means never. Naming keys and Explain Setting do not need it: they send only the addon's source.</p>
 
 <h2 id="summaries">Changelog summaries</h2>
 <p>An addon's details show <strong>What's New</strong>: a few bullets on what changed since your installed version, written
