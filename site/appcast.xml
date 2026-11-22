@@ -7,6 +7,16 @@
     <description>Updates for MacMinion</description>
     <language>en</language>
     <item>
+      <title>MacMinion 0.7.0</title>
+      <pubDate>Sun, 22 Nov 2026 21:23:17 GMT</pubDate>
+      <sparkle:version>4</sparkle:version>
+      <sparkle:shortVersionString>0.7.0</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>26.0</sparkle:minimumSystemVersion>
+      <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
+      <sparkle:releaseNotesLink>https://github.com/solaegis/mac-minion/releases/tag/v0.7.0</sparkle:releaseNotesLink>
+      <enclosure url="https://github.com/solaegis/mac-minion/releases/download/v0.7.0/MacMinion-0.7.0-macos-arm64.zip" sparkle:edSignature="x+D13DQLwor7S+RJolUYfzUlnbDQeGkp7zrYqR44CdZYg+kg7ShF+Qm9aHOGnpoX+qP/aHwPAaNA4Q4qkthKCA==" length="7342186" type="application/octet-stream" />
+    </item>
+    <item>
       <title>MacMinion 0.6.0</title>
       <pubDate>Wed, 11 Nov 2026 22:57:42 GMT</pubDate>
       <sparkle:version>2</sparkle:version>
