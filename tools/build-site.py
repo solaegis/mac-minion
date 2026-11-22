@@ -25,6 +25,7 @@ NAV = [
     ("browsing.html", "Installed & Find More"),
     ("updates.html", "Updates"),
     ("backups.html", "Backups"),
+    ("game-folder.html", "Game Folder"),
     ("ai.html", "AI"),
     ("settings.html", "Settings"),
     ("cli.html", "Command Line"),
