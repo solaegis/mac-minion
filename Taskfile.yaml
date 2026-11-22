@@ -34,7 +34,7 @@ tasks:
           CLI_ARGS: "{{.CLI_ARGS}}"
 
   build:open:
-    desc: Build, install, and reopen the app
+    desc: Build, install, quit any running MacMinion, and open the new app
     cmds:
       - ./build.sh --open {{.CLI_ARGS}}
 

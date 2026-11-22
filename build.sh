@@ -75,6 +75,25 @@ else
   app="$HOME/Applications/$name.app"
   mkdir -p "$HOME/Applications"
 fi
+
+# Quit a running copy before replacing ~/Applications/MacMinion.app (menu-bar-only
+# copies still answer by bundle id). Wait, then force-kill leftovers so --open never
+# races the old process.
+quit_running_app() {
+  osascript -e 'tell application id "com.solaegis.macminion" to quit' 2>/dev/null || true
+  osascript -e "tell application \"$name\" to quit" 2>/dev/null || true
+  local i
+  for i in {1..50}; do
+    pgrep -xq "$name" || return 0
+    sleep 0.1
+  done
+  pkill -x "$name" 2>/dev/null || true
+  sleep 0.2
+}
+if (( open )) && [[ -z $package_dir && -z "${APP_DEST:-}" ]]; then
+  quit_running_app
+fi
+
 rm -rf "$app"
 mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources"
 cp "$bin" "$app/Contents/MacOS/$name"
@@ -219,7 +238,6 @@ if [[ -z "${APP_DEST:-}" && -z $package_dir ]]; then
 fi
 
 if (( open )) && [[ -z $package_dir && -z "${APP_DEST:-}" ]]; then
-  osascript -e "quit app \"$name\"" 2>/dev/null || true
-  sleep 0.5
+  quit_running_app
   open "$app"
 fi
