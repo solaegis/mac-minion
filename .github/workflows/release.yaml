@@ -155,8 +155,21 @@ jobs:
           echo "feed PR: $pr_url"
           # Brief pause so the pull_request CI run can attach before --watch polls.
           sleep 15
-          gh pr checks "$pr_url" --watch
-          gh pr merge "$pr_url" --squash --delete-branch
+          # Required check only (branch protection: swift test). Retry merge under strict
+          # "up to date" when main moved during the wait.
+          for attempt in 1 2 3 4 5; do
+            gh pr checks "$pr_url" --required --watch
+            if gh pr merge "$pr_url" --squash --delete-branch; then
+              break
+            fi
+            if [ "$attempt" -eq 5 ]; then
+              echo "feed PR merge failed after retries" >&2
+              exit 1
+            fi
+            gh api -X PUT "repos/${{ github.repository }}/pulls/$(gh pr view "$pr_url" --json number --jq .number)/update-branch" \
+              -f expected_head_sha="$(gh pr view "$pr_url" --json headRefOid --jq .headRefOid)" || true
+            sleep 15
+          done
 
       - name: Redeploy the docs and feed
         env:

@@ -25,17 +25,35 @@ public enum ReversalError: LocalizedError, Equatable {
 /// Byte snapshots of small files (settings, SavedVariables) for undo.
 public enum FileSnapshot {
     /// Writes `bytes` to each file, but only when every file still holds `expecting`: a file the game or
-    /// another app changed since is never overwritten. Checks all files first, so either all change or none.
+    /// another app changed since is never overwritten. Checks all files first, writes via temps, and on any
+    /// failure restores already-written URLs so either all change or none.
     public static func write(_ bytes: [URL: Data], expecting: [URL: Data]) throws {
         let changed = bytes.keys.filter { url in (try? Data(contentsOf: url)) != expecting[url] }
         guard changed.isEmpty else { throw ReversalError.changedSince(changed.map(\.lastPathComponent).sorted()) }
-        for (url, data) in bytes.sorted(by: { $0.key.path < $1.key.path }) {
-            if url.pathExtension.lowercased() == "lua", let expected = expecting[url] {
-                // Lua SavedVariables: parse + rotating bak via the shared helper; bytes may fully replace.
-                try SavedVariablesWrite.writeUndo(data, to: url, expecting: expected)
-            } else {
-                try data.write(to: url, options: .atomic)
+        let missingExpect = bytes.keys.filter { expecting[$0] == nil }
+        guard missingExpect.isEmpty else {
+            throw ReversalError.changedSince(missingExpect.map(\.lastPathComponent).sorted())
+        }
+        var written: [(url: URL, previous: Data)] = []
+        do {
+            for (url, data) in bytes.sorted(by: { $0.key.path < $1.key.path }) {
+                let previous = expecting[url]!
+                if url.pathExtension.lowercased() == "lua" {
+                    try SavedVariablesWrite.writeUndo(data, to: url, expecting: previous)
+                } else {
+                    try data.write(to: url, options: .atomic)
+                }
+                written.append((url, previous))
             }
+        } catch {
+            for (url, previous) in written.reversed() {
+                if url.pathExtension.lowercased() == "lua" {
+                    try? SavedVariablesWrite.writeUndo(previous, to: url, expecting: (try? Data(contentsOf: url)) ?? previous)
+                } else {
+                    try? previous.write(to: url, options: .atomic)
+                }
+            }
+            throw error
         }
     }
 }
@@ -61,16 +79,25 @@ public enum TrashMove {
     }
 
     /// Moves items back from the Trash. Checks first that each is still in the Trash and nothing has taken its
-    /// place, so either all come back or none do.
+    /// place, so either all come back or none do. Mid-loop failure puts already-restored items back in the Trash.
     public static func putBack(_ items: [TrashedItem]) throws {
         let fm = FileManager.default
         let gone = items.filter { !fm.fileExists(atPath: $0.trashed.path) }
         guard gone.isEmpty else { throw ReversalError.missing(gone.map(\.original.lastPathComponent).sorted()) }
         let taken = items.filter { fm.fileExists(atPath: $0.original.path) }
         guard taken.isEmpty else { throw ReversalError.occupied(taken.map(\.original.lastPathComponent).sorted()) }
-        for item in items {
-            try fm.createDirectory(at: item.original.deletingLastPathComponent(), withIntermediateDirectories: true)
-            try fm.moveItem(at: item.trashed, to: item.original)
+        var restored: [TrashedItem] = []
+        do {
+            for item in items {
+                try fm.createDirectory(at: item.original.deletingLastPathComponent(), withIntermediateDirectories: true)
+                try fm.moveItem(at: item.trashed, to: item.original)
+                restored.append(item)
+            }
+        } catch {
+            for item in restored.reversed() {
+                try? fm.moveItem(at: item.original, to: item.trashed)
+            }
+            throw error
         }
     }
 

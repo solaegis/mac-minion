@@ -13,11 +13,34 @@ struct Reversible {
     var inverted: Reversible { Reversible(name: name, undo: redo, redo: undo) }
 
     /// Several changes as one menu item: undo takes them back newest first, redo makes them again in order.
+    /// Mid-way failure re-applies the inverse of parts that already ran, so the group stays all-or-none.
     static func group(_ name: String, _ parts: [Reversible]) -> Reversible? {
         guard parts.count > 1 else { return parts.first.map { Reversible(name: name, undo: $0.undo, redo: $0.redo) } }
         return Reversible(name: name,
-                          undo: { for part in parts.reversed() { try await part.undo() } },
-                          redo: { for part in parts { try await part.redo() } })
+                          undo: {
+                              var done: [Reversible] = []
+                              do {
+                                  for part in parts.reversed() {
+                                      try await part.undo()
+                                      done.append(part)
+                                  }
+                              } catch {
+                                  for part in done.reversed() { try? await part.redo() }
+                                  throw error
+                              }
+                          },
+                          redo: {
+                              var done: [Reversible] = []
+                              do {
+                                  for part in parts {
+                                      try await part.redo()
+                                      done.append(part)
+                                  }
+                              } catch {
+                                  for part in done.reversed() { try? await part.undo() }
+                                  throw error
+                              }
+                          })
     }
 }
 
@@ -73,7 +96,8 @@ enum MainUndo {
         manager.registerUndo(withTarget: token) { [token] _ in
             MainActor.assumeIsolated {
                 let redoing = manager.isRedoing
-                // Registered now, during undo, so it lands on the redo stack (and the other way round).
+                // Registered now, during undo, so it lands on the redo stack (UndoManager requires this
+                // while isUndoing/isRedoing). On failure, removeAllActions drops that redo entry.
                 register(change.inverted, token: token, manager: manager)
                 let previous = running
                 running = Task { @MainActor in

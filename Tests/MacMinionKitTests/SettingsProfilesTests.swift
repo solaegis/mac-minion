@@ -106,6 +106,31 @@ private func value(_ m: SettingsMatrix, _ id: String, _ suffix: String) -> Strin
     #expect(!m.gridAddons.contains { $0.file == "Lock.lua" }, "nobody keeps settings of their own, so no grid row")
 }
 
+@Test func ptsAccountWideSplitDoesNotFoldIntoDefault() {
+    let lock = """
+    Lock_SV = { ["Default"] = {
+        ["@ME"] = { ["$AccountWide"] = {
+            ["NA Megaserver"] = { ["emptySlots"] = true },
+            ["PTS"] = { ["emptySlots"] = false },
+            ["shared"] = 7,
+        } },
+    } }
+    """
+    var names = SVNameIndex()
+    names.characters[own] = (name: "Masisi", source: "test")
+    let pts = "8796093099999999"
+    names.characters[pts] = (name: "PTS Tester", source: "test")
+    let ptsFile = #"P_SV = { ["PTS"] = { ["@ME"] = { ["\#(pts)"] = { ["x"] = 1 } } } }"#
+    let base = SettingsMatrix.build(documents: ["Other.lua": SVDocument.parse(Data(other.utf8)),
+                                                "Pts.lua": SVDocument.parse(Data(ptsFile.utf8)),
+                                                "Lock.lua": SVDocument.parse(Data(lock.utf8))], names: names)
+    let m = base.applying(.init(), names: names)
+    let addon = m.addon("Lock.lua")
+    #expect(addon?.characters[own]?.first { $0.key.hasSuffix("Empty slots") }?.value.text == "true", "NA keeps NA's part")
+    #expect(addon?.characters[pts]?.first { $0.key.hasSuffix("Empty slots") }?.value.text == "false", "PTS keeps PTS's part")
+    #expect(addon?.characters[own]?.first { $0.key.hasSuffix("Shared") }?.value.text == "7")
+}
+
 // ESO Combat Lock also keeps each character's own data inside the account-wide table, keyed by ID.
 @Test func characterTablesInsideTheAccountWideTableAreThatCharactersOwnOverTheAccount() {
     let lock = """

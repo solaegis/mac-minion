@@ -17,6 +17,12 @@ import Testing
     }
 }
 
+@Test func updateAllLinkStillParsesWithoutConfirm() {
+    // Confirm is enforced when opening the URL in the app, not when parsing the link.
+    #expect(AppLink(url: URL(string: "macminion://action/update-all")!) == .action(.updateAll))
+    #expect(AppLink(url: URL(string: "macminion://action/update-all?confirm=1")!) == .action(.updateAll))
+}
+
 @Test func everyLinkReadsBackFromItsURL() {
     let links = AppLink.Action.allCases.map(AppLink.action) + AppLink.pages.map { AppLink.open(page: $0) } + [.addon(1234)]
     for link in links { #expect(AppLink(url: link.url) == link) }

@@ -1,9 +1,10 @@
 # Self-hosted CI runner (atreides)
 
-Trusted CI (`push` to `main` and same-repo pull requests) runs `swift test` on a
-repo-scoped GitHub Actions runner on **atreides**. Fork PRs stay on GitHub-hosted
-`macos-26` so untrusted workflow code never runs on the Mac. Release and Docs
-workflows stay on GitHub-hosted runners.
+Trusted CI (`push` to `main` only) runs `swift test` on a repo-scoped GitHub
+Actions runner on **atreides**. Every `pull_request` (same-repo or fork) stays on
+GitHub-hosted `macos-26`: PR workflows come from the merge commit, so a fork
+could rewrite `runs-on` if self-hosted were chosen from the PR workflow file.
+Release and Docs workflows stay on GitHub-hosted runners.
 
 ## Layout
 

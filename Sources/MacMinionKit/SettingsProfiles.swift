@@ -104,7 +104,9 @@ extension SettingsMatrix {
     /// profile's. Nothing when their account isn't known: another account's settings aren't theirs.
     func accountTable(_ addon: Addon?, for id: String) -> [String: Setting] {
         guard let tables = addon?.accountTables, !tables.isEmpty, let home = homes[id] else { return [:] }
-        let server = home.server.hasSuffix(" Megaserver") ? home.server : CharacterID.megaserver(ofID: id) ?? home.server
+        let server = SVLevel.megaserver(ofProfile: home.server) != nil
+            ? home.server
+            : CharacterID.megaserver(ofID: id) ?? home.server
         var merged = tables["Default|\(home.account)"] ?? [:]
         merged.merge(tables["\(server)|\(home.account)"] ?? [:]) { _, b in b }
         return merged

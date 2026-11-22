@@ -3,7 +3,7 @@ import Foundation
 /// A `macminion://` link, so scripts, Raycast, Stream Deck, and Shortcuts' Open URL can reach the app:
 ///
 ///     macminion://action/check-for-updates    check ESOUI for updates
-///     macminion://action/update-all           install every pending update
+///     macminion://action/update-all?confirm=1 install every pending update (confirm required for URL opens)
 ///     macminion://action/back-up              back up the AddOns and SavedVariables folders now
 ///     macminion://open/<page>                 show a page: overview, installed, updates, find-more, backups, game-folder
 ///     macminion://addon/<ESOUI id>            show one addon

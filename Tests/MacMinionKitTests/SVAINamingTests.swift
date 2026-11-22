@@ -16,7 +16,7 @@ WW.sv.maxGold = 100
     #expect(evidence.map(\.key) == ["maxGold", "queue"], "keys the source never mentions aren't sent")
     #expect(evidence[0].lines == ["if WW.sv.maxGold > 0 then ShowBudget(WW.sv.maxGold) end", "WW.sv.maxGold = 100"], "comments are left out")
     let prompt = SVAISchema.prompt(addon: "WW", table: "WW_SV › $AccountWide", evidence: evidence, shapes: ["queue": "a list of 3 numbers"])
-    #expect(prompt.contains("[queue] a list of 3 numbers\n    local list = WW.sv[\"queue\"]"))
+    #expect(prompt.contains("[queue] a list of 3 numbers\n<untrusted_data>\n    local list = WW.sv[\"queue\"]"))
 }
 
 @Test func readsFieldsFromTheAnswer() {

@@ -399,7 +399,9 @@ public struct SettingsMatrix: Sendable {
                         // An addon may split its account-wide settings by megaserver (`$AccountWide › EU Megaserver › …`):
                         // each part belongs to that megaserver's characters.
                         let byServer = inner.entries.filter { entry in
-                            if case .string(let s) = entry.key { return s.hasSuffix(" Megaserver") && entry.value.table != nil }
+                            if case .string(let s) = entry.key {
+                                return SVLevel.megaserver(ofProfile: s) != nil && entry.value.table != nil
+                            }
                             return false
                         }
                         for entry in byServer {
@@ -556,7 +558,8 @@ extension SettingsMatrix {
             return s.path.dropFirst(home.count)
         }
         var rest = s.path.dropFirst(4)
-        if s.path[3] == .string("$AccountWide"), case .string(let k)? = rest.first, k.hasSuffix(" Megaserver"), rest.count > 1 {
+        if s.path[3] == .string("$AccountWide"), case .string(let k)? = rest.first,
+           SVLevel.megaserver(ofProfile: k) != nil, rest.count > 1 {
             rest = rest.dropFirst()
         }
         return rest

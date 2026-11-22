@@ -5,21 +5,24 @@ import Foundation
 /// command lines that contain the game binary (`eso64.exe`), not the Steam or Bethesda launchers alone.
 public enum GameRunningMatcher {
     /// True for a macOS app that is the game (or a wrapper whose name/bundle clearly is the game).
+    /// Skyrim and other Zenimax titles do not match: need ESO in the name or bundle id.
     public static func matchesMacApp(localizedName: String, bundleIdentifier: String) -> Bool {
         let name = localizedName.lowercased()
         let id = bundleIdentifier.lowercased()
-        return name.contains("elder scrolls")
-            || name == "eso"
-            || name.hasPrefix("eso64")
-            || id.contains("zenimax")
+        if name == "the elder scrolls online" { return true }
+        if name == "eso" || name.hasPrefix("eso64") { return true }
+        // e.g. com.zenimaxonline.eso / com.zenimax.ESO — not bare "zenimax" (Skyrim, launcher).
+        if id.contains("zenimax"), id.contains("eso") { return true }
+        return false
     }
 
     /// True when a process command line is the ESO client under Wine/CrossOver.
-    /// Matches `eso64.exe` only — `steam.exe`, `Bethesda.net_Launcher`, and `Client.exe` (TTC) alone do not match.
+    /// Matches a path/argv token ending in `eso64.exe` only — not a bare substring inside another path,
+    /// and not `steam.exe`, `Bethesda.net_Launcher`, or `Client.exe` (TTC) alone.
     public static func matchesWineCommandLine(_ commandLine: String) -> Bool {
-        let lower = commandLine.lowercased()
-        // Normalize path separators so both `eso64.exe` and `eso64.EXE` with `\` or `/` match.
-        return lower.contains("eso64.exe")
+        let lower = commandLine.lowercased().replacingOccurrences(of: "\\", with: "/")
+        // Word-ish boundary: start, slash, or whitespace before eso64.exe; end, whitespace, or quote after.
+        return lower.range(of: #"(^|[/ \t])eso64\.exe($|[ \t\"'])"#, options: .regularExpression) != nil
     }
 
     /// True when any Mac app or Wine command line indicates the game is running.

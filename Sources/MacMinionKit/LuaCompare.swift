@@ -104,21 +104,25 @@ public enum LuaCompare {
                 }
                 return Array(path.prefix(allowed.count)) == allowed
             case .companionRequests:
-                return isCompanion(path, endingWith: ["lookups", "requests"])
+                // lookups.requests and anything under it (new request keys, list items).
+                return isCompanion(path, endingWith: ["lookups", "requests"], descendants: true)
             case .companionLookups:
-                return isCompanion(path, endingWith: ["lookups"])
+                // Only the lookups node itself (inserting the whole table). Descendants under
+                // answers are not allowed; request edits use companionRequests.
+                return isCompanion(path, endingWith: ["lookups"], descendants: false)
             }
         }
 
-        private func isCompanion(_ path: [LuaKey], endingWith suffix: [String]) -> Bool {
-            // EsoMacMinion_Data, profile, account, $AccountWide, then suffix… (and anything under).
-            guard path.count >= 4 + suffix.count,
+        private func isCompanion(_ path: [LuaKey], endingWith suffix: [String], descendants: Bool) -> Bool {
+            // EsoMacMinion_Data, profile, account, $AccountWide, then suffix… (and optionally under).
+            let depth = 4 + suffix.count
+            guard path.count >= depth,
                   path[0] == .string(CompanionData.variable),
                   path[3] == .string("$AccountWide") else { return false }
             for (i, name) in suffix.enumerated() {
                 guard path[4 + i] == .string(name) else { return false }
             }
-            return true
+            return descendants || path.count == depth
         }
     }
 }

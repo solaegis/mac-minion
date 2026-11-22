@@ -21,6 +21,11 @@ extension AppModel {
             return String(localized: "\(aiSource) isn't allowed to see saved values. Turn on Allow Saved Values in Settings > AI.")
         }
         if valuesApproved.contains(provider) { return nil }
+        // Replacing an in-flight sheet must resume the prior waiter so it does not hang.
+        if let previous = valuesRequest {
+            valuesRequest = nil
+            previous.answer(false)
+        }
         let allowed = await withCheckedContinuation { (continuation: CheckedContinuation<Bool, Never>) in
             valuesRequest = ValuesRequest(provider: provider, purpose: purpose, items: items) { continuation.resume(returning: $0) }
         }

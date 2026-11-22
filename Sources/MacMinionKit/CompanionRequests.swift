@@ -66,18 +66,21 @@ public enum CompanionRequests {
         .companionLookups,
     ]
 
-    /// Keys rewritten this write: always svGlobals / lamPanels; name kinds only when present in `nameIDs`.
-    private static func rewrittenRequestKeys(nameIDs: [String: [Int]]) -> Set<String> {
-        Set(["svGlobals", "lamPanels"]).union(nameIDs.keys)
+    /// Keys rewritten this write: always svGlobals; lamPanels only when the caller passes them; name kinds only when present in `nameIDs`.
+    private static func rewrittenRequestKeys(nameIDs: [String: [Int]], rewritePanels: Bool) -> Set<String> {
+        var keys = Set(["svGlobals"]).union(nameIDs.keys)
+        if rewritePanels { keys.insert("lamPanels") }
+        return keys
     }
 
     /// The file's bytes with request lists set in every `$AccountWide` table; other request keys kept.
-    public static func apply(svGlobals: [String], lamPanels: [String] = [],
+    /// Pass `lamPanels` only when that list should be rewritten; omit it to leave existing panels alone.
+    public static func apply(svGlobals: [String], lamPanels: [String]? = nil,
                              nameIDs: [String: [Int]] = [:], to data: Data) -> Data? {
         let doc = SVDocument.parse(data)
         guard doc.error == nil,
               let root = doc.variables.first(where: { $0.key == .string(CompanionData.variable) })?.value.table else { return nil }
-        let rewriting = rewrittenRequestKeys(nameIDs: nameIDs)
+        let rewriting = rewrittenRequestKeys(nameIDs: nameIDs, rewritePanels: lamPanels != nil)
         var edits: [(range: Range<Int>, text: String)] = []
         for profile in root.entries {
             for account in profile.value.table?.entries ?? [] {
@@ -117,8 +120,9 @@ public enum CompanionRequests {
     }
 
     /// Sets the request lists in the companion's SavedVariables file. Returns true when written.
+    /// Throws when a change was needed but the safety checks refused the edit.
     @discardableResult
-    public static func write(svGlobals: [String], lamPanels: [String] = [], nameIDs: [String: [Int]] = [:],
+    public static func write(svGlobals: [String], lamPanels: [String]? = nil, nameIDs: [String: [Int]] = [:],
                              savedVariables folder: URL) throws -> Bool {
         let fm = FileManager.default
         guard let url = CompanionData.fileNames.map({ folder.appending(path: $0) }).first(where: { fm.fileExists(atPath: $0.path) })
@@ -126,12 +130,14 @@ public enum CompanionRequests {
         let stamp = try SavedVariablesWrite.Stamp.read(url: url)
         guard let root = SVDocument.parse(stamp.data).variables.first(where: { $0.key == .string(CompanionData.variable) })?.value.table else { return false }
         let sameGlobals = requested(in: root) == svGlobals
-        let samePanels = requestedLamPanels(in: root) == lamPanels
+        let samePanels = lamPanels.map { requestedLamPanels(in: root) == $0 } ?? true
         // Only kinds in `nameIDs` are rewritten; the others stay as they are.
         let sameNames = nameIDs.allSatisfy { requestedInts(in: root, key: $0.key) == $0.value }
-        guard !(sameGlobals && samePanels && sameNames),
-              let updated = apply(svGlobals: svGlobals, lamPanels: lamPanels, nameIDs: nameIDs, to: stamp.data),
-              updated != stamp.data else { return false }
+        guard !(sameGlobals && samePanels && sameNames) else { return false }
+        guard let updated = apply(svGlobals: svGlobals, lamPanels: lamPanels, nameIDs: nameIDs, to: stamp.data) else {
+            throw SavedVariablesWrite.Refusal.unintendedChanges
+        }
+        guard updated != stamp.data else { return false }
         try SavedVariablesWrite.write(updated, to: url, previouslyRead: stamp, allowed: allowedWritePaths)
         return true
     }
@@ -180,11 +186,11 @@ public enum CompanionRequests {
 
     // MARK: Lua text
 
-    static func requestsTable(svGlobals: [String], lamPanels: [String], nameIDs: [String: [Int]],
+    static func requestsTable(svGlobals: [String], lamPanels: [String]?, nameIDs: [String: [Int]],
                               keeping kept: [LuaEntry]) -> String {
         var parts = kept.map { "\(key($0.key)) = \(value($0.value))" }
         parts.append(stringList("svGlobals", svGlobals))
-        parts.append(stringList("lamPanels", lamPanels))
+        if let lamPanels { parts.append(stringList("lamPanels", lamPanels)) }
         for kind in nameKinds where nameIDs[kind] != nil {
             parts.append(intList(kind, nameIDs[kind] ?? []))
         }

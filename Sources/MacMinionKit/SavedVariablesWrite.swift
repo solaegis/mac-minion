@@ -85,6 +85,8 @@ public enum SavedVariablesWrite {
         guard stamp.matchesFile(at: url) else { throw Refusal.fileChangedSinceRead }
         do {
             try rotateBackup(of: url, previousBytes: stamp.data)
+            // Re-check immediately before replace: a writer can land after the first match.
+            guard stamp.matchesFile(at: url) else { throw Refusal.fileChangedSinceRead }
             try newData.write(to: url, options: .atomic)
         } catch let refusal as Refusal {
             throw refusal
@@ -110,6 +112,7 @@ public enum SavedVariablesWrite {
         guard stamp.data == expecting else { throw Refusal.fileChangedSinceRead }
         do {
             try rotateBackup(of: url, previousBytes: expecting)
+            guard stamp.matchesFile(at: url) else { throw Refusal.fileChangedSinceRead }
             try newData.write(to: url, options: .atomic)
         } catch let refusal as Refusal {
             throw refusal

@@ -70,6 +70,8 @@ extension SidebarItem {
     static func open(_ url: URL, model: AppModel, showWindow: Bool = true) async -> Outcome {
         switch AppLink(url: url) {
         case .action(let action)?:
+            // URL-triggered Update All must opt in with ?confirm=1; menu and Dock call Action.run directly.
+            if action == .updateAll, !urlConfirmsDestructiveAction(url) { return .refused }
             await action.run(model)
             return .ran(action)
         case .open(let name)?:
@@ -84,6 +86,14 @@ extension SidebarItem {
             return .opened(page, addon: id)
         case nil:
             return .refused
+        }
+    }
+
+    /// True when the URL carries `confirm=1` or `confirm=true` (case-insensitive).
+    static func urlConfirmsDestructiveAction(_ url: URL) -> Bool {
+        guard let items = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems else { return false }
+        return items.contains {
+            $0.name.lowercased() == "confirm" && ($0.value == "1" || $0.value?.lowercased() == "true")
         }
     }
 }
