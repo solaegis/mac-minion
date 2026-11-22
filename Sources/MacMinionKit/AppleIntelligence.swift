@@ -71,26 +71,8 @@ public enum AppleIntelligence: Sendable {
 
     static func mapError(_ error: Error) -> Error {
         if error is AIError || error is CancellationError { return error }
-        if #available(macOS 27.0, *) {
-            if let e = error as? LanguageModelError {
-                switch e {
-                case .refusal(let refusal):
-                    return AIError.refused(refusal.debugDescription.isEmpty ? nil : refusal.debugDescription)
-                case .guardrailViolation:
-                    return AIError.refused(nil)
-                case .rateLimited:
-                    return AIError.rateLimited(displayName)
-                case .contextSizeExceeded:
-                    return AIError.http(0, String(localized: "The prompt is too long for Apple Intelligence.", bundle: .module))
-                case .timeout:
-                    return AIError.timedOut
-                case .unsupportedLanguageOrLocale:
-                    return AIError.http(0, String(localized: "Apple Intelligence doesn't support this language.", bundle: .module))
-                default:
-                    return AIError.http(0, e.localizedDescription)
-                }
-            }
-        }
+        // Map GenerationError only. LanguageModelError is not in every macOS 26 SDK the
+        // release runner uses; GenerationError covers the same refusal / rate-limit cases.
         if let e = error as? LanguageModelSession.GenerationError {
             switch e {
             case .refusal:
