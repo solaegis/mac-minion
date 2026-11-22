@@ -26,6 +26,13 @@ tasks:
     cmds:
       - ./build.sh {{.CLI_ARGS}}
 
+  build:install:
+    desc: Build, sign, and install ~/Applications/MacMinion.app
+    cmds:
+      - task: build
+        vars:
+          CLI_ARGS: "{{.CLI_ARGS}}"
+
   build:open:
     desc: Build, install, and reopen the app
     cmds:
