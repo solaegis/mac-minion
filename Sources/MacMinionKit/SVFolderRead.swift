@@ -57,10 +57,11 @@ public struct SVFolderRead: Sendable {
                             manifests: [String: (addon: String, variables: [String], dependsOn: [String])] = [:],
                             installedVersions: [String: Int] = [:],
                             answerCache: [String: CompanionAnswer] = [:],
+                            now: Date = .now,
                             report: @escaping @Sendable (String, Double) async -> Void = { _, _ in }) async -> SVFolderRead {
         await read(files, addons: addons, declarations: declarations, manifests: manifests,
                    installedVersions: installedVersions, cache: Cache(),
-                   answerCache: answerCache, report: report).read
+                   answerCache: answerCache, now: now, report: report).read
     }
 
     /// The same read, reusing what `cache` has for files whose size and date are unchanged; returns the new cache.
@@ -68,6 +69,7 @@ public struct SVFolderRead: Sendable {
                             manifests: [String: (addon: String, variables: [String], dependsOn: [String])] = [:],
                             installedVersions: [String: Int] = [:], cache old: Cache,
                             answerCache: [String: CompanionAnswer] = [:],
+                            now: Date = .now,
                             report: @escaping @Sendable (String, Double) async -> Void = { _, _ in }) async -> (read: SVFolderRead, cache: Cache) {
         var cache = Cache()
         cache.declarations = declarations
@@ -116,7 +118,7 @@ public struct SVFolderRead: Sendable {
                      guilds: snapshot.map { Dictionary($0.guilds.map { ($0.key, $0.value.name) }, uniquingKeysWith: { _, n in n }) } ?? [:],
                      answers: CompanionAnswerCache.merge(file: snapshot?.answers ?? [:], cache: answerCache))
         var problems = readFiles.flatMap { cache.first[$0]!.problems }
-        if let snapshot { problems += CompanionData.problems(from: snapshot, installedVersions: installedVersions) }
+        if let snapshot { problems += CompanionData.problems(from: snapshot, installedVersions: installedVersions, now: now) }
         let usage = SVUsage.finish(tally, names: names)
         problems += SVProblems.unknownCharacters(usage)
         problems = SVProblems.inDisplayOrder(problems)

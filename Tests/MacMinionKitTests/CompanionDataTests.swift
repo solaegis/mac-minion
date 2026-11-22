@@ -126,7 +126,8 @@ EsoMacMinion_Data =
     let snap = try #require(CompanionData.read(in: folder))
     #expect(snap.file == "EsoMacMinion.lua" && snap.characters["8796093036412335"]?.name == "Masisi")
 
-    let read = await SVFolderRead.read([folder.appending(path: "EsoMacMinion.lua")], addons: nil, declarations: [:])
+    let read = await SVFolderRead.read([folder.appending(path: "EsoMacMinion.lua")], addons: nil, declarations: [:],
+                                       now: companionTestNow)
     #expect(read.roster["8796093036412335"]?.className == "Nightblade")
     #expect(read.names.guilds[127263] == "Bandits Clan")
     #expect(read.problems.contains { $0.kind == .luaError })
