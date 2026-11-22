@@ -112,6 +112,24 @@ extension SelfTest {
               translated("Show Backups", "de") ?? "no de.lproj")
         let russianErrors = translated("%lld errors", "ru").map { String(format: $0, locale: Locale(identifier: "ru"), 5) }
         check("Problems counts use Russian plural forms", russianErrors == "5 ошибок", russianErrors ?? "no ru.lproj")
+
+        // MacMinionKit Bundle.module: Find More / Installed Filter menus call Recency and RatingFilter
+        // titles. A missing or flat kit .bundle fatalErrors (release 0.6.0 crash).
+        let kitURL = Bundle.main.resourceURL?.appending(path: "MacMinion_MacMinionKit.bundle")
+        let kitBundle = kitURL.flatMap(Bundle.init(url:))
+        check("the kit resource bundle is in Contents/Resources",
+              kitBundle != nil
+              && kitBundle?.infoDictionary?["CFBundlePackageType"] as? String == "BNDL"
+              && !(kitBundle?.localizations.isEmpty ?? true),
+              kitURL?.path ?? "no resourceURL")
+        check("kit filter titles resolve through Bundle.module",
+              !Recency.any.title.isEmpty && !RatingFilter.any.title.isEmpty
+              && Recency.any.title != Recency.any.rawValue,
+              "\(Recency.any.title) / \(RatingFilter.any.title)")
+        let beforeFindMore = model.sidebar
+        model.open(.findMore)
+        check("Find More opens without trapping on Filter titles", model.sidebar == .findMore)
+        if let beforeFindMore { model.open(beforeFindMore) }
     }
 
     /// S-071 `macminion://` links and the Dock menu run the same actions as the Addons menu.

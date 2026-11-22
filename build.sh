@@ -103,13 +103,80 @@ for lproj in "$loc_tmp"/*.lproj; do
   ditto "$lproj" "$dest"
 done
 rm -rf "$loc_tmp"
-# Kit catalog: SPM embeds MacMinionKit_MacMinionKit.bundle beside the binary; copy it so Bundle.module resolves in the app.
-for kit_bundle in "$scratch/$config"/MacMinionKit_MacMinionKit.bundle "$scratch/$config"/MacMinion_MacMinionKit.bundle; do
-  if [[ -d $kit_bundle ]]; then
-    ditto "$kit_bundle" "$app/Contents/Resources/${kit_bundle:t}"
+# Kit catalog: SPM embeds MacMinion_MacMinionKit.bundle so Bundle.module resolves. Search every
+# product layout swift build has used, accept only a real Contents-style bundle, and synthesize
+# one from the kit String Catalog when SPM left nothing usable (silent missing/malformed packs
+# crash Find More / Installed on FilterMenuItems → Recency/RatingFilter.title).
+kit_dest_name="MacMinion_MacMinionKit.bundle"
+kit_dest="$app/Contents/Resources/$kit_dest_name"
+if [[ $config == debug ]]; then products_config=Debug; else products_config=Release; fi
+kit_is_valid() {
+  local b=$1 plist=$1/Contents/Info.plist
+  [[ -f $plist ]] || return 1
+  /usr/libexec/PlistBuddy -c 'Print :CFBundlePackageType' "$plist" 2>/dev/null | grep -qx BNDL || return 1
+  local lproj
+  for lproj in "$b"/Contents/Resources/*.lproj(N); do
+    [[ -f $lproj/Localizable.strings || -f $lproj/Localizable.stringsdict ]] && return 0
+  done
+  return 1
+}
+kit_src=""
+for candidate in \
+  "$scratch/$config"/MacMinion_MacMinionKit.bundle \
+  "$scratch/$config"/MacMinionKit_MacMinionKit.bundle \
+  "$scratch/arm64-apple-macosx/$config"/MacMinion_MacMinionKit.bundle \
+  "$scratch/arm64-apple-macosx/$config"/MacMinionKit_MacMinionKit.bundle \
+  "$scratch/out/Products/$products_config"/MacMinion_MacMinionKit.bundle \
+  "$scratch/out/Products/$products_config"/MacMinionKit_MacMinionKit.bundle
+do
+  if kit_is_valid "$candidate"; then
+    kit_src=$candidate
     break
   fi
 done
+if [[ -n $kit_src ]]; then
+  ditto "$kit_src" "$kit_dest"
+else
+  echo "build: synthesizing $kit_dest_name from MacMinionKit Localizable.xcstrings"
+  kit_tmp=$(mktemp -d)
+  mkdir -p "$kit_tmp/Contents/Resources"
+  cat > "$kit_tmp/Contents/Info.plist" <<'PLIST'
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleDevelopmentRegion</key>
+	<string>en</string>
+	<key>CFBundleIdentifier</key>
+	<string>mac-minion.MacMinionKit.resources</string>
+	<key>CFBundleInfoDictionaryVersion</key>
+	<string>6.0</string>
+	<key>CFBundleName</key>
+	<string>MacMinion_MacMinionKit</string>
+	<key>CFBundlePackageType</key>
+	<string>BNDL</string>
+	<key>CFBundleSupportedPlatforms</key>
+	<array>
+		<string>MacOSX</string>
+	</array>
+</dict>
+</plist>
+PLIST
+  kit_loc=$(mktemp -d)
+  xcrun xcstringstool compile "$here/Sources/MacMinionKit/Resources/Localizable.xcstrings" \
+    --output-directory "$kit_loc" --language en --language de --language es --language fr --language ru
+  for lproj in "$kit_loc"/*.lproj; do
+    [[ -d $lproj ]] || continue
+    ditto "$lproj" "$kit_tmp/Contents/Resources/${lproj:t}"
+  done
+  rm -rf "$kit_loc"
+  ditto "$kit_tmp" "$kit_dest"
+  rm -rf "$kit_tmp"
+fi
+if ! kit_is_valid "$kit_dest"; then
+  echo "build failed: $kit_dest_name missing or not a Contents-style resource bundle (Bundle.module would crash Find More)"
+  exit 1
+fi
 # ESO Mac Minion, the in-game companion: copy the addon payload when the sibling repo is present.
 companion_src="$(cd "$here/../eso-mac-minion" 2>/dev/null && pwd || true)"
 if [[ -f "$companion_src/EsoMacMinion.txt" ]]; then
