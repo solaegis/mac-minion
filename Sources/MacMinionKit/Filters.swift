@@ -8,11 +8,11 @@ public enum Recency: String, CaseIterable, Sendable, Identifiable {
 
     public var title: String {
         switch self {
-        case .any: String(localized: "Any Time", bundle: .module)
-        case .week: String(localized: "Past Week", bundle: .module)
-        case .month: String(localized: "Past Month", bundle: .module)
-        case .quarter: String(localized: "Past 3 Months", bundle: .module)
-        case .year: String(localized: "Past Year", bundle: .module)
+        case .any: String(localized: "Any Time", bundle: .kit)
+        case .week: String(localized: "Past Week", bundle: .kit)
+        case .month: String(localized: "Past Month", bundle: .kit)
+        case .quarter: String(localized: "Past 3 Months", bundle: .kit)
+        case .year: String(localized: "Past Year", bundle: .kit)
         }
     }
 
@@ -34,11 +34,11 @@ public enum RatingFilter: String, CaseIterable, Sendable, Identifiable {
 
     public var title: String {
         switch self {
-        case .any: String(localized: "Any Rating", bundle: .module)
-        case .liked: String(localized: "Thumbs Up", bundle: .module)
-        case .unrated: String(localized: "Not Rated", bundle: .module)
-        case .hideDisliked: String(localized: "Hide Thumbs Down", bundle: .module)
-        case .disliked: String(localized: "Thumbs Down", bundle: .module)
+        case .any: String(localized: "Any Rating", bundle: .kit)
+        case .liked: String(localized: "Thumbs Up", bundle: .kit)
+        case .unrated: String(localized: "Not Rated", bundle: .kit)
+        case .hideDisliked: String(localized: "Hide Thumbs Down", bundle: .kit)
+        case .disliked: String(localized: "Thumbs Down", bundle: .kit)
         }
     }
 

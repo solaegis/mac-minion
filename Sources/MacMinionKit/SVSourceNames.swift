@@ -15,10 +15,10 @@ public struct SVSourceName: Sendable, Equatable, Codable {
         /// Where the name came from, in the UI's language.
         public var description: String {
             switch self {
-            case .settingsPanel: String(localized: "the addon's settings panel", bundle: .module)
-            case .comment: String(localized: "a comment in the addon's source", bundle: .module)
-            case .constant: String(localized: "a constant in the addon's source", bundle: .module)
-            case .ai: String(localized: "an AI model, from the lines of the addon's source that use the key", bundle: .module)
+            case .settingsPanel: String(localized: "the addon's settings panel", bundle: .kit)
+            case .comment: String(localized: "a comment in the addon's source", bundle: .kit)
+            case .constant: String(localized: "a constant in the addon's source", bundle: .kit)
+            case .ai: String(localized: "an AI model, from the lines of the addon's source that use the key", bundle: .kit)
             }
         }
     }
@@ -314,8 +314,8 @@ public struct SVSourceNames: Sendable, Equatable, Codable {
                     }
                 } else {
                     let sample = names.prefix(3).joined(separator: ", ")
-                    let keyedBy = prefix.isEmpty ? String(localized: "game constants", bundle: .module) : String(localized: "\(prefix)* values", bundle: .module)
-                    result.tableNotes[table] = String(localized: "Keyed by \(keyedBy), like \(sample): numbers the game sets, which the addon's source doesn't spell out.", bundle: .module)
+                    let keyedBy = prefix.isEmpty ? String(localized: "game constants", bundle: .kit) : String(localized: "\(prefix)* values", bundle: .kit)
+                    result.tableNotes[table] = String(localized: "Keyed by \(keyedBy), like \(sample): numbers the game sets, which the addon's source doesn't spell out.", bundle: .kit)
                 }
             }
             // Addon constants used directly as keys: `MyAddon.sv.modes[MODE_FAST] = …`.

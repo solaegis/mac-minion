@@ -66,6 +66,13 @@ jobs:
           ./build.sh --package dist   # signs Sparkle's helpers inside-out, then the app, with $SIGN_IDENTITY
           app=dist/MacMinion.app
           lipo -archs "$app/Contents/MacOS/MacMinion" | grep -qw arm64
+          # Bundle.kit loads from Contents/Resources; missing pack fails selftest titles / launch UI.
+          [[ -d "$app/Contents/Resources/MacMinion_MacMinionKit.bundle/Contents" ]] \
+            || { echo "missing Contents/Resources MacMinion_MacMinionKit.bundle"; exit 1; }
+          store="$RUNNER_TEMP/macminion-selftest.store"
+          rm -rf "$store"
+          mkdir -p "$store"
+          APP_STORE="$store" "$app/Contents/MacOS/MacMinion" --selftest
           codesign --verify --strict --verbose=2 "$app"
           req=$(codesign -dr - "$app" 2>&1 | grep 'designated =>')
           echo "$req"

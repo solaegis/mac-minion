@@ -113,9 +113,9 @@ extension SelfTest {
         let russianErrors = translated("%lld errors", "ru").map { String(format: $0, locale: Locale(identifier: "ru"), 5) }
         check("Problems counts use Russian plural forms", russianErrors == "5 ошибок", russianErrors ?? "no ru.lproj")
 
-        // MacMinionKit Bundle.module: Filter menus call Recency and RatingFilter titles. A missing
-        // MacMinion_MacMinionKit.bundle path fatalErrors; a flat or hollow pack may still load and
-        // fall back to the key. build.sh requires a Contents-style BNDL with locales.
+        // MacMinionKit Bundle.kit: Filter menus call Recency and RatingFilter titles. A missing
+        // Contents/Resources MacMinion_MacMinionKit.bundle leaves titles as keys (or fatalErrors if
+        // code still hits SPM Bundle.module). App-root copies are illegal for codesign.
         let kitURL = Bundle.main.resourceURL?.appending(path: "MacMinion_MacMinionKit.bundle")
         let kitBundle = kitURL.flatMap(Bundle.init(url:))
         check("the kit resource bundle is in Contents/Resources",
@@ -123,9 +123,12 @@ extension SelfTest {
               && kitBundle?.infoDictionary?["CFBundlePackageType"] as? String == "BNDL"
               && !(kitBundle?.localizations.isEmpty ?? true),
               kitURL?.path ?? "no resourceURL")
-        // Eager titles force Bundle.module (the user crash). Exact English catches key-fallback
+        check("Bundle.kit loads the Contents/Resources catalog",
+              kitBundle != nil && Bundle.kit.bundlePath == kitBundle!.bundlePath,
+              Bundle.kit.bundlePath)
+        // Eager titles force Bundle.kit (the user crash path). Exact English catches key-fallback
         // from a hollow pack; lazy Filter Menu is not opened here.
-        check("kit filter titles resolve through Bundle.module",
+        check("kit filter titles resolve through Bundle.kit",
               Recency.any.title == "Any Time" && RatingFilter.any.title == "Any Rating",
               "\(Recency.any.title) / \(RatingFilter.any.title)")
     }

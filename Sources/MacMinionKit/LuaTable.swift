@@ -146,7 +146,7 @@ public struct LuaParseError: Error, Sendable, Equatable, CustomStringConvertible
     public let endedEarly: Bool
 
     public var description: String {
-        String(localized: "\(message) at line \(line), column \(column)", bundle: .module) + (path.isEmpty ? "" : " " + String(localized: "in \(path.map(\.description).joined(separator: " › "))", bundle: .module))
+        String(localized: "\(message) at line \(line), column \(column)", bundle: .kit) + (path.isEmpty ? "" : " " + String(localized: "in \(path.map(\.description).joined(separator: " › "))", bundle: .kit))
     }
 }
 
@@ -165,7 +165,7 @@ struct LuaParser {
         skipSpace()
         while error == nil, pos < bytes.count {
             let start = pos
-            guard let name = identifier() else { fail(String(localized: "Expected a variable name", bundle: .module)); break }
+            guard let name = identifier() else { fail(String(localized: "Expected a variable name", bundle: .kit)); break }
             skipSpace()
             guard expect(UInt8(ascii: "=")) else { break }
             path = [.string(name)]
@@ -181,7 +181,7 @@ struct LuaParser {
 
     mutating func parseValue() -> LuaValue {
         skipSpace()
-        guard let c = peek else { fail(String(localized: "The file ends where a value should be", bundle: .module)); return .nil }
+        guard let c = peek else { fail(String(localized: "The file ends where a value should be", bundle: .kit)); return .nil }
         switch c {
         case UInt8(ascii: "{"): return .table(parseTable())
         case UInt8(ascii: "\""), UInt8(ascii: "'"): return .string(parseString() ?? "")
@@ -193,8 +193,8 @@ struct LuaParser {
             case "nil": return .nil
             case "math": // math.huge, which some serializers write for infinity
                 if consume(".huge") { return .number(.infinity) }
-                fail(String(localized: "Unexpected word", bundle: .module)); return .nil
-            default: fail(String(localized: "Unexpected character “\(String(Character(Unicode.Scalar(c))))”", bundle: .module)); return .nil
+                fail(String(localized: "Unexpected word", bundle: .kit)); return .nil
+            default: fail(String(localized: "Unexpected character “\(String(Character(Unicode.Scalar(c))))”", bundle: .kit)); return .nil
             }
         }
     }
@@ -206,7 +206,7 @@ struct LuaParser {
         var nextIndex: Int64 = 1
         while error == nil {
             skipSpace()
-            guard let c = peek else { fail(String(localized: "The file ends inside a table", bundle: .module)); break }
+            guard let c = peek else { fail(String(localized: "The file ends inside a table", bundle: .kit)); break }
             if c == UInt8(ascii: "}") { pos += 1; break }
             let entryStart = pos
             let key: LuaKey
@@ -238,7 +238,7 @@ struct LuaParser {
     }
 
     mutating func parseKey() -> LuaKey? {
-        guard let c = peek else { fail(String(localized: "The file ends inside a key", bundle: .module)); return nil }
+        guard let c = peek else { fail(String(localized: "The file ends inside a key", bundle: .kit)); return nil }
         switch c {
         case UInt8(ascii: "\""), UInt8(ascii: "'"):
             return parseString().map(LuaKey.string)
@@ -247,7 +247,7 @@ struct LuaParser {
             case .integer(let n): return .integer(n)
             case .number(let n): return .number(n)
             case .bool(let b): return .bool(b)
-            default: if error == nil { fail(String(localized: "A key must be a string, number, or boolean", bundle: .module)) }; return nil
+            default: if error == nil { fail(String(localized: "A key must be a string, number, or boolean", bundle: .kit)) }; return nil
             }
         }
     }
@@ -293,7 +293,7 @@ struct LuaParser {
             out.append(c)
             pos += 1
         }
-        fail(String(localized: "The file ends inside a string", bundle: .module))
+        fail(String(localized: "The file ends inside a string", bundle: .kit))
         return nil
     }
 
@@ -311,7 +311,7 @@ struct LuaParser {
         let text = String(decoding: UnsafeBufferPointer(rebasing: bytes[start..<pos]), as: UTF8.self)
         if isInteger, let n = Int64(text) { return .integer(n) }
         if let n = Double(text) { return .number(n) }
-        if pos == bytes.count { fail(String(localized: "The file ends inside a number", bundle: .module)) } else { pos = start; fail(String(localized: "“\(text)” isn't a number", bundle: .module)) }
+        if pos == bytes.count { fail(String(localized: "The file ends inside a number", bundle: .kit)) } else { pos = start; fail(String(localized: "“\(text)” isn't a number", bundle: .kit)) }
         return nil
     }
 
@@ -364,7 +364,7 @@ struct LuaParser {
 
     mutating func expect(_ c: UInt8) -> Bool {
         if peek == c { pos += 1; return true }
-        fail(peek == nil ? String(localized: "The file ends where “\(String(Character(Unicode.Scalar(c))))” should be", bundle: .module) : String(localized: "Expected “\(String(Character(Unicode.Scalar(c))))”", bundle: .module))
+        fail(peek == nil ? String(localized: "The file ends where “\(String(Character(Unicode.Scalar(c))))” should be", bundle: .kit) : String(localized: "Expected “\(String(Character(Unicode.Scalar(c))))”", bundle: .kit))
         return false
     }
 

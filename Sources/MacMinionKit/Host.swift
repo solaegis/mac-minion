@@ -15,7 +15,7 @@ public struct HostProfile: Sendable, Equatable {
     }
 
     public static func current() -> HostProfile {
-        HostProfile(chip: sysctlString("machdep.cpu.brand_string") ?? String(localized: "this Mac", bundle: .module),
+        HostProfile(chip: sysctlString("machdep.cpu.brand_string") ?? String(localized: "this Mac", bundle: .kit),
                     memoryBytes: ProcessInfo.processInfo.physicalMemory,
                     availableBytes: availableMemory() ?? ProcessInfo.processInfo.physicalMemory / 2,
                     performanceCores: sysctlInt("hw.perflevel0.physicalcpu") ?? ProcessInfo.processInfo.activeProcessorCount)
@@ -25,7 +25,7 @@ public struct HostProfile: Sendable, Equatable {
     public var summary: String {
         let total = ByteCountFormatter.string(fromByteCount: Int64(memoryBytes), countStyle: .memory)
         let free = ByteCountFormatter.string(fromByteCount: Int64(availableBytes), countStyle: .memory)
-        return "\(chip), \(total) (" + String(localized: "\(free) free", bundle: .module) + ")"
+        return "\(chip), \(total) (" + String(localized: "\(free) free", bundle: .kit) + ")"
     }
 
     static func sysctlString(_ name: String) -> String? {

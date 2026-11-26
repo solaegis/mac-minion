@@ -34,13 +34,13 @@ public enum AppleIntelligence: Sendable {
     /// Human-readable status for Settings, or `nil` when ready.
     public static var statusMessage: String {
         switch status {
-        case .available: String(localized: "Available", bundle: .module)
+        case .available: String(localized: "Available", bundle: .kit)
         case .deviceNotEligible:
-            String(localized: "This Mac doesn't support Apple Intelligence.", bundle: .module)
+            String(localized: "This Mac doesn't support Apple Intelligence.", bundle: .kit)
         case .appleIntelligenceNotEnabled:
-            String(localized: "Turn on Apple Intelligence in System Settings.", bundle: .module)
+            String(localized: "Turn on Apple Intelligence in System Settings.", bundle: .kit)
         case .modelNotReady:
-            String(localized: "Apple Intelligence isn't ready yet. Try again in a moment.", bundle: .module)
+            String(localized: "Apple Intelligence isn't ready yet. Try again in a moment.", bundle: .kit)
         }
     }
 
@@ -82,9 +82,9 @@ public enum AppleIntelligence: Sendable {
             case .rateLimited:
                 return AIError.rateLimited(displayName)
             case .exceededContextWindowSize:
-                return AIError.http(0, String(localized: "The prompt is too long for Apple Intelligence.", bundle: .module))
+                return AIError.http(0, String(localized: "The prompt is too long for Apple Intelligence.", bundle: .kit))
             case .assetsUnavailable:
-                return AIError.notConfigured(String(localized: "Apple Intelligence isn't ready yet. Try again in a moment.", bundle: .module))
+                return AIError.notConfigured(String(localized: "Apple Intelligence isn't ready yet. Try again in a moment.", bundle: .kit))
             default:
                 return AIError.http(0, e.localizedDescription)
             }

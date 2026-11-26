@@ -4,6 +4,10 @@ What changed in each MacMinion release. The newest is first.
 
 ## Unreleased
 
+## 0.7.1 — 2026-11-26
+
+- Fix launch crashes on Sparkle-updated installs: kit strings load through Bundle.kit from Contents/Resources instead of SPM's Bundle.module (CI builds looked at the app root, which codesign cannot seal).
+
 ## 0.7.0 — 2026-11-22
 
 - Optional AI via Apple Intelligence on this Mac (Foundation Models): no API key, first-launch default when available; Ollama, Claude, and OpenAI stay as choices.

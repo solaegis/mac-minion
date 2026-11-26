@@ -88,8 +88,8 @@ public struct SVFolderRead: Sendable {
         }
         let toRead = files.filter { cache.first[$0.lastPathComponent] == nil }
         let count = toRead.count
-        await report(String(localized: "Reading \(String(localized: "\(count) SavedVariables files", bundle: .module))…", bundle: .module), 0)
-        let fresh = await forEach(toRead, report: { done in await report(String(localized: "Reading file \(done) of \(count)…", bundle: .module), 0.5 * Double(done) / Double(max(1, count))) }) { url -> (String, Cache.First)? in
+        await report(String(localized: "Reading \(String(localized: "\(count) SavedVariables files", bundle: .kit))…", bundle: .kit), 0)
+        let fresh = await forEach(toRead, report: { done in await report(String(localized: "Reading file \(done) of \(count)…", bundle: .kit), 0.5 * Double(done) / Double(max(1, count))) }) { url -> (String, Cache.First)? in
             guard let doc = try? SVDocument.read(url) else { return nil }
             let file = url.lastPathComponent
             return (file, Cache.First(names: SVNameIndex.collect(file: file, document: doc),
@@ -101,7 +101,7 @@ public struct SVFolderRead: Sendable {
         }
         for (file, part) in fresh { cache.first[file] = part }
 
-        await report(String(localized: "Matching names to IDs…", bundle: .module), 0.5)
+        await report(String(localized: "Matching names to IDs…", bundle: .kit), 0.5)
         let readFiles = cache.first.keys.sorted()
         var names = SVNameIndex(), homes: [String: SettingsMatrix.Home] = [:], tally = SVUsage.Tally()
         for file in readFiles {
@@ -139,9 +139,9 @@ public struct SVFolderRead: Sendable {
         let byName = SettingsMatrix.charactersByName(names)
         let finalNames = names
         let toIndex = readFiles.filter { cache.second[$0] == nil }
-        await report(String(localized: "Finding where each ID is used…", bundle: .module), 0.6)
+        await report(String(localized: "Finding where each ID is used…", bundle: .kit), 0.6)
         let indexed = await forEach(toIndex.compactMap { folder?.appending(path: $0) },
-                                    report: { done in await report(String(localized: "Finding where each ID is used: file \(done) of \(toIndex.count)…", bundle: .module), 0.6 + 0.4 * Double(done) / Double(max(1, toIndex.count))) }) { url -> (String, Cache.Second)? in
+                                    report: { done in await report(String(localized: "Finding where each ID is used: file \(done) of \(toIndex.count)…", bundle: .kit), 0.6 + 0.4 * Double(done) / Double(max(1, toIndex.count))) }) { url -> (String, Cache.Second)? in
             let file = url.lastPathComponent
             guard let doc = try? SVDocument.read(url) else { return nil }
             return (file, Cache.Second(hits: SVReferenceIndex.hits(in: doc, file: 0, names: finalNames),

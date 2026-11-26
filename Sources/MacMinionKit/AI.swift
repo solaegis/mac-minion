@@ -8,9 +8,9 @@ public enum AIProvider: String, CaseIterable, Codable, Sendable, Identifiable {
 
     public var title: String {
         switch self {
-        case .off: String(localized: "Off", bundle: .module)
-        case .apple: String(localized: "Apple Intelligence (on this Mac)", bundle: .module)
-        case .ollama: String(localized: "Ollama (on this Mac)", bundle: .module)
+        case .off: String(localized: "Off", bundle: .kit)
+        case .apple: String(localized: "Apple Intelligence (on this Mac)", bundle: .kit)
+        case .ollama: String(localized: "Ollama (on this Mac)", bundle: .kit)
         case .claude: "Claude"
         case .openai: "OpenAI"
         }
@@ -64,11 +64,11 @@ public struct AIConfig: Sendable, Equatable {
     /// Why this config can't send a request yet, or nil when it can.
     public var problem: String? {
         switch provider {
-        case .off: String(localized: "AI is turned off in Settings.", bundle: .module)
+        case .off: String(localized: "AI is turned off in Settings.", bundle: .kit)
         case .apple: AppleIntelligence.unavailableReason
-        case .ollama: ollamaModel.isEmpty ? String(localized: "Choose an Ollama model in Settings.", bundle: .module) : nil
-        case .claude: claudeKey.isEmpty ? String(localized: "Add a Claude API key in Settings.", bundle: .module) : claudeModel.isEmpty ? String(localized: "Choose a Claude model in Settings.", bundle: .module) : nil
-        case .openai: openAIKey.isEmpty ? String(localized: "Add an OpenAI API key in Settings.", bundle: .module) : openAIModel.isEmpty ? String(localized: "Choose an OpenAI model in Settings.", bundle: .module) : nil
+        case .ollama: ollamaModel.isEmpty ? String(localized: "Choose an Ollama model in Settings.", bundle: .kit) : nil
+        case .claude: claudeKey.isEmpty ? String(localized: "Add a Claude API key in Settings.", bundle: .kit) : claudeModel.isEmpty ? String(localized: "Choose a Claude model in Settings.", bundle: .kit) : nil
+        case .openai: openAIKey.isEmpty ? String(localized: "Add an OpenAI API key in Settings.", bundle: .kit) : openAIModel.isEmpty ? String(localized: "Choose an OpenAI model in Settings.", bundle: .kit) : nil
         }
     }
 }
@@ -89,22 +89,22 @@ public enum AIError: LocalizedError, Equatable {
         switch self {
         case .notConfigured(let why): why
         case .badKey(let provider):
-            String(localized: "\(provider) didn't accept the API key. Check your API key in Settings > AI.", bundle: .module)
+            String(localized: "\(provider) didn't accept the API key. Check your API key in Settings > AI.", bundle: .kit)
         case .rateLimited(let provider):
-            String(localized: "\(provider) is rate limiting requests. Wait a minute and try again.", bundle: .module)
+            String(localized: "\(provider) is rate limiting requests. Wait a minute and try again.", bundle: .kit)
         case .outage(let provider):
-            String(localized: "\(provider) is having problems right now. Try again later.", bundle: .module)
+            String(localized: "\(provider) is having problems right now. Try again later.", bundle: .kit)
         case .unreachable(let message): message
-        case .timedOut: String(localized: "The AI took too long to answer. Try again.", bundle: .module)
+        case .timedOut: String(localized: "The AI took too long to answer. Try again.", bundle: .kit)
         case .http(let code, let message):
-            message.isEmpty ? String(localized: "The AI service answered \(code).", bundle: .module) : message
+            message.isEmpty ? String(localized: "The AI service answered \(code).", bundle: .kit) : message
         case .refused(let why):
             if let why {
-                String(localized: "The model declined: \(why)", bundle: .module)
+                String(localized: "The model declined: \(why)", bundle: .kit)
             } else {
-                String(localized: "The model declined to answer.", bundle: .module)
+                String(localized: "The model declined to answer.", bundle: .kit)
             }
-        case .empty: String(localized: "The answer was empty.", bundle: .module)
+        case .empty: String(localized: "The answer was empty.", bundle: .kit)
         }
     }
 
@@ -159,12 +159,12 @@ public enum ConnectionStatus: Equatable, Sendable {
 
     public var title: String {
         switch self {
-        case .noKey: String(localized: "No key configured", bundle: .module)
-        case .untested: String(localized: "Not tested", bundle: .module)
+        case .noKey: String(localized: "No key configured", bundle: .kit)
+        case .untested: String(localized: "Not tested", bundle: .kit)
         case .testing: "Testing…"
-        case .connected: String(localized: "Connected", bundle: .module)
-        case .invalidKey: String(localized: "Invalid key", bundle: .module)
-        case .rateLimited: String(localized: "Rate limited", bundle: .module)
+        case .connected: String(localized: "Connected", bundle: .kit)
+        case .invalidKey: String(localized: "Invalid key", bundle: .kit)
+        case .rateLimited: String(localized: "Rate limited", bundle: .kit)
         case .failed(let why): why
         }
     }
@@ -195,7 +195,7 @@ public struct AIClient: Sendable {
         if config.provider == .apple {
             return try await AppleIntelligence.stream(system: system, prompt: prompt, onText: onText)
         }
-        guard let llm = config.llm else { throw AIError.notConfigured(String(localized: "AI is turned off in Settings.", bundle: .module)) }
+        guard let llm = config.llm else { throw AIError.notConfigured(String(localized: "AI is turned off in Settings.", bundle: .kit)) }
         var text = ""
         for try await event in llm.streamChat(messages: [ChatMessage(.user, prompt)], model: config.model, system: system,
                                               session: session) {
@@ -373,14 +373,14 @@ public enum ModelAdvisor {
         let size = ByteCountFormatter.string(fromByteCount: best.bytes, countStyle: .memory)
         var why = [String(format: "%.0fB parameters, %@", best.billions, size)]
         if let speed = speeds[best.name] {
-            why.append(String(localized: "writes \(Int(speed.tokensPerSecond.rounded())) tokens a second here", bundle: .module))
+            why.append(String(localized: "writes \(Int(speed.tokensPerSecond.rounded())) tokens a second here", bundle: .kit))
         }
-        if best.tools == true { why.append(String(localized: "can look things up for Ask", bundle: .module)) }
-        if best.tools == false { why.append(String(localized: "can't look things up, so Ask won't work", bundle: .module)) }
-        if loaded.contains(best.name) { why.append(String(localized: "already loaded", bundle: .module)) }
-        if Double(best.bytes) > Double(host.availableBytes) { why.append(String(localized: "needs more than the memory free now", bundle: .module)) }
+        if best.tools == true { why.append(String(localized: "can look things up for Ask", bundle: .kit)) }
+        if best.tools == false { why.append(String(localized: "can't look things up, so Ask won't work", bundle: .kit)) }
+        if loaded.contains(best.name) { why.append(String(localized: "already loaded", bundle: .kit)) }
+        if Double(best.bytes) > Double(host.availableBytes) { why.append(String(localized: "needs more than the memory free now", bundle: .kit)) }
         return Pick(model: best.name, reason: why.joined(separator: ", ") + " "
-                    + String(localized: "on \(host.summary). Coding and embedding models were left out.", bundle: .module))
+                    + String(localized: "on \(host.summary). Coding and embedding models were left out.", bundle: .kit))
     }
 
     static func suitable(_ m: OllamaModel, host: HostProfile) -> Bool {

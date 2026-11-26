@@ -60,7 +60,7 @@ public protocol LLMProvider: Sendable {
 }
 
 extension LLMProvider {
-    public var unreachableMessage: String { String(localized: "Can't reach \(displayName). Check your internet connection.", bundle: .module) }
+    public var unreachableMessage: String { String(localized: "Can't reach \(displayName). Check your internet connection.", bundle: .kit) }
 
     /// Streams one answer. Cancelling the consuming task (or dropping the stream) cancels the HTTP request.
     /// Nothing is retried mid-stream.

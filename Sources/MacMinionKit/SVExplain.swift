@@ -26,8 +26,8 @@ public struct SVExplanation: Sendable, Equatable {
         guard let control else { return nil }
         if let range = control.range {
             let low = range.lowerBound.formatted(), high = range.upperBound.formatted()
-            if let step = control.step { return String(localized: "\(low) to \(high), in steps of \(step.formatted())", bundle: .module) }
-            return String(localized: "\(low) to \(high)", bundle: .module)
+            if let step = control.step { return String(localized: "\(low) to \(high), in steps of \(step.formatted())", bundle: .kit) }
+            return String(localized: "\(low) to \(high)", bundle: .kit)
         }
         guard !control.choices.isEmpty else { return nil }
         let list = control.choices.prefix(12).map { $0.label == $0.value ? $0.label : "\($0.label) (\($0.value))" }
@@ -120,13 +120,13 @@ public enum SVWriteCheck {
     public static func message(_ issue: Issue, label: String, value: String) -> String {
         switch issue {
         case .outOfRange(let range):
-            String(localized: "\(label): \(value) is outside \(range.lowerBound.formatted())–\(range.upperBound.formatted())", bundle: .module)
+            String(localized: "\(label): \(value) is outside \(range.lowerBound.formatted())–\(range.upperBound.formatted())", bundle: .kit)
         case .notAChoice:
-            String(localized: "\(label): \(value) isn't one of the settings panel's choices", bundle: .module)
+            String(localized: "\(label): \(value) isn't one of the settings panel's choices", bundle: .kit)
         case .typeChange(let from, let to):
-            String(localized: "\(label): a \(to) replaces a \(from)", bundle: .module)
+            String(localized: "\(label): a \(to) replaces a \(from)", bundle: .kit)
         case .characterSpecific:
-            String(localized: "\(label): names the character it comes from", bundle: .module)
+            String(localized: "\(label): names the character it comes from", bundle: .kit)
         }
     }
 }

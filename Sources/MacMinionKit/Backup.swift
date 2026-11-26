@@ -218,5 +218,5 @@ public enum MinionBackup {
 
 public enum BackupError: LocalizedError {
     case unzip
-    public var errorDescription: String? { String(localized: "The backup couldn't be unpacked.", bundle: .module) }
+    public var errorDescription: String? { String(localized: "The backup couldn't be unpacked.", bundle: .kit) }
 }

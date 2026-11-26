@@ -387,7 +387,7 @@ public enum SVReadable {
     }
 
     /// The folder title for tables under the Default profile.
-    public static let defaultFolder = String(localized: "Default", bundle: .module)
+    public static let defaultFolder = String(localized: "Default", bundle: .kit)
 
     /// Sections as an outline: account, then megaserver (real ones by name, then Default), then the
     /// account's settings for every character first and its characters and other tables by name.

@@ -173,7 +173,7 @@ extension SVNameIndex {
         case .character: return characters[target.id]?.name
         case .account: return target.id
         case .guild: return Int64(target.id).flatMap { guilds[$0] } ?? (Int64(target.id) == nil ? target.id : nil)
-        case .item: return itemSets[n].flatMap { sets[$0] }.map { String(localized: "Item \(n) · \($0) set", bundle: .module) }
+        case .item: return itemSets[n].flatMap { sets[$0] }.map { String(localized: "Item \(n) · \($0) set", bundle: .kit) }
         case .set: return sets[n]
         case .zone: return zones[n]
         case .quest: return quests[n]

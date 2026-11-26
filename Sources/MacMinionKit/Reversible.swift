@@ -13,11 +13,11 @@ public enum ReversalError: LocalizedError, Equatable {
     public var errorDescription: String? {
         switch self {
         case .changedSince(let names):
-            String(localized: "\(names.joined(separator: ", ")) changed since, so nothing was put back.", bundle: .module)
+            String(localized: "\(names.joined(separator: ", ")) changed since, so nothing was put back.", bundle: .kit)
         case .occupied(let names):
-            String(localized: "\(names.joined(separator: ", ")) is in the way, so nothing was put back.", bundle: .module)
+            String(localized: "\(names.joined(separator: ", ")) is in the way, so nothing was put back.", bundle: .kit)
         case .missing(let names):
-            String(localized: "\(names.joined(separator: ", ")) is no longer there to put back.", bundle: .module)
+            String(localized: "\(names.joined(separator: ", ")) is no longer there to put back.", bundle: .kit)
         }
     }
 }

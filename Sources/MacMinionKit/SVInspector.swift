@@ -9,7 +9,7 @@ import Foundation
 /// (LibSavedVars documents the argument; see docs/research/sv-graph-model-findings.md).
 public enum SVLevel: String, Sendable {
     /// The title of account-wide settings. Views sort and compare by it, so it is said in one place.
-    public static let everyCharacter = String(localized: "Every character", bundle: .module)
+    public static let everyCharacter = String(localized: "Every character", bundle: .kit)
 
     case profile, account, character, characterName, accountWide
 
@@ -18,8 +18,8 @@ public enum SVLevel: String, Sendable {
         case .profile: "profile"
         case .account: "account"
         case .character: "character"
-        case .characterName: String(localized: "character, by name", bundle: .module)
-        case .accountWide: String(localized: "every character", bundle: .module)
+        case .characterName: String(localized: "character, by name", bundle: .kit)
+        case .accountWide: String(localized: "every character", bundle: .kit)
         }
     }
 
@@ -158,7 +158,7 @@ public struct SVName: Sendable, Equatable {
     }
 
     /// The title of a character ID no file names. Views compare against this, so it is said in one place.
-    public static let unknownCharacter = String(localized: "Unknown character", bundle: .module)
+    public static let unknownCharacter = String(localized: "Unknown character", bundle: .kit)
 
     public let title: String
     public let kind: Kind
@@ -271,7 +271,7 @@ public struct SVNameIndex: Sendable {
                                 answers: [String: CompanionAnswer] = [:]) {
         overriding = []
         // The companion's roster is the game's own list: its names win.
-        for (id, c) in roster ?? [:] { characters[id] = (c.name, String(localized: "MacMinion Companion", bundle: .module)) }
+        for (id, c) in roster ?? [:] { characters[id] = (c.name, String(localized: "MacMinion Companion", bundle: .kit)) }
         for (id, name) in companionGuilds { guilds[id] = name }
         companionAnswers = answers
         if let addons { loadLibraries(addons) }
@@ -415,9 +415,9 @@ public struct SVNameIndex: Sendable {
         case .integer(let n):
             if variable.hasPrefix("GS"), variable.hasSuffix("DataSavedVariables") {
                 switch keyName {
-                case "itemLink": if let link = guildStoreLinks[n] { return item(link, source: String(localized: "LibGuildStore's link index", bundle: .module)) }
-                case "seller", "buyer": if let account = guildStoreAccounts[n] { return accountName(account, source: String(localized: "LibGuildStore's account index", bundle: .module)) }
-                case "guild": if let guild = guildStoreGuilds[n] { return SVName(title: guild, kind: .guild, source: String(localized: "LibGuildStore's guild index", bundle: .module), id: String(n)) }
+                case "itemLink": if let link = guildStoreLinks[n] { return item(link, source: String(localized: "LibGuildStore's link index", bundle: .kit)) }
+                case "seller", "buyer": if let account = guildStoreAccounts[n] { return accountName(account, source: String(localized: "LibGuildStore's account index", bundle: .kit)) }
+                case "guild": if let guild = guildStoreGuilds[n] { return SVName(title: guild, kind: .guild, source: String(localized: "LibGuildStore's guild index", bundle: .kit), id: String(n)) }
                 default: break
                 }
             }
@@ -435,15 +435,15 @@ public struct SVNameIndex: Sendable {
             case "itemId", "itemID":
                 return itemName(id: id, link: nil)
             case "guildId", "guildID":
-                return guilds[n].map { SVName(title: $0, kind: .guild, source: String(localized: "guild tables in SavedVariables", bundle: .module), id: String(n)) }
+                return guilds[n].map { SVName(title: $0, kind: .guild, source: String(localized: "guild tables in SavedVariables", bundle: .kit), id: String(n)) }
             case "achievementId", "achievementID":
                 if let named = companionName(kind: "achievement", id: id, as: .achievement) { return named }
-                return SVName(title: "Achievement \(id)", kind: .achievement, source: String(localized: "the key name", bundle: .module),
-                              uesp: Self.search(String(localized: "Online achievement \(id)", bundle: .module)))
+                return SVName(title: "Achievement \(id)", kind: .achievement, source: String(localized: "the key name", bundle: .kit),
+                              uesp: Self.search(String(localized: "Online achievement \(id)", bundle: .kit)))
             case "collectibleId", "collectibleID":
                 return companionName(kind: "collectible", id: id, as: .collectible)
             case "mapId", "mapID":
-                return SVName(title: "Map \(id)", kind: .map, source: String(localized: "the key name", bundle: .module))
+                return SVName(title: "Map \(id)", kind: .map, source: String(localized: "the key name", bundle: .kit))
             default:
                 return nil
             }
@@ -455,10 +455,10 @@ public struct SVNameIndex: Sendable {
     func name(forString s: String) -> SVName? {
         if CharacterID.isID(s) {
             if let c = characters[s] { return SVName(title: c.name, kind: .character, source: c.source, id: s) }
-            return SVName(title: SVName.unknownCharacter, kind: .character, source: String(localized: "no file names this ID", bundle: .module), id: s)
+            return SVName(title: SVName.unknownCharacter, kind: .character, source: String(localized: "no file names this ID", bundle: .kit), id: s)
         }
-        if s.hasPrefix("@"), s.count > 1, !s.contains(" ") { return accountName(s, source: String(localized: "the name itself", bundle: .module)) }
-        if ItemLink.isLink(s) { return item(s, source: String(localized: "the item link", bundle: .module)) }
+        if s.hasPrefix("@"), s.count > 1, !s.contains(" ") { return accountName(s, source: String(localized: "the name itself", bundle: .kit)) }
+        if ItemLink.isLink(s) { return item(s, source: String(localized: "the item link", bundle: .kit)) }
         return nil
     }
 
@@ -474,7 +474,7 @@ public struct SVNameIndex: Sendable {
         if link.bound { details.append("bound") }
         if link.crafted { details.append("crafted") }
         named = SVName(title: named.title, kind: .item, detail: details.joined(separator: " · "),
-                       source: named.detail == nil ? source : String(localized: "\(source); set from LibSets", bundle: .module), uesp: named.uesp)
+                       source: named.detail == nil ? source : String(localized: "\(source); set from LibSets", bundle: .kit), uesp: named.uesp)
         return named
     }
 
@@ -482,20 +482,20 @@ public struct SVNameIndex: Sendable {
         if let answer = companionAnswers["item:\(id)"], !answer.missing, let name = answer.name, !name.isEmpty {
             let setTitle = answer.set.flatMap { sets[$0] } ?? answer.set.map { "set \($0)" }
             return SVName(title: Self.cleanItemName(name), kind: .item, detail: setTitle.map { "\($0) set" },
-                          source: String(localized: "MacMinion Companion", bundle: .module),
+                          source: String(localized: "MacMinion Companion", bundle: .kit),
                           uesp: URL(string: "https://esoitem.uesp.net/itemLink.php?itemid=\(id)"), id: String(id))
         }
         let set = itemSets[id].flatMap { sets[$0] }
         let title = link.flatMap { $0.name.isEmpty ? nil : Self.cleanItemName($0.name) } ?? "Item \(id)"
         return SVName(title: title, kind: .item, detail: set.map { "\($0) set" },
-                      source: set == nil ? String(localized: "the item ID", bundle: .module) : "LibSets",
+                      source: set == nil ? String(localized: "the item ID", bundle: .kit) : "LibSets",
                       uesp: URL(string: "https://esoitem.uesp.net/itemLink.php?itemid=\(id)"), id: String(id))
     }
 
     func companionName(kind: String, id: Int, as nameKind: SVName.Kind) -> SVName? {
         guard let answer = companionAnswers["\(kind):\(id)"], !answer.missing,
               let name = answer.name, !name.isEmpty else { return nil }
-        return SVName(title: name, kind: nameKind, source: String(localized: "MacMinion Companion", bundle: .module),
+        return SVName(title: name, kind: nameKind, source: String(localized: "MacMinion Companion", bundle: .kit),
                       uesp: Self.search(name), id: String(id))
     }
 

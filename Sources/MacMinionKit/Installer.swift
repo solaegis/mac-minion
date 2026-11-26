@@ -107,11 +107,11 @@ public enum InstallError: LocalizedError, Equatable {
 
     public var errorDescription: String? {
         switch self {
-        case .download(let code): String(localized: "The download failed (\(code)).", bundle: .module)
-        case .checksum: String(localized: "The download didn't match its checksum.", bundle: .module)
-        case .unzip: String(localized: "The zip couldn't be unpacked.", bundle: .module)
-        case .empty: String(localized: "The zip has no addon folders.", bundle: .module)
-        case .companionMissing: String(localized: "This MacMinion doesn't include a copy of ESO Mac Minion to install.", bundle: .module)
+        case .download(let code): String(localized: "The download failed (\(code)).", bundle: .kit)
+        case .checksum: String(localized: "The download didn't match its checksum.", bundle: .kit)
+        case .unzip: String(localized: "The zip couldn't be unpacked.", bundle: .kit)
+        case .empty: String(localized: "The zip has no addon folders.", bundle: .kit)
+        case .companionMissing: String(localized: "This MacMinion doesn't include a copy of ESO Mac Minion to install.", bundle: .kit)
         }
     }
 }

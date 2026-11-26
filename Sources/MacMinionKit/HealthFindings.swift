@@ -23,12 +23,12 @@ public struct HealthFinding: Sendable, Identifiable, Equatable {
 
         public var title: String {
             switch self {
-            case .broken: String(localized: "Broken in game", bundle: .module)
-            case .dataAtRisk: String(localized: "Saved data at risk", bundle: .module)
-            case .outOfDate: String(localized: "Out of date", bundle: .module)
-            case .clutter: String(localized: "Clean up", bundle: .module)
-            case .size: String(localized: "Size and speed", bundle: .module)
-            case .info: String(localized: "More", bundle: .module)
+            case .broken: String(localized: "Broken in game", bundle: .kit)
+            case .dataAtRisk: String(localized: "Saved data at risk", bundle: .kit)
+            case .outOfDate: String(localized: "Out of date", bundle: .kit)
+            case .clutter: String(localized: "Clean up", bundle: .kit)
+            case .size: String(localized: "Size and speed", bundle: .kit)
+            case .info: String(localized: "More", bundle: .kit)
             }
         }
     }
@@ -255,7 +255,7 @@ private struct Builder {
 
     func luaErrorSummary(_ count: Int) -> String? {
         guard count > 0 else { return nil }
-        return String(localized: "\(count) Lua errors.", bundle: .module)
+        return String(localized: "\(count) Lua errors.", bundle: .kit)
     }
 
     // MARK: 1. Missing libraries
@@ -320,13 +320,13 @@ private struct Builder {
             let installable = entries.filter { $0.catalog != nil }.map(\.folder)
             let folders = group.addons.sorted().map { addonFolder[$0] ?? $0 }
             let heading = entries.count == 1
-                ? String(localized: "\(entries[0].catalog?.name ?? entries[0].folder) is missing", bundle: .module)
-                : String(localized: "\(entries.count) libraries are missing", bundle: .module)
+                ? String(localized: "\(entries[0].catalog?.name ?? entries[0].folder) is missing", bundle: .kit)
+                : String(localized: "\(entries.count) libraries are missing", bundle: .kit)
             var impact = entries.count == 1
-                ? String(localized: "\(folders.count) addons don't load without it.", bundle: .module)
-                : String(localized: "\(folders.count) addons don't load without them.", bundle: .module)
+                ? String(localized: "\(folders.count) addons don't load without it.", bundle: .kit)
+                : String(localized: "\(folders.count) addons don't load without them.", bundle: .kit)
             if installable.isEmpty {
-                impact += " " + String(localized: "ESOUI doesn't list it; the addon's page says where to get it.", bundle: .module)
+                impact += " " + String(localized: "ESOUI doesn't list it; the addon's page says where to get it.", bundle: .kit)
             }
             let errors = luaErrorCount(Set(group.addons))
             let action: HealthFinding.Action? = !installable.isEmpty ? .installLibraries(folders: installable)
@@ -355,11 +355,11 @@ private struct Builder {
             let libStub = needsLibStub(folder)
             let errors = luaErrorCount([k])
             let impact = broken.contains { problems[$0].kind == .didntLoad }
-                ? String(localized: "It doesn't load in game.", bundle: .module)
-                : String(localized: "It throws Lua errors in game.", bundle: .module)
-            let summary = libStub ? String(localized: "It still needs LibStub, which the game no longer has.", bundle: .module)
+                ? String(localized: "It doesn't load in game.", bundle: .kit)
+                : String(localized: "It throws Lua errors in game.", bundle: .kit)
+            let summary = libStub ? String(localized: "It still needs LibStub, which the game no longer has.", bundle: .kit)
                 : luaErrorSummary(errors)
-            add(.outOfDateAddon, key: k, tier: .broken, title: String(localized: "\(title(ofAddon: folder)) is out of date", bundle: .module),
+            add(.outOfDateAddon, key: k, tier: .broken, title: String(localized: "\(title(ofAddon: folder)) is out of date", bundle: .kit),
                 impact: impact, summary: summary,
                 affected: [.addon(title(ofAddon: folder))],
                 action: context.updatable.contains(k) ? .update(folders: [folder]) : .showAddon(folder: folder), indices: indices,
@@ -370,13 +370,13 @@ private struct Builder {
         let ready = folders.filter { context.updatable.contains(Self.key($0)) }
         let libStub = folders.filter(needsLibStub).count
         var parts: [String] = []
-        if libStub > 0 { parts.append(String(localized: "\(libStub) still need LibStub", bundle: .module)) }
-        if !ready.isEmpty { parts.append(String(localized: "\(ready.count) have an update ready", bundle: .module)) }
+        if libStub > 0 { parts.append(String(localized: "\(libStub) still need LibStub", bundle: .kit)) }
+        if !ready.isEmpty { parts.append(String(localized: "\(ready.count) have an update ready", bundle: .kit)) }
         let one = folders.count == 1
         let summary = !parts.isEmpty ? parts.formatted(.list(type: .and)) + "."
-            : one ? String(localized: "No update yet.", bundle: .module) : String(localized: "None has an update yet.", bundle: .module)
-        let heading = folders.count == 1 ? String(localized: "\(title(ofAddon: folders[0])) is out of date", bundle: .module)
-            : String(localized: "\(folders.count) addons are out of date", bundle: .module)
+            : one ? String(localized: "No update yet.", bundle: .kit) : String(localized: "None has an update yet.", bundle: .kit)
+        let heading = folders.count == 1 ? String(localized: "\(title(ofAddon: folders[0])) is out of date", bundle: .kit)
+            : String(localized: "\(folders.count) addons are out of date", bundle: .kit)
         // An out-of-date addon that loaded proves the game allows them, whatever the setting read said.
         let companionAddons = context.companion?.addons ?? [:]
         let anyLoaded = folders.contains { folder in
@@ -387,16 +387,16 @@ private struct Builder {
             switch allowed {
             case true?:
                 return one
-                    ? String(localized: "It loads because out-of-date add-ons are allowed, and can break after a game update.", bundle: .module)
-                    : String(localized: "They load because out-of-date add-ons are allowed, and can break after a game update.", bundle: .module)
+                    ? String(localized: "It loads because out-of-date add-ons are allowed, and can break after a game update.", bundle: .kit)
+                    : String(localized: "They load because out-of-date add-ons are allowed, and can break after a game update.", bundle: .kit)
             case false?:
                 return one
-                    ? String(localized: "It won't load until you allow out-of-date add-ons or update it.", bundle: .module)
-                    : String(localized: "They won't load until you allow out-of-date add-ons or update them.", bundle: .module)
+                    ? String(localized: "It won't load until you allow out-of-date add-ons or update it.", bundle: .kit)
+                    : String(localized: "They won't load until you allow out-of-date add-ons or update them.", bundle: .kit)
             case nil:
                 return one
-                    ? String(localized: "It loads only while out-of-date addons are allowed, and can break after a game update.", bundle: .module)
-                    : String(localized: "They load only while out-of-date addons are allowed, and can break after a game update.", bundle: .module)
+                    ? String(localized: "It loads only while out-of-date addons are allowed, and can break after a game update.", bundle: .kit)
+                    : String(localized: "They load only while out-of-date addons are allowed, and can break after a game update.", bundle: .kit)
             }
         }()
         add(.outOfDateAddons, key: folders.map(Self.key).joined(separator: "+"), title: heading,
@@ -420,9 +420,9 @@ private struct Builder {
         for file in damaged {
             let indices = open { $0.file == file && Self.insideFile.contains($0.kind) }
             let endsEarly = indices.contains { problems[$0].kind == .endsEarly }
-            add(.damagedFile, key: file, title: String(localized: "\(owner(ofFile: file))'s saved data is damaged", bundle: .module),
-                impact: endsEarly ? String(localized: "The file stops partway, so the addon may lose its settings at the next login.", bundle: .module)
-                    : String(localized: "The game can't read it, so the addon starts with its defaults.", bundle: .module),
+            add(.damagedFile, key: file, title: String(localized: "\(owner(ofFile: file))'s saved data is damaged", bundle: .kit),
+                impact: endsEarly ? String(localized: "The file stops partway, so the addon may lose its settings at the next login.", bundle: .kit)
+                    : String(localized: "The game can't read it, so the addon starts with its defaults.", bundle: .kit),
                 affected: [.file(file)], action: .restoreFromBackup(files: [file]), indices: indices, bytes: size(ofFile: file))
         }
     }
@@ -435,9 +435,9 @@ private struct Builder {
             let bytes = size(ofFile: file)
             let ready = context.updatable.contains(Self.key(addon))
             add(.ignoredData, key: file, certainty: .likely,
-                title: String(localized: "\(title(ofAddon: addon)) saves data the game doesn't load", bundle: .module),
-                impact: String(localized: "Its settings may not stick between sessions.", bundle: .module),
-                summary: String(localized: "\(bytes.formatted(.byteCount(style: .file))) the game never loads.", bundle: .module),
+                title: String(localized: "\(title(ofAddon: addon)) saves data the game doesn't load", bundle: .kit),
+                impact: String(localized: "Its settings may not stick between sessions.", bundle: .kit),
+                summary: String(localized: "\(bytes.formatted(.byteCount(style: .file))) the game never loads.", bundle: .kit),
                 affected: [.addon(title(ofAddon: addon)), .file(file)],
                 action: ready ? .update(folders: [addon]) : .showInInspector(problemID: problems[indices[0]].id),
                 indices: indices, bytes: bytes)
@@ -453,9 +453,9 @@ private struct Builder {
                 || ($0.kind == .slowLoad && addonKey($0) == Self.key(addon)) }
             let bytes = size(ofFile: file)
             let list = indices.first { problems[$0].kind == .longList } ?? indices[0]
-            add(.runawayData, key: file, title: String(localized: "\(title(ofAddon: addon))'s data keeps growing", bundle: .module),
-                impact: String(localized: "The game reads all of it at every login and reload, so loading screens take longer.", bundle: .module),
-                summary: String(localized: "\(bytes.formatted(.byteCount(style: .file))) in all.", bundle: .module),
+            add(.runawayData, key: file, title: String(localized: "\(title(ofAddon: addon))'s data keeps growing", bundle: .kit),
+                impact: String(localized: "The game reads all of it at every login and reload, so loading screens take longer.", bundle: .kit),
+                summary: String(localized: "\(bytes.formatted(.byteCount(style: .file))) in all.", bundle: .kit),
                 affected: [.addon(title(ofAddon: addon)), .file(file)],
                 action: .showInInspector(problemID: problems[list].id), indices: indices, bytes: bytes)
         }
@@ -467,9 +467,9 @@ private struct Builder {
         let removed = open { $0.kind == .unusedFile }
         if !removed.isEmpty {
             let bytes = removed.reduce(Int64(0)) { $0 + problems[$1].bytes }
-            add(.removedAddonLeftovers, key: "all", title: String(localized: "Files from \(removed.count) removed addons", bundle: .module),
-                impact: String(localized: "The game never loads them.", bundle: .module),
-                summary: String(localized: "\(bytes.formatted(.byteCount(style: .file))) you can free.", bundle: .module),
+            add(.removedAddonLeftovers, key: "all", title: String(localized: "Files from \(removed.count) removed addons", bundle: .kit),
+                impact: String(localized: "The game never loads them.", bundle: .kit),
+                summary: String(localized: "\(bytes.formatted(.byteCount(style: .file))) you can free.", bundle: .kit),
                 affected: removed.map { .file(problems[$0].file) }, action: .cleanUp(problemIDs: removed.map { problems[$0].id }), indices: removed)
         }
 
@@ -480,19 +480,19 @@ private struct Builder {
             let on = characters(for: addons).map(\.name)
             let certainty: HealthFinding.Certainty = context.companion?.enabledBy.isEmpty ?? true ? .likely : on.isEmpty ? .certain : .possible
             add(.unusedAddons, key: "all", certainty: certainty,
-                title: String(localized: "Addons you haven't used lately", bundle: .module),
-                impact: String(localized: "Moving their files to the Trash resets their settings if you turn them back on.", bundle: .module),
-                summary: String(localized: "Not loaded on any character for \(SVFileProblems.staleDays) days or more.", bundle: .module),
-                note: certainty == .possible ? String(localized: "Turned on for \(on.formatted(.list(type: .and))), who may not have played since.", bundle: .module) : nil,
+                title: String(localized: "Addons you haven't used lately", bundle: .kit),
+                impact: String(localized: "Moving their files to the Trash resets their settings if you turn them back on.", bundle: .kit),
+                summary: String(localized: "Not loaded on any character for \(SVFileProblems.staleDays) days or more.", bundle: .kit),
+                note: certainty == .possible ? String(localized: "Turned on for \(on.formatted(.list(type: .and))), who may not have played since.", bundle: .kit) : nil,
                 affected: addons.map { .addon(title(ofAddon: $0)) }, action: .cleanUp(problemIDs: stale.map { problems[$0].id }), indices: stale)
         }
 
         let copies = open { $0.kind == .copyFile || $0.kind == .strayItem }
         if !copies.isEmpty {
             let bytes = copies.reduce(Int64(0)) { $0 + problems[$1].bytes }
-            add(.copiesAndStrays, key: "all", title: String(localized: "\(copies.count) copies and stray items", bundle: .module),
-                impact: String(localized: "The game doesn't make or read them.", bundle: .module),
-                summary: String(localized: "\(bytes.formatted(.byteCount(style: .file))) you can free.", bundle: .module),
+            add(.copiesAndStrays, key: "all", title: String(localized: "\(copies.count) copies and stray items", bundle: .kit),
+                impact: String(localized: "The game doesn't make or read them.", bundle: .kit),
+                summary: String(localized: "\(bytes.formatted(.byteCount(style: .file))) you can free.", bundle: .kit),
                 affected: copies.map { .file(problems[$0].file) }, action: .cleanUp(problemIDs: copies.map { problems[$0].id }), indices: copies)
         }
     }
@@ -504,9 +504,9 @@ private struct Builder {
             let indices = open { $0.file == file && $0.kind == .typeMismatch }
             let addon = owner(ofFile: file)
             add(.mixedTypes, key: file, certainty: .likely,
-                title: String(localized: "Some \(title(ofAddon: addon)) settings mix types", bundle: .module),
-                impact: String(localized: "An addon that expects one type can fail on the other.", bundle: .module),
-                summary: String(localized: "\(indices.count) settings", bundle: .module),
+                title: String(localized: "Some \(title(ofAddon: addon)) settings mix types", bundle: .kit),
+                impact: String(localized: "An addon that expects one type can fail on the other.", bundle: .kit),
+                summary: String(localized: "\(indices.count) settings", bundle: .kit),
                 affected: [.addon(title(ofAddon: addon)), .file(file)],
                 action: .showInInspector(problemID: problems[indices[0]].id), indices: indices)
         }
@@ -514,10 +514,10 @@ private struct Builder {
             let indices = open { $0.file == file && $0.kind == .outOfRange }
             let addon = owner(ofFile: file)
             add(.outOfRange, key: file, certainty: .likely,
-                title: String(localized: "Some \(title(ofAddon: addon)) settings are outside their range", bundle: .module),
-                impact: String(localized: "Their numbers are outside what the addon's settings panel allows, often left by an older version.", bundle: .module),
-                summary: String(localized: "\(indices.count) settings", bundle: .module),
-                note: String(localized: "Matched to the settings panel by key name, so a key in another table can be mistaken for it.", bundle: .module),
+                title: String(localized: "Some \(title(ofAddon: addon)) settings are outside their range", bundle: .kit),
+                impact: String(localized: "Their numbers are outside what the addon's settings panel allows, often left by an older version.", bundle: .kit),
+                summary: String(localized: "\(indices.count) settings", bundle: .kit),
+                note: String(localized: "Matched to the settings panel by key name, so a key in another table can be mistaken for it.", bundle: .kit),
                 affected: [.addon(title(ofAddon: addon)), .file(file)],
                 action: .showInInspector(problemID: problems[indices[0]].id), indices: indices)
         }
@@ -525,8 +525,8 @@ private struct Builder {
             let indices = open { $0.file == file && $0.kind == .unknownVariable }
             let addon = owner(ofFile: file)
             add(.olderVersionLeftovers, key: file, tier: .info,
-                title: String(localized: "\(title(ofAddon: addon)) keeps variables it no longer uses", bundle: .module),
-                impact: String(localized: "Left by an older version; the game never loads them.", bundle: .module),
+                title: String(localized: "\(title(ofAddon: addon)) keeps variables it no longer uses", bundle: .kit),
+                impact: String(localized: "Left by an older version; the game never loads them.", bundle: .kit),
                 affected: [.addon(title(ofAddon: addon)), .file(file)], action: nil, indices: indices)
         }
     }
@@ -542,9 +542,9 @@ private struct Builder {
         for id in ids {
             let indices = open { $0.kind == .unknownCharacter && $0.character == id }
             add(.unknownCharacter, key: id, certainty: .likely,
-                title: String(localized: "Data for an unknown character (\(id))", bundle: .module),
-                impact: String(localized: "No file names this character, so it's likely one you deleted. Addons still keep its data in \(String(localized: "\(indices.count) files", bundle: .module)).", bundle: .module),
-                note: String(localized: "Or a character that hasn't logged in since your other files last saved its name.", bundle: .module),
+                title: String(localized: "Data for an unknown character (\(id))", bundle: .kit),
+                impact: String(localized: "No file names this character, so it's likely one you deleted. Addons still keep its data in \(String(localized: "\(indices.count) files", bundle: .kit)).", bundle: .kit),
+                note: String(localized: "Or a character that hasn't logged in since your other files last saved its name.", bundle: .kit),
                 affected: indices.map { .file(problems[$0].file) }, action: .findCharacter(id: id), indices: indices,
                 characters: [(id: id, name: SVName.unknownCharacter)])
         }
@@ -574,9 +574,9 @@ private struct Builder {
             let on = tier == .broken ? folder.map { characters(for: [$0]) } ?? [] : []
             // The cause, not the check, when the game said which addon it is.
             let heading = switch (p.kind, folder) {
-            case (.luaError, let folder?): String(localized: "\(title(ofAddon: folder)) throws Lua errors", bundle: .module)
-            case (.didntLoad, let folder?): String(localized: "\(title(ofAddon: folder)) doesn't load", bundle: .module)
-            case (.longList, _): String(localized: "\(title(ofAddon: owner(ofFile: p.file))) keeps a long list", bundle: .module)
+            case (.luaError, let folder?): String(localized: "\(title(ofAddon: folder)) throws Lua errors", bundle: .kit)
+            case (.didntLoad, let folder?): String(localized: "\(title(ofAddon: folder)) doesn't load", bundle: .kit)
+            case (.longList, _): String(localized: "\(title(ofAddon: owner(ofFile: p.file))) keeps a long list", bundle: .kit)
             default: p.kind.title
             }
             // Headline stays short; multiline Lua stacks live on the problem's detail when expanded.

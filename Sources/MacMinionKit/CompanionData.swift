@@ -289,7 +289,7 @@ public enum CompanionData {
     public static let variable = "EsoMacMinion_Data"
     public static let knownSchema = 1
     public static let recommendReason =
-        String(localized: "Writes the roster, which addons actually loaded, and Lua errors, so MacMinion can use what only the running game knows.", bundle: .module)
+        String(localized: "Writes the roster, which addons actually loaded, and Lua errors, so MacMinion can use what only the running game knows.", bundle: .kit)
 
     public static func isCompanionFile(_ name: String) -> Bool {
         fileNames.contains { $0.caseInsensitiveCompare(name) == .orderedSame }
@@ -429,7 +429,7 @@ public enum CompanionData {
         let known = schema == nil || schema == knownSchema
         var snapshot = CompanionSnapshot(file: file, schema: schema, schemaKnown: known, written: written, env: env,
                                          characters: characters, addons: addons, errors: errors, guilds: guilds,
-                                         skipped: known ? [] : [String(localized: "future schema \(schema ?? 0)", bundle: .module)])
+                                         skipped: known ? [] : [String(localized: "future schema \(schema ?? 0)", bundle: .kit)])
         snapshot.enabledBy = enabledBy
         snapshot.layouts = layouts
         snapshot.lamPanels = lamPanels
@@ -482,35 +482,35 @@ public enum CompanionData {
         if !snapshot.schemaKnown {
             out.append(SVProblem(file: file, path: [.string(variable), .string("schema")], kind: .unknownSchema,
                                  severity: .note,
-                                 message: String(localized: "Schema \(snapshot.schema.map(String.init) ?? "?") is newer than this MacMinion. Roster and other known sections are still read; \(snapshot.skipped.joined(separator: ", ")) skipped.", bundle: .module)))
+                                 message: String(localized: "Schema \(snapshot.schema.map(String.init) ?? "?") is newer than this MacMinion. Roster and other known sections are still read; \(snapshot.skipped.joined(separator: ", ")) skipped.", bundle: .kit)))
         }
         for addon in snapshot.addons.values.sorted(by: { $0.name.localizedStandardCompare($1.name) == .orderedAscending }) {
             if addon.failedToLoad {
-                let missing = addon.missing.isEmpty ? addon.state : String(localized: "missing \(addon.missing.joined(separator: ", "))", bundle: .module)
+                let missing = addon.missing.isEmpty ? addon.state : String(localized: "missing \(addon.missing.joined(separator: ", "))", bundle: .kit)
                 out.append(SVProblem(file: file, path: [.string(variable), .string("addons"), .string(addon.name)],
                                      kind: .didntLoad, severity: .warning,
-                                     message: String(localized: "\(addon.title ?? addon.name) didn't load: \(missing).", bundle: .module)).with(addon: addon.name))
+                                     message: String(localized: "\(addon.title ?? addon.name) didn't load: \(missing).", bundle: .kit)).with(addon: addon.name))
             } else if addon.outOfDate || addon.state == "outdated" {
                 out.append(SVProblem(file: file, path: [.string(variable), .string("addons"), .string(addon.name)],
                                      kind: .outOfDateAddon, severity: .warning,
-                                     message: String(localized: "\(addon.title ?? addon.name) is out of date for this game version.", bundle: .module)).with(addon: addon.name))
+                                     message: String(localized: "\(addon.title ?? addon.name) is out of date for this game version.", bundle: .kit)).with(addon: addon.name))
             }
             if let ms = addon.loadMs, ms >= 1_000 {
                 let seconds = Double(ms) / 1_000
                 out.append(SVProblem(file: file, path: [.string(variable), .string("addons"), .string(addon.name)],
                                      kind: .slowLoad, severity: .note,
-                                     message: String(localized: "\(addon.title ?? addon.name) took \(seconds.formatted(.number.precision(.fractionLength(1)))) s to load last login.", bundle: .module)).with(addon: addon.name))
+                                     message: String(localized: "\(addon.title ?? addon.name) took \(seconds.formatted(.number.precision(.fractionLength(1)))) s to load last login.", bundle: .kit)).with(addon: addon.name))
             }
         }
         for (index, error) in snapshot.errors.enumerated() where isRecentError(error, now: now) {
             if isFixedSinceUpdate(error, installed: installedVersions, addons: snapshot.addons) { continue }
-            let name = error.addon ?? String(localized: "An addon", bundle: .module)
-            let times = error.count == 1 ? String(localized: "once", bundle: .module) : String(localized: "\(error.count) times", bundle: .module)
+            let name = error.addon ?? String(localized: "An addon", bundle: .kit)
+            let times = error.count == 1 ? String(localized: "once", bundle: .kit) : String(localized: "\(error.count) times", bundle: .kit)
             let when: String = {
                 if isSameSession(error, written: snapshot.written) {
-                    return String(localized: "last session", bundle: .module)
+                    return String(localized: "last session", bundle: .kit)
                 }
-                guard let at = error.lastAt ?? error.at else { return String(localized: "last session", bundle: .module) }
+                guard let at = error.lastAt ?? error.at else { return String(localized: "last session", bundle: .kit) }
                 return at.formatted(.relative(presentation: .named, unitsStyle: .spellOut))
             }()
             let headline = errorFirstLine(error.message)
@@ -518,7 +518,7 @@ public enum CompanionData {
             let path = error.path.isEmpty ? [.string(variable), .string("errors"), .integer(Int64(index + 1))] : error.path
             var problem = SVProblem(file: file, path: path,
                                     kind: .luaError, severity: error.count >= 5 ? .error : .warning,
-                                    message: String(localized: "\(name) threw Lua errors \(times) \(when).", bundle: .module) + " " + headline)
+                                    message: String(localized: "\(name) threw Lua errors \(times) \(when).", bundle: .kit) + " " + headline)
                 .with(addon: error.addon)
             if headline != error.message { problem.detail = error.message }
             out.append(problem)

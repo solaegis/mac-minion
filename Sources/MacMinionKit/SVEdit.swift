@@ -37,8 +37,8 @@ public enum SVEdit {
 
         public var description: String {
             switch self {
-            case .unreadable(let why): String(localized: "The file doesn't read cleanly: \(why)", bundle: .module)
-            case .noPlace(let path): String(localized: "There's no place for \(path) in the file.", bundle: .module)
+            case .unreadable(let why): String(localized: "The file doesn't read cleanly: \(why)", bundle: .kit)
+            case .noPlace(let path): String(localized: "There's no place for \(path) in the file.", bundle: .kit)
             }
         }
     }

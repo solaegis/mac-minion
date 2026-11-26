@@ -9,25 +9,25 @@ public struct SVProblem: Sendable, Identifiable, Equatable {
 
         public var title: String {
             switch self {
-            case .unreadable: String(localized: "Can't be read", bundle: .module)
-            case .endsEarly: String(localized: "Ends early", bundle: .module)
-            case .empty: String(localized: "Empty", bundle: .module)
-            case .missingVariable: String(localized: "Variable not saved", bundle: .module)
-            case .unknownVariable: String(localized: "Variable not declared", bundle: .module)
-            case .typeMismatch: String(localized: "Mixed types", bundle: .module)
-            case .longList: String(localized: "Long list", bundle: .module)
-            case .largeFile: String(localized: "Large file", bundle: .module)
-            case .unusedFile: String(localized: "No addon uses it", bundle: .module)
-            case .copyFile: String(localized: "Copy", bundle: .module)
-            case .staleFile: String(localized: "Not written lately", bundle: .module)
-            case .strayItem: String(localized: "Not the game's", bundle: .module)
-            case .didntLoad: String(localized: "Didn't load", bundle: .module)
-            case .luaError: String(localized: "Lua errors", bundle: .module)
-            case .outOfDateAddon: String(localized: "Out of date", bundle: .module)
-            case .slowLoad: String(localized: "Slow to load", bundle: .module)
-            case .unknownSchema: String(localized: "Newer companion data", bundle: .module)
-            case .unknownCharacter: String(localized: "Unknown character", bundle: .module)
-            case .outOfRange: String(localized: "Outside its range", bundle: .module)
+            case .unreadable: String(localized: "Can't be read", bundle: .kit)
+            case .endsEarly: String(localized: "Ends early", bundle: .kit)
+            case .empty: String(localized: "Empty", bundle: .kit)
+            case .missingVariable: String(localized: "Variable not saved", bundle: .kit)
+            case .unknownVariable: String(localized: "Variable not declared", bundle: .kit)
+            case .typeMismatch: String(localized: "Mixed types", bundle: .kit)
+            case .longList: String(localized: "Long list", bundle: .kit)
+            case .largeFile: String(localized: "Large file", bundle: .kit)
+            case .unusedFile: String(localized: "No addon uses it", bundle: .kit)
+            case .copyFile: String(localized: "Copy", bundle: .kit)
+            case .staleFile: String(localized: "Not written lately", bundle: .kit)
+            case .strayItem: String(localized: "Not the game's", bundle: .kit)
+            case .didntLoad: String(localized: "Didn't load", bundle: .kit)
+            case .luaError: String(localized: "Lua errors", bundle: .kit)
+            case .outOfDateAddon: String(localized: "Out of date", bundle: .kit)
+            case .slowLoad: String(localized: "Slow to load", bundle: .kit)
+            case .unknownSchema: String(localized: "Newer companion data", bundle: .kit)
+            case .unknownCharacter: String(localized: "Unknown character", bundle: .kit)
+            case .outOfRange: String(localized: "Outside its range", bundle: .kit)
             }
         }
 
@@ -69,7 +69,7 @@ public enum SVProblems {
             character.byFile.map { place in
                 let size = Int64(place.bytes).formatted(.byteCount(style: .file))
                 var problem = SVProblem(file: place.file, path: [.string(character.id)], kind: .unknownCharacter, severity: .warning,
-                                        message: String(localized: "Keeps \(size) for character \(character.id), which no file names.", bundle: .module))
+                                        message: String(localized: "Keeps \(size) for character \(character.id), which no file names.", bundle: .kit))
                 problem.character = character.id
                 problem.bytes = Int64(place.bytes)
                 return problem
@@ -115,7 +115,7 @@ public enum SVProblems {
             let value = SVReadable.number(setting.value)
             let low = range.lowerBound.formatted(), high = range.upperBound.formatted()
             problems.append(SVProblem(file: file, path: setting.path, kind: .outOfRange, severity: .warning,
-                                      message: String(localized: "\(label) is \(value), but the addon's settings panel allows \(low) to \(high). The addon may clamp it, ignore it, or misbehave.", bundle: .module)))
+                                      message: String(localized: "\(label) is \(value), but the addon's settings panel allows \(low) to \(high). The addon may clamp it, ignore it, or misbehave.", bundle: .kit)))
         }
         return problems
     }
@@ -137,16 +137,16 @@ public enum SVProblems {
 
         if let error = doc.error {
             if error.endedEarly {
-                add(error.path, .endsEarly, .error, String(localized: "The file stops at line \(error.line), column \(error.column), as when the game quits while saving. The addon may lose its settings at the next login; a backup can bring them back.", bundle: .module))
+                add(error.path, .endsEarly, .error, String(localized: "The file stops at line \(error.line), column \(error.column), as when the game quits while saving. The addon may lose its settings at the next login; a backup can bring them back.", bundle: .kit))
             } else {
-                add(error.path, .unreadable, .error, String(localized: "\(error.message) at line \(error.line), column \(error.column). The game can't read the file, so the addon starts with its defaults.", bundle: .module))
+                add(error.path, .unreadable, .error, String(localized: "\(error.message) at line \(error.line), column \(error.column). The game can't read the file, so the addon starts with its defaults.", bundle: .kit))
             }
         }
         if doc.byteCount == 0 || (doc.variables.isEmpty && doc.error == nil) {
-            add([], .empty, .note, String(localized: "The file has nothing in it. The game rewrites it when the addon next saves.", bundle: .module))
+            add([], .empty, .note, String(localized: "The file has nothing in it. The game rewrites it when the addon next saves.", bundle: .kit))
         }
         if doc.byteCount >= largeFile {
-            add([], .largeFile, .note, String(localized: "\(size). The game reads every SavedVariables file at each login and reload, so big ones slow loading screens.", bundle: .module))
+            add([], .largeFile, .note, String(localized: "\(size). The game reads every SavedVariables file at each login and reload, so big ones slow loading screens.", bundle: .kit))
         }
 
         if let declared {
@@ -155,12 +155,12 @@ public enum SVProblems {
             // a file with none of them means the addon saves under names it doesn't declare.
             if doc.error == nil, !saved.isEmpty, saved.isDisjoint(with: declared) {
                 add([], .missingVariable, .warning,
-                    String(localized: "The addon declares \(declared.joined(separator: ", ")) but the file has none of them, so the game never loads what's here.", bundle: .module))
+                    String(localized: "The addon declares \(declared.joined(separator: ", ")) but the file has none of them, so the game never loads what's here.", bundle: .kit))
             }
             for variable in doc.variables {
                 guard case .string(let name) = variable.key, !declared.contains(name) else { continue }
                 add([variable.key], .unknownVariable, .warning,
-                    String(localized: "The addon no longer declares \(name), so the game never loads it. Left by an older version: \(variable.span.count.formatted(.byteCount(style: .file))) it could do without.", bundle: .module))
+                    String(localized: "The addon no longer declares \(name), so the game never loads it. Left by an older version: \(variable.span.count.formatted(.byteCount(style: .file))) it could do without.", bundle: .kit))
             }
         }
 
@@ -203,7 +203,7 @@ public enum SVProblems {
             let path = parentPath + [entry.key]
             let numbered = table.entries.allSatisfy { if case .integer = $0.key { true } else { false } }
             if table.count >= longList, numbered {
-                add(path, .longList, .warning, String(localized: "A list of \(table.count.formatted()) entries (\(table.span.count.formatted(.byteCount(style: .file)))). Logs and histories like this grow every session; look in the addon's settings for a limit or a way to clear it.", bundle: .module))
+                add(path, .longList, .warning, String(localized: "A list of \(table.count.formatted()) entries (\(table.span.count.formatted(.byteCount(style: .file)))). Logs and histories like this grow every session; look in the addon's settings for a limit or a way to clear it.", bundle: .kit))
             }
             for child in table.entries { walk(child, parentPath: path, shape: here) }
         }
@@ -216,7 +216,7 @@ public enum SVProblems {
             guard let common = sorted.first, let odd = sorted.last else { continue }
             let key = odd.value.path.last?.description ?? ""
             add(odd.value.path, .typeMismatch, .warning,
-                String(localized: "“\(key)” is a \(odd.key) here but a \(common.key) in \(String(localized: "\(common.value.count) other places", bundle: .module)). An addon that expects a \(common.key) can fail on this one.", bundle: .module))
+                String(localized: "“\(key)” is a \(odd.key) here but a \(common.key) in \(String(localized: "\(common.value.count) other places", bundle: .kit)). An addon that expects a \(common.key) can fail on this one.", bundle: .kit))
             mixed += 1
         }
         return problems.sorted { ($0.severity, $1.file) > ($1.severity, $0.file) }
@@ -239,14 +239,14 @@ public enum SVFileProblems {
             let size = file.bytes.formatted(.byteCount(style: .file))
             switch file.owner {
             case .none:
-                add(file.name, .unusedFile, String(localized: "No installed addon saves to this file, so the game never loads it: left by an addon you removed. \(size).", bundle: .module), file.url, file.bytes)
+                add(file.name, .unusedFile, String(localized: "No installed addon saves to this file, so the game never loads it: left by an addon you removed. \(size).", bundle: .kit), file.url, file.bytes)
             case .copy:
-                add(file.name, .copyFile, String(localized: "A copy or backup the game never reads, like one saved before an edit. \(size).", bundle: .module), file.url, file.bytes)
+                add(file.name, .copyFile, String(localized: "A copy or backup the game never reads, like one saved before an edit. \(size).", bundle: .kit), file.url, file.bytes)
             case .addon(let addon):
                 guard let newest, let modified = file.modified else { continue }
                 let days = Int(newest.timeIntervalSince(modified) / 86_400)
                 guard days >= staleDays else { continue }
-                add(file.name, .staleFile, String(localized: "Written \(days) days before your newest SavedVariables file. The game rewrites the file of every addon that loads, so \(addon) hasn't loaded on any character since. Moving it to the Trash resets \(addon)'s settings if you turn it back on. \(size).", bundle: .module), file.url, file.bytes)
+                add(file.name, .staleFile, String(localized: "Written \(days) days before your newest SavedVariables file. The game rewrites the file of every addon that loads, so \(addon) hasn't loaded on any character since. Moving it to the Trash resets \(addon)'s settings if you turn it back on. \(size).", bundle: .kit), file.url, file.bytes)
             case .game, .other:
                 continue
             }
@@ -254,8 +254,8 @@ public enum SVFileProblems {
         for item in strays {
             let size = item.bytes.formatted(.byteCount(style: .file))
             add(item.name, .strayItem, item.isFolder
-                ? String(localized: "A folder beside AddOns that the game doesn't make or read, like a copy saved before an edit. \(size).", bundle: .module)
-                : String(localized: "A file beside AddOns that the game doesn't make or read, like a copy saved before an edit. \(size).", bundle: .module),
+                ? String(localized: "A folder beside AddOns that the game doesn't make or read, like a copy saved before an edit. \(size).", bundle: .kit)
+                : String(localized: "A file beside AddOns that the game doesn't make or read, like a copy saved before an edit. \(size).", bundle: .kit),
                 item.url, item.bytes)
         }
         return problems.sorted { $0.file.localizedStandardCompare($1.file) == .orderedAscending }

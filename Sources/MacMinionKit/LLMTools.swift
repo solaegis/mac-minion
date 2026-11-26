@@ -302,7 +302,7 @@ extension AIClient {
             return try await AppleIntelligence.answer(system: system, prompt: prompt, tools: tools, onCall: onCall)
         }
         guard let llm = config.llm as? any LLMToolProvider else {
-            throw AIError.notConfigured(String(localized: "AI is turned off in Settings.", bundle: .module))
+            throw AIError.notConfigured(String(localized: "AI is turned off in Settings.", bundle: .kit))
         }
         let byName = Dictionary(tools.map { ($0.spec.name, $0) }, uniquingKeysWith: { a, _ in a })
         var messages: [AIToolMessage] = [.user(prompt)]
@@ -337,7 +337,7 @@ extension AIClient {
             guard (200..<300).contains(status) else {
                 // Ollama refuses tools for models that weren't trained to use them.
                 if status == 400, String(decoding: data, as: UTF8.self).contains("does not support tools") {
-                    throw AIError.notConfigured(String(localized: "\(config.model) can't look things up. Choose a model with tool support in Settings > AI, like gemma4, llama3.3, or qwen2.5.", bundle: .module))
+                    throw AIError.notConfigured(String(localized: "\(config.model) can't look things up. Choose a model with tool support in Settings > AI, like gemma4, llama3.3, or qwen2.5.", bundle: .kit))
                 }
                 throw AIError.forStatus(status, body: data, provider: llm.displayName)
             }

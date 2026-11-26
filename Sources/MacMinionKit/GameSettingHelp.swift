@@ -112,7 +112,7 @@ private final class TipCache: @unchecked Sendable {
             return cached
         }
         lock.unlock()
-        let value = String(localized: key, bundle: .module)
+        let value = String(localized: key, bundle: .kit)
         lock.lock()
         strings[id] = value
         lock.unlock()

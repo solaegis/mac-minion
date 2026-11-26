@@ -159,13 +159,13 @@ public struct SVUsage: Sendable {
         }
         let accountBuckets = sorted(accounts) { id, bytes, files in
             let yours = names.ownAccounts.contains(id)
-            var bucket = Bucket(kind: .account, id: id, title: id, detail: yours ? String(localized: "yours", bundle: .module) : String(localized: "someone else's", bundle: .module),
+            var bucket = Bucket(kind: .account, id: id, title: id, detail: yours ? String(localized: "yours", bundle: .kit) : String(localized: "someone else's", bundle: .kit),
                                 bytes: bytes, files: files, file: nil, path: [], flagged: !yours)
             bucket.byFile = breakdown(id)
             return bucket
         }.sorted { a, b in a.flagged != b.flagged ? !a.flagged : a.bytes > b.bytes }
         let serverBuckets = sorted(servers) { id, bytes, files in
-            Bucket(kind: .server, id: id, title: id, detail: id == "Default" ? String(localized: "no profile: shared across megaservers", bundle: .module) : nil,
+            Bucket(kind: .server, id: id, title: id, detail: id == "Default" ? String(localized: "no profile: shared across megaservers", bundle: .kit) : nil,
                    bytes: bytes, files: files, file: nil, path: [], flagged: false)
         }
         return SVUsage(totalBytes: tally.totalBytes,

@@ -27,18 +27,18 @@ public struct GameFolderItem: Sendable, Identifiable, Equatable {
 
         public var purpose: String {
             switch self {
-            case .savedVariables: String(localized: "Your addons' settings and data, plus some of the game's own", bundle: .module)
-            case .addOnSettings: String(localized: "Which addons are on for each character", bundle: .module)
-            case .userSettings: String(localized: "Video, audio, and interface settings", bundle: .module)
-            case .machineSettings: String(localized: "A few renderer settings for this Mac", bundle: .module)
-            case .shaderCache: String(localized: "Compiled shaders; rebuilt on the next login", bundle: .module)
-            case .pipelineCache: String(localized: "Compiled graphics pipelines; rebuilt on the next login", bundle: .module)
-            case .cachedData: String(localized: "The game's own cache", bundle: .module)
-            case .titleStorage: String(localized: "The game's own storage", bundle: .module)
-            case .guildHistory: String(localized: "Guild history the game and addons read", bundle: .module)
-            case .logs: String(localized: "The game's and the interface's logs", bundle: .module)
-            case .errors: String(localized: "Crash reports for ZeniMax", bundle: .module)
-            case .screenshots: String(localized: "Your screenshots", bundle: .module)
+            case .savedVariables: String(localized: "Your addons' settings and data, plus some of the game's own", bundle: .kit)
+            case .addOnSettings: String(localized: "Which addons are on for each character", bundle: .kit)
+            case .userSettings: String(localized: "Video, audio, and interface settings", bundle: .kit)
+            case .machineSettings: String(localized: "A few renderer settings for this Mac", bundle: .kit)
+            case .shaderCache: String(localized: "Compiled shaders; rebuilt on the next login", bundle: .kit)
+            case .pipelineCache: String(localized: "Compiled graphics pipelines; rebuilt on the next login", bundle: .kit)
+            case .cachedData: String(localized: "The game's own cache", bundle: .kit)
+            case .titleStorage: String(localized: "The game's own storage", bundle: .kit)
+            case .guildHistory: String(localized: "Guild history the game and addons read", bundle: .kit)
+            case .logs: String(localized: "The game's and the interface's logs", bundle: .kit)
+            case .errors: String(localized: "Crash reports for ZeniMax", bundle: .kit)
+            case .screenshots: String(localized: "Your screenshots", bundle: .kit)
             }
         }
     }

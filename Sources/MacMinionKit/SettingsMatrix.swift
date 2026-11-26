@@ -185,8 +185,8 @@ public struct SettingsMatrix: Sendable {
     public let homes: [String: Home]
 
     /// Shown when no file says which account or megaserver a character is on.
-    public static let unknownAccount = String(localized: "Unknown account", bundle: .module)
-    public static let unknownServer = String(localized: "Unknown megaserver", bundle: .module)
+    public static let unknownAccount = String(localized: "Unknown account", bundle: .kit)
+    public static let unknownServer = String(localized: "Unknown megaserver", bundle: .kit)
 
     public func addon(_ file: String) -> Addon? { addons.first { $0.file == file } }
 

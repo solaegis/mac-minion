@@ -122,10 +122,11 @@ for lproj in "$loc_tmp"/*.lproj; do
   ditto "$lproj" "$dest"
 done
 rm -rf "$loc_tmp"
-# Kit catalog: SPM embeds MacMinion_MacMinionKit.bundle so Bundle.module resolves. Search every
-# product layout swift build has used, accept only a real Contents-style bundle, and synthesize
-# one from the kit String Catalog when SPM left nothing usable (silent missing/malformed packs
-# crash Find More / Installed on FilterMenuItems → Recency/RatingFilter.title).
+# Kit catalog: MacMinionKit loads strings via Bundle.kit (Contents/Resources), not SPM's
+# Bundle.module. CI's native SPM accessor looks at the app root, which codesign rejects as
+# unsealed contents, so we never place the kit beside Contents/. Search every product layout
+# swift build has used, accept only a real Contents-style bundle, and synthesize one from the
+# kit String Catalog when SPM left nothing usable.
 kit_dest_name="MacMinion_MacMinionKit.bundle"
 kit_dest="$app/Contents/Resources/$kit_dest_name"
 if [[ $config == debug ]]; then products_config=Debug; else products_config=Release; fi
@@ -193,7 +194,7 @@ PLIST
   rm -rf "$kit_tmp"
 fi
 if ! kit_is_valid "$kit_dest"; then
-  echo "build failed: $kit_dest_name missing or not a Contents-style resource bundle (Bundle.module would crash Find More)"
+  echo "build failed: $kit_dest_name missing or not a Contents-style resource bundle in Contents/Resources (Bundle.kit would crash Find More)"
   exit 1
 fi
 # ESO Mac Minion, the in-game companion: copy the addon payload when the sibling repo is present.

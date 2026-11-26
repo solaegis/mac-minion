@@ -17,13 +17,13 @@ public enum SavedVariablesWrite {
         public var description: String {
             switch self {
             case .parseFailed(let why):
-                String(localized: "The new SavedVariables text doesn't parse: \(why)", bundle: .module)
+                String(localized: "The new SavedVariables text doesn't parse: \(why)", bundle: .kit)
             case .unintendedChanges:
-                String(localized: "The edit would change keys MacMinion wasn't asked to change.", bundle: .module)
+                String(localized: "The edit would change keys MacMinion wasn't asked to change.", bundle: .kit)
             case .fileChangedSinceRead:
-                String(localized: "The file changed on disk since it was read, so nothing was written.", bundle: .module)
+                String(localized: "The file changed on disk since it was read, so nothing was written.", bundle: .kit)
             case .io(let why):
-                String(localized: "Couldn't write the SavedVariables file: \(why)", bundle: .module)
+                String(localized: "Couldn't write the SavedVariables file: \(why)", bundle: .kit)
             }
         }
 
@@ -77,7 +77,7 @@ public enum SavedVariablesWrite {
         let oldDoc = SVDocument.parse(stamp.data)
         if oldDoc.error != nil {
             // Editing a file we already refused to treat as a tree shouldn't happen; still refuse.
-            throw Refusal.parseFailed(String(localized: "The original file doesn't parse.", bundle: .module))
+            throw Refusal.parseFailed(String(localized: "The original file doesn't parse.", bundle: .kit))
         }
         if !LuaCompare.onlyAllowedPathsDiffer(old: oldDoc, new: newDoc, allowed: allowed) {
             throw Refusal.unintendedChanges

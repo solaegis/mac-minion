@@ -17,7 +17,7 @@ public struct OllamaProvider: LLMProvider {
     /// None: ModelAdvisor picks from the models installed on the server.
     public var defaultModel: String { "" }
     public var availableModels: [String] { [] }
-    public var unreachableMessage: String { String(localized: "Can't reach Ollama at \(base.absoluteString). Is it running?", bundle: .module) }
+    public var unreachableMessage: String { String(localized: "Can't reach Ollama at \(base.absoluteString). Is it running?", bundle: .kit) }
 
     public func chatRequest(messages: [ChatMessage], model: String, system: String?, options: ChatOptions) throws -> URLRequest {
         var r = URLRequest(url: base.appending(path: "api/chat"), timeoutInterval: AIClient.idleTimeout)
@@ -163,7 +163,7 @@ public struct AnthropicProvider: LLMProvider {
             switch event.error?.type {
             case "overloaded_error", "api_error": throw AIError.outage(displayName)
             case "rate_limit_error": throw AIError.rateLimited(displayName)
-            default: throw AIError.http(0, AIError.redacted(event.error?.message ?? String(localized: "The stream failed.", bundle: .module)))
+            default: throw AIError.http(0, AIError.redacted(event.error?.message ?? String(localized: "The stream failed.", bundle: .kit)))
             }
         default:
             return []
@@ -241,7 +241,7 @@ public struct OpenAIProvider: LLMProvider {
         struct Chunk: Decodable { let choices: [Choice]?; let usage: Usage?; let error: ErrorBody? }
         guard let json = SSE.data(line), json != "[DONE]",
               let chunk = try? JSONDecoder().decode(Chunk.self, from: Data(json.utf8)) else { return [] }
-        if let error = chunk.error { throw AIError.http(0, AIError.redacted(error.message ?? String(localized: "The stream failed.", bundle: .module))) }
+        if let error = chunk.error { throw AIError.http(0, AIError.redacted(error.message ?? String(localized: "The stream failed.", bundle: .kit))) }
         var events: [ChatEvent] = []
         for choice in chunk.choices ?? [] {
             if let refusal = choice.delta?.refusal, !refusal.isEmpty { throw AIError.refused(refusal) }
